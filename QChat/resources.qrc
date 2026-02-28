@@ -3,7 +3,6 @@
         <file>images/favicon.png</file>
         <file>style/stylesheet.qss</file>
         <file>images/conversation.png</file>
-        <file>images/loading.png</file>
         <file>images/unvisible_black.png</file>
         <file>images/unvisible_blue.png</file>
         <file>images/visible_black.png</file>
@@ -42,7 +41,6 @@
         <file>images/head_4.jpg</file>
         <file>images/head_5.jpg</file>
         <file>images/red_point.png</file>
-        <file>images/loading.gif</file>
         <file>images/close_transparent.png</file>
         <file>images/head_default.png</file>
         <file>images/msg_chat_hover.png</file>
@@ -54,5 +52,12 @@
         <file>images/voice_chat_hover.png</file>
         <file>images/voice_chat_normal.png</file>
         <file>images/voice_chat_press.png</file>
+        <file>images/setting_hover.png</file>
+        <file>images/setting_normal.png</file>
+        <file>images/setting_press.png</file>
+        <file>images/readed.png</file>
+        <file>images/send_fail.png</file>
+        <file>images/unread.png</file>
+        <file>images/loading2.gif</file>
     </qresource>
 </RCC>

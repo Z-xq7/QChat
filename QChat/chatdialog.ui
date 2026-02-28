@@ -48,13 +48,13 @@
      </property>
      <property name="minimumSize">
       <size>
-       <width>56</width>
+       <width>54</width>
        <height>0</height>
       </size>
      </property>
      <property name="maximumSize">
       <size>
-       <width>56</width>
+       <width>54</width>
        <height>16777215</height>
       </size>
      </property>
@@ -63,22 +63,34 @@
        <number>7</number>
       </property>
       <property name="leftMargin">
-       <number>5</number>
+       <number>7</number>
       </property>
       <property name="topMargin">
        <number>30</number>
       </property>
       <property name="rightMargin">
-       <number>5</number>
+       <number>7</number>
       </property>
       <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
        <widget class="QWidget" name="widget" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>40</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>40</width>
+          <height>16777215</height>
+         </size>
+        </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <property name="spacing">
-          <number>30</number>
+          <number>20</number>
          </property>
          <property name="leftMargin">
           <number>0</number>
@@ -118,20 +130,39 @@
           <widget class="StateWidget" name="side_chat_lb" native="true">
            <property name="minimumSize">
             <size>
-             <width>35</width>
-             <height>35</height>
+             <width>38</width>
+             <height>38</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>35</width>
-             <height>35</height>
+             <width>38</width>
+             <height>38</height>
             </size>
            </property>
           </widget>
          </item>
          <item>
           <widget class="StateWidget" name="side_contact_lb" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>38</width>
+             <height>38</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>38</width>
+             <height>38</height>
+            </size>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LayoutDirection::LeftToRight</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="StateWidget" name="side_settings_lb" native="true">
            <property name="minimumSize">
             <size>
              <width>35</width>
@@ -289,9 +320,10 @@
    <item>
     <widget class="QStackedWidget" name="stackedWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="ChatPage" name="chat_page"/>
+     <widget class="UserInfoPage" name="user_info_page"/>
      <widget class="ApplyFriendPage" name="friend_apply_page"/>
      <widget class="FriendInfoPage" name="friend_info_page"/>
     </widget>
@@ -346,6 +378,12 @@
    <class>FriendInfoPage</class>
    <extends>QWidget</extends>
    <header location="global">friendinfopage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>UserInfoPage</class>
+   <extends>QWidget</extends>
+   <header location="global">userinfopage.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

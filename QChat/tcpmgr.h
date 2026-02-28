@@ -63,6 +63,10 @@ signals:
     void sig_notify_offline();
     //连接异常通知连接关闭
     void sig_connection_closed();
+    //加载聊天线程
+    void sig_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
+    //通知界面添加聊天item
+    void sig_create_private_chat(int uid, int other_id, int thread_id);
 };
 
 #endif // TCPMGR_H

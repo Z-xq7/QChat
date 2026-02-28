@@ -99,6 +99,9 @@ void LogicSystem::RegisterCallBacks() {
 
 	_fun_callbacks[ID_LOAD_CHAT_THREAD_REQ] = std::bind(&LogicSystem::GetUserThreadsHandler, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	_fun_callbacks[ID_CREATE_PRIVATE_CHAT_REQ] = std::bind(&LogicSystem::CreatePrivateChat, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
 }
 
 //处理用户登录的逻辑：1.先从redis获取用户token是否正确；2.如果token正确则说明登录成功，接着从数据库获取用户基本信息；
@@ -435,6 +438,7 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> session, const short
 	ChatGrpcClient::GetInstance()->NotifyAuthFriend(to_ip_value, auth_req);
 }
 
+//处理聊天消息的逻辑：1.先从数据库获取发送者基本信息；2.查询redis 查找接收者对应的server ip；3.如果在本服务器则直接通知对方有消息；
 void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
 	Json::Reader reader;
 	Json::Value root;
@@ -495,6 +499,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	ChatGrpcClient::GetInstance()->NotifyTextChatMsg(to_ip_value, text_msg_req, rtvalue);
 }
 
+//心跳处理函数：1.更新session中的心跳时间；2.如果心跳过期则说明客户端已经掉线，进行相应的处理
 void LogicSystem::HeartBeatHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
 	Json::Reader reader;
 	Json::Value root;
@@ -506,6 +511,7 @@ void LogicSystem::HeartBeatHandler(std::shared_ptr<CSession> session, const shor
 	session->Send(rtvalue.toStyledString(), ID_HEART_BEAT_RSP);
 }
 
+//获取服务器存储的聊天线程信息
 void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
 {
 	//从数据库加载chat_threads记录
@@ -513,6 +519,7 @@ void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const
 	Json::Value root;
 	reader.parse(msg_data, root);
 	auto uid = root["uid"].asInt();
+	int last_id = root["thread_id"].asInt();
 	std::cout << "Get Uid Threads: " << uid << std::endl;
 
 	Json::Value rtvalue;
@@ -525,13 +532,20 @@ void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const
 	});
 
 	std::vector<std::shared_ptr<ChatThreadInfo>> threads;
-	bool res = GetUserThreads(uid,threads);
+
+	//定义一次查询的数量，是否有下一页，下一页的last_id
+	int page_size = 10;
+	bool load_more = false;
+	int next_last_id = 0;
+	bool res = GetUserThreads(uid,last_id,page_size,threads,load_more,next_last_id);
 	if (!res)
 	{
 		rtvalue["error"] = ErrorCodes::UidInvalid;
 		return;
 	}
 
+	rtvalue["load_more"] = load_more;
+	rtvalue["next_thread_id"] = (int)next_last_id;
 	//整理threads数据写入json返回
 	for (auto& thread : threads)
 	{
@@ -542,6 +556,34 @@ void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const
 		thread_value["user2_id"] = thread->_user2_id;
 		rtvalue["threads"].append(thread_value);
 	}
+}
+
+void LogicSystem::CreatePrivateChat(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto uid = root["uid"].asInt();
+	auto other_id = root["other_id"].asInt();
+
+	Json::Value  rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["uid"] = uid;
+	rtvalue["other_id"] = other_id;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_CREATE_PRIVATE_CHAT_RSP);
+		});
+
+	int thread_id = 0;
+	bool res = MysqlMgr::GetInstance()->CreatePrivateChat(uid, other_id, thread_id);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::CREATE_CHAT_FAILED;
+		return;
+	}
+
+	rtvalue["thread_id"] = thread_id;
 }
 
 bool LogicSystem::isPureDigit(const std::string& str)
@@ -749,7 +791,8 @@ bool LogicSystem::GetFriendList(int self_id, std::vector<std::shared_ptr<UserInf
 	return MysqlMgr::GetInstance()->GetFriendList(self_id, user_list);
 }
 
-bool LogicSystem::GetUserThreads(int userId, std::vector<std::shared_ptr<ChatThreadInfo>>& threads)
+bool LogicSystem::GetUserThreads(int64_t userId, int64_t last_id, int page_size,
+	std::vector<std::shared_ptr<ChatThreadInfo>>& threads, bool& load_more, int& next_last_id)
 {
-	return MysqlMgr::GetInstance()->GetUserThreads(userId,threads);
+	return MysqlMgr::GetInstance()->GetUserThreads(userId,last_id,page_size,threads,load_more,next_last_id);
 }

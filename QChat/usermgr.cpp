@@ -26,6 +26,21 @@ QString UserMgr::GetName()
     return _user_info->_name;
 }
 
+QString UserMgr::GetNick()
+{
+    return _user_info->_nick;
+}
+
+QString UserMgr::GetIcon()
+{
+    return _user_info->_icon;
+}
+
+QString UserMgr::GetDesc()
+{
+    return _user_info->_desc;
+}
+
 std::vector<std::shared_ptr<ApplyInfo> > UserMgr::GetApplyList()
 {
     return _apply_list;
@@ -220,6 +235,33 @@ void UserMgr::AppendFriendChatMsg(int friend_id, std::vector<std::shared_ptr<Tex
     }
 
     find_iter.value()->AppendChatMsgs(msgs);
+}
+
+void UserMgr::AddChatThreadData(std::shared_ptr<ChatThreadData> chat_thread_data, int other_uid)
+{
+    //建立会话id到数据的映射关系
+    _chat_map[chat_thread_data->_thread_id] = chat_thread_data;
+    //将对方uid和会话id关联
+    _uid_to_thread_id[other_uid] = chat_thread_data->_thread_id;
+}
+
+void UserMgr::SetLastChatThreadId(int id)
+{
+    _last_chat_thread_id = id;
+}
+
+int UserMgr::GetLastChatThreadId()
+{
+    return _last_chat_thread_id;
+}
+
+int UserMgr::GetThreadIdByUid(int uid)
+{
+    auto iter = _uid_to_thread_id.find(uid);
+    if(iter == _uid_to_thread_id.end()){
+        return -1;
+    }
+    return iter.value();
 }
 
 

@@ -17,6 +17,9 @@ public:
     void SetToken(QString token);
     int GetUid();
     QString GetName();
+    QString GetNick();
+    QString GetIcon();
+    QString GetDesc();
 
     //获取申请列表
     std::vector<std::shared_ptr<ApplyInfo>> GetApplyList();
@@ -54,6 +57,14 @@ public:
     bool IsLoadConFin();
     //缓存和好友的消息内容
     void AppendFriendChatMsg(int friend_id,std::vector<std::shared_ptr<TextChatData>>);
+    //添加聊天信息
+    void AddChatThreadData(std::shared_ptr<ChatThreadData>chat_thread_data,int other_uid);
+    //设置最后加载的thread聊天id
+    void SetLastChatThreadId(int last_chat_thread_id);
+    //获取最后加载的thread聊天id
+    int GetLastChatThreadId();
+    //根据uid获取thread_id
+    int GetThreadIdByUid(int uid);
 
 private:
     UserMgr();
@@ -71,6 +82,12 @@ private:
     int _chat_loaded;
     //好友信息列表加载位置
     int _contact_loaded;
+    //建立会话thread_id到数据的映射关系
+    QMap<int,std::shared_ptr<ChatThreadData>> _chat_map;
+    //建立将对方uid和会话id关联
+    QMap<int,int> _uid_to_thread_id;
+    //记录最后加载的thread聊天id
+    int _last_chat_thread_id;
 };
 
 #endif // USERMGR_H

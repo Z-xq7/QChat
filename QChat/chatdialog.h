@@ -23,20 +23,26 @@ public:
     explicit ChatDialog(QWidget *parent = nullptr);
     ~ChatDialog();
 
-    //添加聊天用户列表
-    void addChatUserList();
+    //添加聊天用户列表(已废弃)
+    //void addChatUserList();
+    //加载聊天列表
+    void loadChatList();
+    //加载聊天信息
+    void loadChatMsg();
     //清楚侧边栏状态
     void ClearLabelState(StateWidget* lb);
     //更新聊天列表信息
-    void SetSelectChatItem(int uid = 0);
+    void SetSelectChatItem(int thread_id = 0);
     //更新聊天页面信息
-    void SetSelectChatPage(int uid = 0);
-    //加载更多的聊天好友列表
+    void SetSelectChatPage(int thread_id = 0);
+    //加载更多的聊天好友列表(已废弃)
     void LoadMoreChatUser();
     //加载更多的好友信息列表
     void LoadMoreConUser();
     //更新聊天界面显示消息
     void UpdateChatMsg(std::vector<std::shared_ptr<TextChatData>> msgdata);
+    //显示加载对话框
+    void showLoadingDlg(bool show);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -54,12 +60,18 @@ private:
     QList<StateWidget*> _lb_list;
     //管理聊天列表
     QMap<int, QListWidgetItem*> _chat_items_added;
+    //chat_thread_id与item的映射关系
+    QMap<int, QListWidgetItem*> _chat_thread_items;
     //当前的聊天编号
     int _cur_chat_uid;
     //记录上次的widget状态
     QWidget*_last_widget;
     //心跳定时器
     QTimer* _timer;
+    //加载对话框指针
+    LoadingDialog* _loading_dialog;
+    //
+    std::shared_ptr<ChatThreadData> _cur_load_chat;
 
 private slots:
     //加载未显示的聊天列表
@@ -68,6 +80,7 @@ private slots:
     void slot_loading_contact_user();
     void slot_side_chat();
     void slot_side_contact();
+    void slot_side_settings();
     void slot_text_changed(const QString& str);
 
 public slots:
@@ -90,6 +103,10 @@ public slots:
     void slot_append_send_chat_msg(std::shared_ptr<TextChatData> msgdata);
     //对方发来消息通知
     void slot_text_chat_msg(std::shared_ptr<TextChatMsg> msg);
+    //加载聊天列表
+    void slot_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
+    //从friendinfopage新创建聊天item
+    void slot_create_private_chat(int uid, int other_id, int thread_id);
 };
 
 #endif // CHATDIALOG_H

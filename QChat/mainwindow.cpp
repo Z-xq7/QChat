@@ -133,6 +133,8 @@ void MainWindow::SlotSwitchChat()
 
     this->setMinimumSize(QSize(880,650));
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    //加载聊天列表
+    _chat_dlg->loadChatList();
 }
 
 void MainWindow::SlotOffline()

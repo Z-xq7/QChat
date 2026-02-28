@@ -49,6 +49,10 @@ enum ReqId{
     ID_NOTIFY_OFF_LINE_REQ = 1021, //通知用户下线
     ID_HEART_BEAT_REQ = 1023,      //心跳请求
     ID_HEART_BEAT_RSP = 1024,       //心跳回复
+    ID_LOAD_CHAT_THREAD_REQ = 1025, //加载聊天线程请求
+    ID_LOAD_CHAT_THREAD_RSP = 1026, //加载聊天线程回复
+    ID_CREATE_PRIVATE_CHAT_REQ = 1027, //创建私聊线程请求
+    ID_CREATE_PRIVATE_CHAT_RSP = 1028, //创建私聊线程回复
 };
 
 //模块
@@ -96,6 +100,7 @@ enum ChatUIMode{
     SearchMode,     //搜索模式
     ChatMode,       //聊天模式
     ContactMode,    //联系模式
+    SettingsMode,   //设置模式
 };
 
 //自定义的QListWidgetItem的几种类型
@@ -121,6 +126,12 @@ struct MsgInfo{
     QString msgFlag;    //"text,image,file"
     QString content;    //表示文件和图像的url
     QPixmap pixmap;     //文件和图片的缩略图
+};
+
+enum MsgStatus{
+    UN_READ = 0,        //对方未读
+    SEND_FAILED = 1,    //发送失败
+    READED = 2          //对方已读
 };
 
 //仅做测试用！

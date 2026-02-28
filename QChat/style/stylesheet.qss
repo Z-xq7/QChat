@@ -379,7 +379,7 @@ LoadingDialog{
 }
 
 #side_contact_lb[state='hover']{
-    border-image: url(:/images/frient_list_hover.png);
+    border-image: url(:/images/friend_list_hover.png);
 }
 
 #side_contact_lb[state='pressed']{
@@ -396,6 +396,30 @@ LoadingDialog{
 
 #side_contact_lb[state='selected_pressed']{
     border-image: url(:/images/friend_list.png);
+}
+
+#side_settings_lb[state='normal']{
+    border-image: url(:/images/setting_normal.png);
+}
+
+#side_settings_lb[state='hover']{
+    border-image: url(:/images/setting_hover.png);
+}
+
+#side_settings_lb[state='pressed']{
+    border-image: url(:/images/setting_press.png);
+}
+
+#side_settings_lb[state='selected_normal']{
+    border-image: url(:/images/setting_press.png);
+}
+
+#side_settings_lb[state='selected_hover']{
+    border-image: url(:/images/setting_press.png);
+}
+
+#side_settings_lb[state='selected_pressed']{
+    border-image: url(:/images/setting_press.png);
 }
 
 /* 搜索框 */

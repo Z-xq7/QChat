@@ -19,6 +19,7 @@ public:
     QSize sizeHint() const override {
         return QSize(230, 65); // 返回自定义的尺寸
     }
+
     //设置聊天列表用户item信息（由用户信息）
     void SetInfo(std::shared_ptr<UserInfo> user_info);
     //设置聊天列表用户item信息(由好友信息)

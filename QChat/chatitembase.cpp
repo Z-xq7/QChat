@@ -29,6 +29,13 @@ ChatItemBase::ChatItemBase(ChatRole role, QWidget *parent):QWidget(parent),m_rol
 
     //设置弹簧
     QSpacerItem*pSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+    //添加状态图标
+    m_pStatusLabel = new QLabel();
+    m_pStatusLabel->setFixedSize(15,15);
+    //设置图片是否应该根据QLabel的大小进行缩放
+    m_pStatusLabel->setScaledContents(true);
+
     //判断是谁发的消息，来区分消息位置
     if(m_role == ChatRole::Self)
     {
@@ -36,17 +43,20 @@ ChatItemBase::ChatItemBase(ChatRole role, QWidget *parent):QWidget(parent),m_rol
         m_pNameLabel->setContentsMargins(0,0,8,0);
         //设置名字右对齐
         m_pNameLabel->setAlignment(Qt::AlignRight);
-        //设置名字在网格布局中的位置->第0行第1列，占了一行一列
-        pGLayout->addWidget(m_pNameLabel, 0,1, 1,1);
-        //设置头像在网格布局中的位置->第0行第2列，占了两行一列
-        pGLayout->addWidget(m_pIconLabel, 0, 2, 2,1, Qt::AlignTop);
+        //设置名字在网格布局中的位置->第0行第2列，占了一行一列
+        pGLayout->addWidget(m_pNameLabel, 0,2, 1,1);
+        //设置头像在网格布局中的位置->第0行第3列，占了两行一列
+        pGLayout->addWidget(m_pIconLabel, 0, 3, 2,1, Qt::AlignTop);
         //设置弹簧在网格布局中的位置
         pGLayout->addItem(pSpacer, 1, 0, 1, 1);
+        //设置状态Label在网格布局中的位置
+        pGLayout->addWidget(m_pStatusLabel, 1, 1, 1, 1,Qt::AlignCenter);
         //设置聊天气泡在网格布局中的位置
-        pGLayout->addWidget(m_pBubble, 1,1, 1,1);
+        pGLayout->addWidget(m_pBubble, 1,2, 1,1);
         //设置拉伸比例
         pGLayout->setColumnStretch(0, 2);
-        pGLayout->setColumnStretch(1, 3);
+        pGLayout->setColumnStretch(1, 0);   //status图标固定大小
+        pGLayout->setColumnStretch(2, 3);   //名字+气泡
     }else{
         m_pNameLabel->setContentsMargins(8,0,0,0);
         m_pNameLabel->setAlignment(Qt::AlignLeft);
@@ -54,6 +64,7 @@ ChatItemBase::ChatItemBase(ChatRole role, QWidget *parent):QWidget(parent),m_rol
         pGLayout->addWidget(m_pNameLabel, 0,1, 1,1);
         pGLayout->addWidget(m_pBubble, 1,1, 1,1);
         pGLayout->addItem(pSpacer, 2, 2, 1, 1);
+
         pGLayout->setColumnStretch(1, 3);
         pGLayout->setColumnStretch(2, 2);
     }
@@ -80,4 +91,20 @@ void ChatItemBase::setWidget(QWidget *w)
     //内存管理，手动删除被替换的聊天气泡，避免内存泄漏
     delete m_pBubble;
     m_pBubble = w;
+}
+
+void ChatItemBase::setStatus(int status)
+{
+    if(status == MsgStatus::UN_READ){
+        m_pStatusLabel->setPixmap(QPixmap(":/images/unread.png"));
+        return;
+    }
+    else if(status == MsgStatus::SEND_FAILED){
+        m_pStatusLabel->setPixmap(QPixmap(":/images/send_fail.png"));
+        return;
+    }
+    else if(status == MsgStatus::READED){
+        m_pStatusLabel->setPixmap(QPixmap(":/images/readed.png"));
+        return;
+    }
 }

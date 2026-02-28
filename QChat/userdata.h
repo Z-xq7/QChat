@@ -109,16 +109,16 @@ struct FriendInfo {
 
 //用户个人信息
 struct UserInfo {
-    UserInfo(int uid, QString name, QString nick, QString icon, int sex, QString last_msg):
-        _uid(uid),_name(name),_nick(nick),_icon(icon),_sex(sex),_last_msg(last_msg){}
+    UserInfo(int uid, QString name, QString nick, QString icon, int sex, QString last_msg = "", QString desc=""):
+        _uid(uid),_name(name),_nick(nick),_icon(icon),_sex(sex),_desc(desc),_last_msg(last_msg){}
 
     UserInfo(std::shared_ptr<AuthInfo> auth):
         _uid(auth->_uid),_name(auth->_name),_nick(auth->_nick),
-        _icon(auth->_icon),_sex(auth->_sex),_last_msg(""){}
+        _icon(auth->_icon),_sex(auth->_sex),_desc(""),_last_msg(""){}
 
     UserInfo(int uid, QString name, QString icon):
-    _uid(uid), _name(name), _nick(_name), _icon(icon),
-        _sex(0),_last_msg(""){}
+        _uid(uid), _name(name),_nick(_name), _icon(icon),
+        _sex(0),_desc(""),_last_msg(""){}
 
     UserInfo(std::shared_ptr<AuthRsp> auth):
         _uid(auth->_uid),_name(auth->_name),_nick(auth->_nick),
@@ -130,7 +130,8 @@ struct UserInfo {
 
     UserInfo(std::shared_ptr<FriendInfo> friend_info):
         _uid(friend_info->_uid),_name(friend_info->_name),_nick(friend_info->_nick),
-        _icon(friend_info->_icon),_sex(friend_info->_sex),_last_msg(""){
+        _icon(friend_info->_icon),_sex(friend_info->_sex),_last_msg("")
+    {
         _chat_msgs = friend_info->_chat_msgs;
     }
 
@@ -139,6 +140,7 @@ struct UserInfo {
     QString _nick;
     QString _icon;
     int _sex;
+    QString _desc;
     QString _last_msg;
     std::vector<std::shared_ptr<TextChatData>> _chat_msgs;
 };
@@ -170,6 +172,32 @@ struct TextChatMsg{
     int _to_uid;
     int _from_uid;
     std::vector<std::shared_ptr<TextChatData>> _chat_msgs;
+};
+
+//聊天列表信息
+struct ChatThreadInfo{
+    ChatThreadInfo(){}
+    ChatThreadInfo(int thread_id,QString type,int user1_id,int user2_id):
+        _thread_id(thread_id),_type(type),_user1_id(user1_id),_user2_id(user2_id){}
+
+    int _thread_id;
+    QString _type;
+    int _user1_id;
+    int _user2_id;
+};
+
+//客户端本地存储的聊天线程数据结构
+struct ChatThreadData{
+    ChatThreadData(){}
+    ChatThreadData(int other_id,int thread_id,int last_msg_id):
+        _user2_id(other_id),_thread_id(thread_id),_last_msg_id(last_msg_id){}
+
+    int _user1_id;
+    int _user2_id;
+    int _last_msg_id;
+    int _thread_id;
+    //缓存消息map，后期抽象为基类，因为会有图片等其他类型消息
+    QMap<int, std::shared_ptr<TextChatData>> _mag_map;
 };
 
 #endif // USERDATA_H

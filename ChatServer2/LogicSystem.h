@@ -45,6 +45,8 @@ private:
 	void HeartBeatHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//获取服务器存储的聊天线程信息
 	void GetUserThreadsHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理创建私聊线程的逻辑：1.先从数据库创建私聊线程；2.查询redis 查找对方对应的server ip；3.如果在本服务器则直接通知对方有新线程；4.如果不在本服务器则通过grpc通知对应服务器有新线程
+	void CreatePrivateChat(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 
 	//判断字符串是否为纯数字（用来判断客户端搜索的是uid还是名字）
 	bool isPureDigit(const std::string& str);
@@ -58,7 +60,8 @@ private:
 	//获取好友列表
 	bool GetFriendList(int self_id, std::vector<std::shared_ptr<UserInfo>> & user_list);
 	//获取聊天线程
-	bool GetUserThreads(int userId,std::vector<std::shared_ptr<ChatThreadInfo>>& threads);
+	bool GetUserThreads(int64_t userId, int64_t last_id, int page_size,
+		std::vector<std::shared_ptr<ChatThreadInfo>>& threads, bool& load_more, int& next_last_id);
 
 	std::thread _worker_thread;
 	std::queue<shared_ptr<LogicNode>> _msg_que;
