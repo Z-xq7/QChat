@@ -125,6 +125,11 @@ public:
                  QString content,int _send_uid);
     ChatDataBase(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
                  QString content, int send_uid);
+    ChatDataBase(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+                 QString content,int _send_uid, QString chat_time);
+    ChatDataBase(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+                 QString content, int send_uid, QString chat_time);
+
     int GetMsgId() { return _msg_id; }
     int GetThreadId() { return _thread_id; }
     ChatFormType GetFormType() { return _form_type; }
@@ -134,6 +139,7 @@ public:
     QString GetMsgContent(){return _content;}
     void SetUniqueId(int unique_id);
     QString GetUniqueId();
+
 private:
     //客户端本地唯一标识
     QString _unique_id;
@@ -145,22 +151,31 @@ private:
     ChatFormType _form_type;
     //文本信息为0，图片为1，文件为2
     ChatMsgType _msg_type;
+    //消息内容
     QString _content;
     //发送者id
     int _send_uid;
+    //发送时间
+    QString _chat_time;
 };
 
 class TextChatData : public ChatDataBase {
 public:
     TextChatData(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,  QString content,
                  int send_uid):
-        ChatDataBase(msg_id, thread_id, form_type, msg_type, content, send_uid)
-    {}
+        ChatDataBase(msg_id, thread_id, form_type, msg_type, content, send_uid){}
 
     TextChatData(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type, QString content,
                  int send_uid):
-        ChatDataBase(unique_id, thread_id, form_type, msg_type, content, send_uid)
-    {}
+        ChatDataBase(unique_id, thread_id, form_type, msg_type, content, send_uid){}
+
+    TextChatData(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,  QString content,
+                 int send_uid,QString chat_time):
+        ChatDataBase(msg_id, thread_id, form_type, msg_type, content, send_uid, chat_time){}
+
+    TextChatData(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type, QString content,
+                 int send_uid,QString chat_time):
+        ChatDataBase(unique_id, thread_id, form_type, msg_type, content, send_uid, chat_time){}
 };
 
 // //保存聊天信息(一条一条的信息)
@@ -194,6 +209,7 @@ public:
         _other_id(other_id), _thread_id(thread_id), _last_msg_id(last_msg_id){}
     void AddMsg(std::shared_ptr<ChatDataBase> msg);
     void SetLastMsgId(int msg_id);
+    int GetLastMsgId();
     void SetOtherId(int other_id);
     int  GetOtherId();
     QString GetGroupName();

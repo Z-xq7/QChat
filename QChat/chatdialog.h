@@ -71,7 +71,7 @@ private:
     QTimer* _timer;
     //加载对话框指针
     LoadingDialog* _loading_dialog;
-    //当前加载的聊天对话
+    //当前加载的聊天对话信息
     std::shared_ptr<ChatThreadData> _cur_load_chat;
 
 private slots:
@@ -108,6 +108,8 @@ public slots:
     void slot_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
     //从friendinfopage新创建聊天item
     void slot_create_private_chat(int uid, int other_id, int thread_id);
+    //加载聊天页面chatpage聊天对话消息
+    void slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
 };
 
 #endif // CHATDIALOG_H

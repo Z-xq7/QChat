@@ -71,6 +71,8 @@ public:
     void AddMsgUnRsp(std::shared_ptr<TextChatData> msg);
     //加载当前聊天对话的消息
     std::shared_ptr<ChatThreadData> GetCurLoadData();
+    //加载当前的下一个聊天对话的消息
+    std::shared_ptr<ChatThreadData> GetNextLoadData();
 
 private:
     UserMgr();

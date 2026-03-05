@@ -16,6 +16,22 @@ ChatDataBase::ChatDataBase(QString unique_id, int thread_id, ChatFormType form_t
 
 }
 
+ChatDataBase::ChatDataBase(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+        QString content, int _send_uid, QString chat_time):
+    _msg_id(msg_id), _thread_id(thread_id), _form_type(form_type), _msg_type(msg_type),
+    _content(content), _send_uid(_send_uid),_chat_time(chat_time)
+{
+    _unique_id = QString::number(msg_id);
+}
+
+ChatDataBase::ChatDataBase(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+        QString content, int send_uid, QString chat_time):
+    _unique_id(unique_id), _thread_id(thread_id), _form_type(form_type), _msg_type(msg_type),
+    _content(content), _send_uid(send_uid), _msg_id(0),_chat_time(chat_time)
+{
+
+}
+
 SearchInfo::SearchInfo(int uid, QString name, QString nick, QString desc, int sex,QString icon):
     _uid(uid),_name(name),_nick(nick),_desc(desc),_sex(sex),_icon(icon)
 {
@@ -59,6 +75,11 @@ void ChatThreadData::AddMsg(std::shared_ptr<ChatDataBase> msg)
 void ChatThreadData::SetLastMsgId(int msg_id)
 {
     _last_msg_id = msg_id;
+}
+
+int ChatThreadData::GetLastMsgId()
+{
+    return _last_msg_id;
 }
 
 void ChatThreadData::SetOtherId(int other_id)

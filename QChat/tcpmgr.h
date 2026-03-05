@@ -68,6 +68,8 @@ signals:
     void sig_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
     //通知界面添加聊天item
     void sig_create_private_chat(int uid, int other_id, int thread_id);
+    //加载聊天界面chatpage的聊天对话消息
+    void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
 };
 
 #endif // TCPMGR_H

@@ -7,7 +7,7 @@ UserMgr::~UserMgr()
 
 }
 
-UserMgr::UserMgr():_user_info(nullptr),_chat_loaded(0),_contact_loaded(0){
+UserMgr::UserMgr():_user_info(nullptr),_chat_loaded(0),_contact_loaded(0),_cur_load_chat_index(0){
 
 }
 
@@ -251,8 +251,12 @@ void UserMgr::AddChatThreadData(std::shared_ptr<ChatThreadData> chat_thread_data
 {
     //建立会话id到数据的映射关系
     _chat_map[chat_thread_data->GetThreadId()] = chat_thread_data;
-    //将对方uid和会话id关联
-    _uid_to_thread_id[other_uid] = chat_thread_data->GetThreadId();
+    //存储会话列表
+    _chat_thread_ids.push_back(chat_thread_data->GetThreadId());
+    if(other_uid){
+        //将对方uid和会话id关联
+        _uid_to_thread_id[other_uid] = chat_thread_data->GetThreadId();
+    }
 }
 
 void UserMgr::SetLastChatThreadId(int id)
@@ -290,7 +294,31 @@ void UserMgr::AddMsgUnRsp(std::shared_ptr<TextChatData> msg)
 
 std::shared_ptr<ChatThreadData> UserMgr::GetCurLoadData()
 {
+    if(_cur_load_chat_index >= _chat_thread_ids.size()){
+        return nullptr;
+    }
 
+    auto iter = _chat_map.find(_chat_thread_ids[_cur_load_chat_index]);
+    if(iter == _chat_map.end()){
+        return nullptr;
+    }
+
+    return iter.value();
+}
+
+std::shared_ptr<ChatThreadData> UserMgr::GetNextLoadData()
+{
+    _cur_load_chat_index++;
+    if(_cur_load_chat_index >= _chat_thread_ids.size()){
+        return nullptr;
+    }
+
+    auto iter = _chat_map.find(_chat_thread_ids[_cur_load_chat_index]);
+    if(iter == _chat_map.end()){
+        return nullptr;
+    }
+
+    return iter.value();
 }
 
 
