@@ -42,21 +42,21 @@ public:
     //被同意为好友后添加好友
     void AddFriend(std::shared_ptr<AuthInfo> auth_info);
     //通过uid搜索好友
-    std::shared_ptr<FriendInfo> GetFriendById(int uid);
+    std::shared_ptr<UserInfo> GetFriendById(int uid);
     //根据每一页加载好友列表（聊天列表）
-    std::vector<std::shared_ptr<FriendInfo>> GetChatListPerPage();
+    std::vector<std::shared_ptr<UserInfo>> GetChatListPerPage();
     //更新已经加载的好友数量（聊天列表）
     void UpdateChatLoadedCount();
     //判断好友列表是否全部加载完（聊天列表）
     bool IsLoadChatFin();
     //根据每一页加载好友信息列表（好友信息列表）
-    std::vector<std::shared_ptr<FriendInfo>> GetConListPerPage();
+    std::vector<std::shared_ptr<UserInfo>> GetConListPerPage();
     //更新已经加载的好友信息数量（好友信息列表）
     void UpdateContactLoadedCount();
     //判断好友信息列表是否全部加载完（好友信息列表）
     bool IsLoadConFin();
-    //缓存和好友的消息内容
-    void AppendFriendChatMsg(int friend_id,std::vector<std::shared_ptr<TextChatData>>);
+    // //缓存和好友的消息内容
+    // void AppendFriendChatMsg(int friend_id,std::vector<std::shared_ptr<TextChatData>>);
     //添加聊天信息
     void AddChatThreadData(std::shared_ptr<ChatThreadData>chat_thread_data,int other_uid);
     //设置最后加载的thread聊天id
@@ -65,6 +65,12 @@ public:
     int GetLastChatThreadId();
     //根据uid获取thread_id
     int GetThreadIdByUid(int uid);
+    //从_chat_map中根据uid获取会话数据
+    std::shared_ptr<ChatThreadData> GetChatThreadByUid(int uid);
+    //将已发送的消息，还未收到回应的消息加到map中管理
+    void AddMsgUnRsp(std::shared_ptr<TextChatData> msg);
+    //加载当前聊天对话的消息
+    std::shared_ptr<ChatThreadData> GetCurLoadData();
 
 private:
     UserMgr();
@@ -73,21 +79,31 @@ private:
     //存储申请列表
     std::vector<std::shared_ptr<ApplyInfo>> _apply_list;
     //存储好友信息
-    std::vector<std::shared_ptr<FriendInfo>> _friend_list;
+    std::vector<std::shared_ptr<UserInfo>> _friend_list;
     //存储个人信息
     std::shared_ptr<UserInfo> _user_info;
     //存储好友信息
-    QMap<int,std::shared_ptr<FriendInfo>> _friend_map;
+    QMap<int,std::shared_ptr<UserInfo>> _friend_map;
     //聊天列表加载位置
     int _chat_loaded;
     //好友信息列表加载位置
     int _contact_loaded;
     //建立会话thread_id到数据的映射关系
     QMap<int,std::shared_ptr<ChatThreadData>> _chat_map;
+    //聊天会话id列表
+    std::vector<int> _chat_thread_ids;
+    //记录已经加载聊天列表的会话索引
+    int _cur_load_chat_index;
     //建立将对方uid和会话id关联
     QMap<int,int> _uid_to_thread_id;
     //记录最后加载的thread聊天id
     int _last_chat_thread_id;
+    //已发送的消息，还未收到回应的。
+    QMap<QString, std::shared_ptr<TextChatData>> _msg_unrsp_map;
+
+public slots:
+    void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);
+    void SlotAddFriendAuth(std::shared_ptr<AuthInfo> auth);
 };
 
 #endif // USERMGR_H

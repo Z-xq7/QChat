@@ -22,7 +22,7 @@ ApplyFriend::ApplyFriend(QWidget *parent) :
 
     ui->name_ed->setPlaceholderText(tr("祁七七"));
     ui->lb_ed->setPlaceholderText("搜索、添加标签");
-    ui->back_ed->setPlaceholderText("燃烧的胸毛");
+    ui->back_ed->setPlaceholderText("燃烧的七七");
 
     ui->lb_ed->SetMaxLength(21);
     ui->lb_ed->move(2, 2);
@@ -112,7 +112,8 @@ void ApplyFriend::SetSearchInfo(std::shared_ptr<SearchInfo> si)
     _si = si;
     auto applyname = UserMgr::GetInstance()->GetName();
     auto bakname = si->_name;
-    ui->name_ed->setText(applyname);
+    QString str = QString("您好,我是%1").arg(applyname);
+    ui->name_ed->setText(str);
     ui->back_ed->setText(bakname);
 }
 

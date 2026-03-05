@@ -59,18 +59,19 @@ private:
     bool _b_loading;
     QList<StateWidget*> _lb_list;
     //管理聊天列表
-    QMap<int, QListWidgetItem*> _chat_items_added;
+    //QMap<int, QListWidgetItem*> _chat_items_added;
     //chat_thread_id与item的映射关系
     QMap<int, QListWidgetItem*> _chat_thread_items;
-    //当前的聊天编号
-    int _cur_chat_uid;
+    //当前的聊天thread编号
+    //int _cur_chat_uid;
+    int _cur_chat_thread_id;
     //记录上次的widget状态
     QWidget*_last_widget;
     //心跳定时器
     QTimer* _timer;
     //加载对话框指针
     LoadingDialog* _loading_dialog;
-    //
+    //当前加载的聊天对话
     std::shared_ptr<ChatThreadData> _cur_load_chat;
 
 private slots:
@@ -99,10 +100,10 @@ public slots:
     void slot_switch_apply_friend_page();
     //点击聊天列表后显示聊天页面
     void slot_item_clicked(QListWidgetItem* item);
-    //将聊天消息缓存在本地
-    void slot_append_send_chat_msg(std::shared_ptr<TextChatData> msgdata);
+    // //（已废弃）将聊天消息缓存在本地
+    // void slot_append_send_chat_msg(std::shared_ptr<TextChatData> msgdata);
     //对方发来消息通知
-    void slot_text_chat_msg(std::shared_ptr<TextChatMsg> msg);
+    void slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msglists);
     //加载聊天列表
     void slot_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
     //从friendinfopage新创建聊天item

@@ -1,6 +1,5 @@
 #pragma once
 #include <chrono>
-
 #include "const.h"
 #include <thread>
 #include <jdbc/mysql_driver.h>
@@ -13,6 +12,10 @@
 #include <memory>
 #include <queue>
 #include <mutex>
+#include "message.pb.h"
+using message::AddFriendMsg;
+using message::TextChatData;
+
 class SqlConnection {
 public:
 	SqlConnection(sql::Connection* con, int64_t lasttime):_con(con), _last_oper_time(lasttime){}
@@ -238,9 +241,10 @@ public:
 	bool CheckEmail(const std::string& name, const std::string & email);
 	bool UpdatePwd(const std::string& name, const std::string& newpwd);
 	bool CheckPwd(const std::string& name, const std::string& pwd, UserInfo& userInfo);
-	bool AddFriendApply(const int& from, const int& to);
+	bool AddFriendApply(const int& from, const int& to, const std::string& desc, const std::string& bakname);
+	//(优化后已废弃，设置状态统一在AddFriend中完成即可)
 	bool AuthFriendApply(const int& from, const int& to);
-	bool AddFriend(const int& from, const int& to, std::string back_name);
+	bool AddFriend(const int& from, const int& to, std::string back_name, std::vector<std::shared_ptr<AddFriendMsg>>& msg_list);
 	std::shared_ptr<UserInfo> GetUser(int uid);
 	std::shared_ptr<UserInfo> GetUser(std::string name);
 	bool GetApplyList(int touid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, int offset, int limit );

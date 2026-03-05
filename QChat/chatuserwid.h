@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include "listitembase.h"
-#include "userdata.h"
+#include "usermgr.h"
 
 namespace Ui {
 class ChatUserWid;
@@ -19,19 +19,25 @@ public:
     QSize sizeHint() const override {
         return QSize(230, 65); // 返回自定义的尺寸
     }
-
-    //设置聊天列表用户item信息（由用户信息）
-    void SetInfo(std::shared_ptr<UserInfo> user_info);
-    //设置聊天列表用户item信息(由好友信息)
-    void SetInfo(std::shared_ptr<FriendInfo> friend_info);
-    //获取用户信息
-    std::shared_ptr<UserInfo> GetUserInfo();
+    //（已修改）设置聊天列表用户item信息
+    void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
+    //（已修改）获取聊天列表用户item信息
+    std::shared_ptr<ChatThreadData> GetChatData();
+    //有新消息显示红点
+    void ShowRedPoint(bool bshow);
+    // //设置聊天列表用户item信息（由用户信息）
+    // void SetInfo(std::shared_ptr<UserInfo> user_info);
+    // //设置聊天列表用户item信息(由好友信息)
+    // void SetInfo(std::shared_ptr<FriendInfo> friend_info);
+    // //获取用户信息
+    // std::shared_ptr<UserInfo> GetUserInfo();
     //更新聊天列表显示的最后一条聊天消息
     void updateLastMsg(std::vector<std::shared_ptr<TextChatData>> msgs);
 
 private:
     Ui::ChatUserWid *ui;
-    std::shared_ptr<UserInfo> _user_info;
+    //std::shared_ptr<UserInfo> _user_info;
+    std::shared_ptr<ChatThreadData> _chat_data;
 
 };
 

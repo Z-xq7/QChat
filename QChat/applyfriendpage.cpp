@@ -124,8 +124,20 @@ void ApplyFriendPage::slot_auth_rsp(std::shared_ptr<AuthRsp> auth_rsp)
 {
     auto uid = auth_rsp->_uid;
     auto find_iter = _unauth_items.find(uid);
-    if (find_iter == _unauth_items.end()) {
+    if (find_iter != _unauth_items.end()) {
+        find_iter->second->ShowAddBtn(false);
+        // 从_unauth_items中移除已处理的项
+        _unauth_items.erase(find_iter);
         return;
     }
-    find_iter->second->ShowAddBtn(false);
+    
+    // 如果在_unauth_items中没有找到，遍历列表中的所有项目查找对应的uid
+    for(int i = 0; i < ui->apply_friend_list->count(); i++) {
+        QListWidgetItem* item = ui->apply_friend_list->item(i);
+        ApplyFriendItem* apply_item = qobject_cast<ApplyFriendItem*>(ui->apply_friend_list->itemWidget(item));
+        if(apply_item && apply_item->GetUid() == uid) {
+            apply_item->ShowAddBtn(false);
+            break;
+        }
+    }
 }

@@ -278,11 +278,11 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> session, const short&
 	Json::Value root;
 	reader.parse(msg_data, root);
 	auto uid = root["uid"].asInt();
-	auto applyname = root["applyname"].asString();
+	auto desc = root["applyname"].asString();
 	auto bakname = root["bakname"].asString();
 	auto touid = root["touid"].asInt();
-	std::cout << "user login uid is  " << uid << " applyname  is "
-		<< applyname << " bakname is " << bakname << " touid is " << touid << endl;
+	std::cout << "user login uid is  " << uid << " applydesc  is "
+		<< desc << " bakname is " << bakname << " touid is " << touid << endl;
 
 	Json::Value  rtvalue;
 	rtvalue["error"] = ErrorCodes::Success;
@@ -293,7 +293,7 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> session, const short&
 		});
 
 	//先更新数据库
-	MysqlMgr::GetInstance()->AddFriendApply(uid, touid);
+	MysqlMgr::GetInstance()->AddFriendApply(uid, touid,desc,bakname);
 
 	//查询redis 查找touid对应的server ip
 	auto to_str = std::to_string(touid);
@@ -321,8 +321,8 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> session, const short&
 			Json::Value  notify;
 			notify["error"] = ErrorCodes::Success;
 			notify["applyuid"] = uid;
-			notify["name"] = applyname;
-			notify["desc"] = "";
+			notify["name"] = apply_info->name;
+			notify["desc"] = desc;
 			//如果获取申请人基本信息成功则把申请人基本信息也发送给对方，方便对方展示
 			if (b_info) {
 				notify["icon"] = apply_info->icon;
@@ -339,8 +339,8 @@ void LogicSystem::AddFriendApply(std::shared_ptr<CSession> session, const short&
 	AddFriendReq add_req;
 	add_req.set_applyuid(uid);
 	add_req.set_touid(touid);
-	add_req.set_name(applyname);
-	add_req.set_desc("");
+	add_req.set_name(apply_info->name);
+	add_req.set_desc(desc);
 	if (b_info) {
 		add_req.set_icon(apply_info->icon);
 		add_req.set_sex(apply_info->sex);
@@ -384,11 +384,13 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> session, const short
 		session->Send(return_str, ID_AUTH_FRIEND_RSP);
 		});
 
-	//先更新数据库，同意添加好友后会在数据库中添加好友关系，并把申请状态改为同意
-	MysqlMgr::GetInstance()->AuthFriendApply(uid, touid);
+	//先更新数据库，同意添加好友后会在数据库中添加好友关系，并把申请状态改为同意(修改：此处放到事务中，这里不做处理了)
+	//MysqlMgr::GetInstance()->AuthFriendApply(uid, touid);
+
+	std::vector<std::shared_ptr<message::AddFriendMsg>> chat_datas;
 
 	//更新数据库添加好友
-	MysqlMgr::GetInstance()->AddFriend(uid, touid,back_name);
+	MysqlMgr::GetInstance()->AddFriend(uid, touid,back_name,chat_datas);
 
 	//查询redis 查找touid对应的server ip
 	auto to_str = std::to_string(touid);
@@ -423,6 +425,18 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> session, const short
 				notify["error"] = ErrorCodes::UidInvalid;
 			}
 
+			for (auto& chat_data : chat_datas)
+			{
+				Json::Value  chat;
+				chat["sender"] = chat_data->sender_id();
+				chat["msg_id"] = chat_data->msg_id();
+				chat["thread_id"] = chat_data->thread_id();
+				chat["unique_id"] = chat_data->unique_id();
+				chat["msg_content"] = chat_data->msgcontent();
+				notify["chat_datas"].append(chat);
+				rtvalue["chat_datas"].append(chat);
+			}
+
 			std::string return_str = notify.toStyledString();
 			session->Send(return_str, ID_NOTIFY_AUTH_FRIEND_REQ);
 		}
@@ -433,6 +447,18 @@ void LogicSystem::AuthFriendApply(std::shared_ptr<CSession> session, const short
 	AuthFriendReq auth_req;
 	auth_req.set_fromuid(uid);
 	auth_req.set_touid(touid);
+	for (auto& chat_data : chat_datas)
+	{
+		auto text_msg = auth_req.add_textmsgs();
+		text_msg->CopyFrom(*chat_data);
+		Json::Value chat;
+		chat["sender"] = chat_data->sender_id();
+		chat["msg_id"] = chat_data->msg_id();
+		chat["thread_id"] = chat_data->thread_id();
+		chat["unique_id"] = chat_data->unique_id();
+		chat["msg_content"] = chat_data->msgcontent();
+		rtvalue["chat_datas"].append(chat);
+	}
 
 	//发送通知
 	ChatGrpcClient::GetInstance()->NotifyAuthFriend(to_ip_value, auth_req);
@@ -487,11 +513,11 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	text_msg_req.set_touid(touid);
 	for (const auto& txt_obj : arrays) {
 		auto content = txt_obj["content"].asString();
-		auto msgid = txt_obj["msgid"].asString();
+		auto unique_id = txt_obj["unique_id"].asString();
 		std::cout << "content is " << content << std::endl;
-		std::cout << "msgid is " << msgid << std::endl;
+		std::cout << "unique_id is " << unique_id << std::endl;
 		auto *text_msg = text_msg_req.add_textmsgs();
-		text_msg->set_msgid(msgid);
+		text_msg->set_unique_id(unique_id);
 		text_msg->set_msgcontent(content);
 	}
 

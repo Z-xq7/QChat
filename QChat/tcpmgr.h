@@ -6,6 +6,7 @@
 #include <functional>
 #include <QObject>
 #include "userdata.h"
+#include <memory>
 
 
 class TcpMgr:public QObject,public Singleton<TcpMgr>,public std::enable_shared_from_this<TcpMgr>
@@ -58,7 +59,7 @@ signals:
     //同意别人的好友申请
     void sig_auth_rsp(std::shared_ptr<AuthRsp>);
     //聊天文本变化->接收对方发来消息
-    void sig_text_chat_msg(std::shared_ptr<TextChatMsg> msg);
+    void sig_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
     //异地登录通知下线
     void sig_notify_offline();
     //连接异常通知连接关闭

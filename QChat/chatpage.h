@@ -18,9 +18,11 @@ public:
     ~ChatPage();
 
     //设置当前聊天用户信息
-    void SetUserInfo(std::shared_ptr<UserInfo> user_info);
+    void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
     //添加消息
-    void AppendChatMsg(std::shared_ptr<TextChatData> msg);
+    void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
+    //
+    void clearItems();
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -31,13 +33,15 @@ protected:
 private slots:
     void on_send_btn_clicked();
 
+    void on_receive_btn_clicked();
+
 private:
     Ui::ChatPage *ui;
 
-    std::shared_ptr<UserInfo> _user_info;
+    std::shared_ptr<ChatThreadData> _chat_data;
 
-signals:
-    void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);
+// signals:
+//     void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);
 };
 
 #endif // CHATPAGE_H

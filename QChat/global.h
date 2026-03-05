@@ -53,6 +53,27 @@ enum ReqId{
     ID_LOAD_CHAT_THREAD_RSP = 1026, //加载聊天线程回复
     ID_CREATE_PRIVATE_CHAT_REQ = 1027, //创建私聊线程请求
     ID_CREATE_PRIVATE_CHAT_RSP = 1028, //创建私聊线程回复
+
+    ID_LOAD_CHAT_MSG_REQ = 1029,      //加载聊天消息
+    ID_LOAD_CHAT_MSG_RSP = 1030,      //加载聊天消息
+    ID_UPLOAD_HEAD_ICON_REQ  = 1031,      //上传头像请求
+    ID_UPLOAD_HEAD_ICON_RSP  = 1032,      //上传头像回复
+    ID_DOWN_LOAD_FILE_REQ = 1033,             //下载文件请求
+    ID_DOWN_LOAD_FILE_RSP = 1034,           //下载文件回复
+    ID_IMG_CHAT_MSG_REQ = 1035,            //图片聊天消息请求
+    ID_IMG_CHAT_MSG_RSP = 1036,           //图片聊天信息回复
+    ID_IMG_CHAT_UPLOAD_REQ = 1037,        //上传聊天图片资源
+    ID_IMG_CHAT_UPLOAD_RSP = 1038,        //上传聊天图片资源回复
+
+    ID_NOTIFY_IMG_CHAT_MSG_REQ = 1039,   //通知用户图片聊天信息
+    ID_FILE_INFO_SYNC_REQ     =  1041,    //文件信息同步请求
+    ID_FILE_INFO_SYNC_RSP     =  1042,     //文件信息同步回复
+    ID_IMG_CHAT_CONTINUE_UPLOAD_REQ = 1043,  //续传聊天图片资源请求
+    ID_IMG_CHAT_CONTINUE_UPLOAD_RSP = 1044,  //续传聊天图片资源回复
+    ID_IMG_CHAT_DOWN_INFO_SYNC_REQ  = 1045,  //获取图片下载信息同步请求
+    ID_IMG_CHAT_DOWN_INFO_SYNC_RSP  = 1046,  //获取图片下载信息同步回复
+    ID_IMG_CHAT_DOWN_REQ          =  1047,    //聊天图片下载请求
+    ID_IMG_CHAT_DOWN_RSP          =  1048     //聊天图片下载回复
 };
 
 //模块
@@ -67,7 +88,6 @@ enum ErrorCodes{
     SUCCESS = 0,        //成功
     ERR_JSON = 1,       //JSON解析失败
     ERR_NETWORK = 2,    //网络请求失败
-
 };
 
 //输入错误提示
@@ -128,10 +148,31 @@ struct MsgInfo{
     QPixmap pixmap;     //文件和图片的缩略图
 };
 
+enum class MsgType {
+    TEXT_MSG = 0, //文本消息
+    IMG_MSG = 1,  //图片消息
+    VIDEO_MSG = 2, //视频消息
+    FILE_MSG = 3//文件消息,
+};
+
 enum MsgStatus{
     UN_READ = 0,        //对方未读
     SEND_FAILED = 1,    //发送失败
     READED = 2          //对方已读
+};
+
+//聊天形式，私聊和群聊
+enum class ChatFormType {
+    PRIVATE = 0,
+    GROUP = 1
+};
+
+//聊天消息类型，文本，图片，文件等
+enum class ChatMsgType {
+    TEXT = 0,
+    PIC = 1,
+    VIDEO = 2,
+    FILE = 3
 };
 
 //仅做测试用！
