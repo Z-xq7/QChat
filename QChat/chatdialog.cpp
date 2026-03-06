@@ -672,13 +672,20 @@ void ChatDialog::slot_add_auth_firend(std::shared_ptr<AuthInfo> auth_info)
 
     UserMgr::GetInstance()->AddFriend(auth_info);
 
-    auto* chat_user_wid = new ChatUserWid();
+
     auto chat_thread_data = std::make_shared<ChatThreadData>(auth_info->_uid, auth_info->_thread_id, 0);
     UserMgr::GetInstance()->AddChatThreadData(chat_thread_data, auth_info->_uid);
     for (auto& chat_msg : auth_info->_chat_datas) {
         chat_thread_data->AppendMsg(chat_msg->GetMsgId(), chat_msg);
     }
 
+    //判断好友列表是否已经有该item，有则直接返回
+    auto iter = _chat_thread_items.find(auth_info->_thread_id);
+    if(iter != _chat_thread_items.end()){
+        return;
+    }
+
+    auto* chat_user_wid = new ChatUserWid();
     chat_user_wid->SetChatData(chat_thread_data);
     QListWidgetItem* item = new QListWidgetItem;
     //qDebug()<<"chat_user_wid sizeHint is " << chat_user_wid->sizeHint();
@@ -1009,6 +1016,9 @@ void ChatDialog::slot_create_private_chat(int uid, int other_id, int thread_id)
 {
     auto* chat_user_wid = new ChatUserWid();
     auto chat_thread_data = std::make_shared<ChatThreadData>(other_id, thread_id, 0);
+    if(chat_thread_data == nullptr){
+        return;
+    }
     UserMgr::GetInstance()->AddChatThreadData(chat_thread_data, other_id);
 
     chat_user_wid->SetChatData(chat_thread_data);

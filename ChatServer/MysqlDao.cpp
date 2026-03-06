@@ -769,3 +769,57 @@ bool MysqlDao::CreatePrivateChat(int user1_id, int user2_id, int& thread_id)
 	}
 	return false;
 }
+
+std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_message_id, int page_size)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return nullptr;
+	}
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+		});
+	auto& conn = con->_con;
+	try {
+		auto page_res = std::make_shared<PageResult>();
+		page_res->load_more = false;
+		page_res->next_cursor = last_message_id;
+		// SQL：多取一条，用于判断是否还有更多
+		const std::string sql = R"(
+        SELECT message_id, thread_id, sender_id, recv_id, content,
+               created_at, updated_at, status
+        FROM chat_message
+        WHERE thread_id = ?
+          AND message_id > ?
+        ORDER BY message_id ASC
+        LIMIT ? 
+		)";
+		uint32_t fetch_limit = page_size + 1;
+		auto pstmt = std::unique_ptr<sql::PreparedStatement>(
+			conn->prepareStatement(sql)
+		);
+		pstmt->setInt(1, thread_id);
+		pstmt->setInt(2, last_message_id);
+		pstmt->setInt(3, fetch_limit);
+		auto rs = std::unique_ptr<sql::ResultSet>(pstmt->executeQuery());
+		// 读取 fetch_limit 条记录
+		while (rs->next()) {
+			ChatMessage msg;
+			msg.message_id = rs->getUInt64("message_id");
+			msg.thread_id = rs->getUInt64("thread_id");
+			msg.sender_id = rs->getUInt64("sender_id");
+			msg.recv_id = rs->getUInt64("recv_id");
+			msg.content = rs->getString("content");
+			msg.chat_time = rs->getString("created_at");
+			msg.status = rs->getInt("status");
+			page_res->messages.push_back(std::move(msg));
+		}
+		return page_res;
+	}
+	catch (sql::SQLException& e) {
+		std::cerr << "SQLException: " << e.what() << std::endl;
+		conn->rollback();
+		return nullptr;
+	}
+	return nullptr;
+}

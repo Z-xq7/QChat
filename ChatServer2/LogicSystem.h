@@ -47,6 +47,8 @@ private:
 	void GetUserThreadsHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//处理创建私聊线程的逻辑：1.先从数据库创建私聊线程；2.查询redis 查找对方对应的server ip；3.如果在本服务器则直接通知对方有新线程；4.如果不在本服务器则通过grpc通知对应服务器有新线程
 	void CreatePrivateChat(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理加载聊天消息的逻辑：1.先从数据库获取聊天消息；2.把聊天消息返回给客户端
+	void LoadChatMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 
 	//判断字符串是否为纯数字（用来判断客户端搜索的是uid还是名字）
 	bool isPureDigit(const std::string& str);

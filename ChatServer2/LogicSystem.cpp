@@ -102,6 +102,9 @@ void LogicSystem::RegisterCallBacks() {
 
 	_fun_callbacks[ID_CREATE_PRIVATE_CHAT_REQ] = std::bind(&LogicSystem::CreatePrivateChat, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	_fun_callbacks[ID_LOAD_CHAT_MSG_REQ] = std::bind(&LogicSystem::LoadChatMsg, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
 }
 
 //处理用户登录的逻辑：1.先从redis获取用户token是否正确；2.如果token正确则说明登录成功，接着从数据库获取用户基本信息；
@@ -610,6 +613,45 @@ void LogicSystem::CreatePrivateChat(std::shared_ptr<CSession> session, const sho
 	}
 
 	rtvalue["thread_id"] = thread_id;
+}
+
+void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto thread_id = root["thread_id"].asInt();
+	auto message_id = root["message_id"].asInt();
+
+	Json::Value  rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["thread_id"] = thread_id;
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_LOAD_CHAT_MSG_RSP);
+		});
+
+	int page_size = 10;
+	std::shared_ptr<PageResult> res = MysqlMgr::GetInstance()->LoadChatMsg(thread_id, message_id, page_size);
+	if (!res)
+	{
+		rtvalue["error"] = ErrorCodes::LOAD_CHAT_MSG_FAILED;
+		return;
+	}
+
+	rtvalue["last_message_id"] = res->next_cursor;
+	rtvalue["load_more"] = res->load_more;
+	for (auto& msg : res->messages)
+	{
+		Json::Value chat_data;
+		chat_data["sender"] = msg.sender_id;
+		chat_data["msg_id"] = msg.message_id;
+		chat_data["thread_id"] = msg.thread_id;
+		chat_data["unique_id"] = 0;
+		chat_data["msg_content"] = msg.content;
+		chat_data["chat_time"] = msg.chat_time;
+		rtvalue["chat_datas"].append(chat_data);
+	}
 }
 
 bool LogicSystem::isPureDigit(const std::string& str)

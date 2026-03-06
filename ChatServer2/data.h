@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 struct UserInfo {
 	UserInfo() :name(""), pwd(""), uid(0), email(""), nick(""), desc(""), sex(0), icon(""), back("") {}
@@ -36,5 +37,25 @@ struct ChatThreadInfo
 	std::string _type;
 	int _user1_id;
 	int _user2_id;
+};
+
+//聊天消息信息
+struct ChatMessage
+{
+	int message_id;
+	int thread_id;
+	int sender_id;
+	int recv_id;
+	std::string content;
+	std::string chat_time;
+	int status;
+};
+
+//聊天消息查询结果结果
+struct PageResult
+{
+	std::vector<ChatMessage> messages;
+	int next_cursor;	//本页最后一条消息的id，下一页查询时以此为起点
+	bool load_more;
 };
 
