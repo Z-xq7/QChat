@@ -75,6 +75,7 @@ enum ReqId{
     ID_IMG_CHAT_DOWN_REQ          =  1047,    //聊天图片下载请求
     ID_IMG_CHAT_DOWN_RSP          =  1048     //聊天图片下载回复
 };
+Q_DECLARE_METATYPE(ReqId)
 
 //模块
 enum Modules{
@@ -109,11 +110,15 @@ enum ClickLbState{
 
 //登录请求服务器回包
 struct ServerInfo{
+public:
+    ServerInfo() = default;
+    ServerInfo(const ServerInfo& other):Host(other.Host),Port(other.Port),Token(other.Token),Uid(other.Uid){}
     QString Host;
     QString Port;
     QString Token;
     int Uid;
 };
+Q_DECLARE_METATYPE(ServerInfo)
 
 //聊天界面的几种模式
 enum ChatUIMode{

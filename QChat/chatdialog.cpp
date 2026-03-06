@@ -179,6 +179,9 @@ ChatDialog::ChatDialog(QWidget *parent)
 
     //连接加载聊天页面chatpage聊天对话消息
     connect(TcpMgr::GetInstance().get(),&TcpMgr::sig_load_chat_msg,this,&ChatDialog::slot_load_chat_msg);
+
+    //连接发送消息后服务器回传接收到消息的信号后的通知
+    connect(TcpMgr::GetInstance().get(),&TcpMgr::sig_chat_msg_rsp,this,&ChatDialog::slot_add_chat_msg);
 }
 
 ChatDialog::~ChatDialog()
@@ -672,7 +675,6 @@ void ChatDialog::slot_add_auth_firend(std::shared_ptr<AuthInfo> auth_info)
 
     UserMgr::GetInstance()->AddFriend(auth_info);
 
-
     auto chat_thread_data = std::make_shared<ChatThreadData>(auth_info->_uid, auth_info->_thread_id, 0);
     UserMgr::GetInstance()->AddChatThreadData(chat_thread_data, auth_info->_uid);
     for (auto& chat_msg : auth_info->_chat_datas) {
@@ -924,6 +926,19 @@ void ChatDialog::slot_item_clicked(QListWidgetItem *item)
 
 void ChatDialog::slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msglists)
 {
+    for (auto& msg : msglists) {
+        //更新数据
+        auto thread_id = msg->GetThreadId();
+        auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+        //将该对方发来的消息加到会话列表中
+        thread_data->AddMsg(msg);
+        //若当前打开的会话不是该thread_id，则跳过，否则刷新一下
+        if (_cur_chat_thread_id != thread_id) {
+            continue;
+        }
+        ui->chat_page->AppendChatMsg(msg);
+    }
+
     // auto find_iter = _chat_items_added.find(msg->_from_uid);
     // //找到聊天列表
     // if(find_iter != _chat_items_added.end()){
@@ -1105,6 +1120,23 @@ void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_mo
 
     //发送tcp请求给chatserver
     emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_LOAD_CHAT_MSG_REQ,jsonData);
+}
+
+void ChatDialog::slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData> > msglists)
+{
+    auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+    if (chat_data == nullptr) {
+        return;
+    }
+    //将消息放入数据中管理
+    for (auto& msg : msglists) {
+        chat_data->MoveMsg(msg);
+        if (_cur_chat_thread_id != thread_id) {
+            continue;
+        }
+        //更新聊天界面信息
+        ui->chat_page->UpdateChatStatus(msg->GetUniqueId(),msg->GetStatus());
+    }
 }
 
 

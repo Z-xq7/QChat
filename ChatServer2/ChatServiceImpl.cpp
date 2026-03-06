@@ -118,6 +118,7 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context,
 	rtvalue["error"] = ErrorCodes::Success;
 	rtvalue["fromuid"] = request->fromuid();
 	rtvalue["touid"] = request->touid();
+	rtvalue["thread_id"] = request->thread_id();
 
 	//将聊天消息组织为数组
 	Json::Value text_array;
@@ -125,10 +126,12 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context,
 		Json::Value msg_value;
 		msg_value["unique_id"] = msg.unique_id();
 		msg_value["content"] = msg.msgcontent();
+		msg_value["message_id"] = msg.msg_id();
+		msg_value["chat_time"] = msg.chat_time();
 		text_array.append(msg_value);
 	}
 	//将消息数组放入返回值中
-	rtvalue["text_array"] = text_array;
+	rtvalue["chat_datas"] = text_array;
 	//回送消息
 	std::string return_str = rtvalue.toStyledString();
 	session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);

@@ -4,6 +4,8 @@
 #include <QWidget>
 #include "global.h"
 #include "userdata.h"
+#include "ChatItemBase.h"
+#include <QMap>
 
 namespace Ui {
 class ChatPage;
@@ -21,8 +23,10 @@ public:
     void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
     //添加消息
     void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
-    //
+    //清空聊天信息
     void clearItems();
+    //更新聊天信息状态
+    void UpdateChatStatus(QString unique_id, int status);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -39,6 +43,8 @@ private:
     Ui::ChatPage *ui;
 
     std::shared_ptr<ChatThreadData> _chat_data;
+    //未读消息item(unique_id,与发送的一条条消息ChatItemBase关联)
+    QMap<QString, ChatItemBase*> _unrsp_item_map;
 
 // signals:
 //     void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);

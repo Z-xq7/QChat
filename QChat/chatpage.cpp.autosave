@@ -8,7 +8,7 @@
 #include "usermgr.h"
 #include <QUuid>
 #include "tcpmgr.h"
-#include <algorithm>  // 添加算法头文件以支持std::sort
+
 ChatPage::ChatPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::ChatPage)
@@ -46,28 +46,11 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     ui->title_lb->setText(friend_info->_name);
     ui->chat_data_list->removeAllItem();
     _unrsp_item_map.clear();
-    
-    // 加载缓存的聊天信息 - 先将消息按 msg_id 排序
-    auto msg_map = chat_data->GetMsgMapRef();
-    
-    // 创建一个向量来存储消息，并按 msg_id 排序
-    std::vector<std::shared_ptr<ChatDataBase>> sorted_msgs;
-    for(auto& msg : msg_map) {
-        sorted_msgs.push_back(msg);
-    }
-    
-    // 按 msg_id 排序
-    std::sort(sorted_msgs.begin(), sorted_msgs.end(), 
-              [](const std::shared_ptr<ChatDataBase>& a, const std::shared_ptr<ChatDataBase>& b) {
-                  return a->GetMsgId() < b->GetMsgId();
-              });
-    
-    // 按排序后的顺序添加消息
-    for(auto& msg : sorted_msgs) {
+    //加载缓存的聊天信息
+    for(auto& msg : chat_data->GetMsgMapRef()){
         AppendChatMsg(msg);
     }
 
-    // 添加未响应的消息（这些通常是用户自己发送的未确认消息）
     for(auto& msg : chat_data->GetMsgUnRspRef()){
         AppendChatMsg(msg);
     }

@@ -5,6 +5,7 @@
 #include <singleton.h>
 #include "userdata.h"
 #include <vector>
+#include <mutex>
 
 class UserMgr:public QObject,public Singleton<UserMgr>,
         public std::enable_shared_from_this<UserMgr>
@@ -65,8 +66,10 @@ public:
     int GetLastChatThreadId();
     //根据uid获取thread_id
     int GetThreadIdByUid(int uid);
-    //从_chat_map中根据uid获取会话数据
+    //先从_uid_to_thread_id获取thread_id，再从_chat_map中根据thread_id获取会话数据
     std::shared_ptr<ChatThreadData> GetChatThreadByUid(int uid);
+   //从_chat_map中根据thread_id获取会话数据
+    std::shared_ptr<ChatThreadData> GetChatThreadByThreadId(int thread_id);
     //将已发送的消息，还未收到回应的消息加到map中管理
     void AddMsgUnRsp(std::shared_ptr<TextChatData> msg);
     //加载当前聊天对话的消息
@@ -77,6 +80,7 @@ public:
 private:
     UserMgr();
 
+    std::mutex _mtx;
     QString _token;
     //存储申请列表
     std::vector<std::shared_ptr<ApplyInfo>> _apply_list;

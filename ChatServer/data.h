@@ -46,6 +46,7 @@ struct ChatMessage
 	int thread_id;
 	int sender_id;
 	int recv_id;
+	std::string unique_id;
 	std::string content;
 	std::string chat_time;
 	int status;

@@ -7,7 +7,17 @@
 #include <QObject>
 #include "userdata.h"
 #include <memory>
+#include <QQueue>
+#include <QByteArray>
+#include <QThread>
 
+class TcpThread:public std::enable_shared_from_this<TcpThread> {
+public:
+    TcpThread();
+    ~TcpThread();
+private:
+    QThread* _tcp_thread;
+};
 
 class TcpMgr:public QObject,public Singleton<TcpMgr>,public std::enable_shared_from_this<TcpMgr>
 {
@@ -21,6 +31,8 @@ public:
 
 private:
     TcpMgr();
+    //注册元类型（用于信号和槽的跨线程信息传输）
+    void registerMetaType();
     //注册tcp请求处理
     void initHandlers();
     //接收请求后遍历注册的处理逻辑，进行处理
@@ -34,6 +46,15 @@ private:
     quint16 _message_len;
     QByteArray _buffer;
     QMap<ReqId,std::function<void(ReqId id,int len,QByteArray data)>> _handlers;
+    //发送队列
+    QQueue<QByteArray> _send_queue;
+    //正在发送的包
+    QByteArray _current_block;
+    //当前已发送的字节数
+    qint64 _bytes_send;
+    //是否正在发送
+    bool _pending;
+
 
 public slots:
     //tcp连接成功后触发
@@ -70,6 +91,8 @@ signals:
     void sig_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天界面chatpage的聊天对话消息
     void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
+    //发送消息后服务器回传接收到消息的信号后的通知
+    void sig_chat_msg_rsp(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
 };
 
 #endif // TCPMGR_H

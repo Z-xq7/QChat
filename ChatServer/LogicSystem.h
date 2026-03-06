@@ -22,6 +22,7 @@ public:
 	~LogicSystem();
 	void PostMsgToQue(shared_ptr < LogicNode> msg);
 	void SetServer(std::shared_ptr<CServer> pserver);
+	std::string getCurrentTimestamp();
 
 private:
 	LogicSystem();

@@ -1,4 +1,6 @@
 #include "LogicSystem.h"
+
+#include <iomanip>
 #include "StatusGrpcClient.h"
 #include "MysqlMgr.h"
 #include "const.h"
@@ -33,6 +35,23 @@ void LogicSystem::PostMsgToQue(shared_ptr < LogicNode> msg) {
 
 void LogicSystem::SetServer(std::shared_ptr<CServer> pserver) {
 	_p_server = pserver;
+}
+
+std::string LogicSystem::getCurrentTimestamp()
+{
+	const auto now = std::chrono::system_clock::now();
+	const std::time_t tt = std::chrono::system_clock::to_time_t(now);
+
+	std::tm tm_time{};
+#ifdef _WIN32
+	localtime_s(&tm_time, &tt);
+#else
+	localtime_r(&tt, &tm_time);
+#endif
+
+	std::ostringstream oss;
+	oss << std::put_time(&tm_time, "%Y-%m-%d %H:%M:%S");
+	return oss.str();
 }
 
 void LogicSystem::DealMsg() {
@@ -475,14 +494,55 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 
 	auto uid = root["fromuid"].asInt();
 	auto touid = root["touid"].asInt();
+	auto thread_id = root["thread_id"].asInt();
 
 	const Json::Value  arrays = root["text_array"];
 	
 	Json::Value  rtvalue;
 	rtvalue["error"] = ErrorCodes::Success;
-	rtvalue["text_array"] = arrays;
 	rtvalue["fromuid"] = uid;
 	rtvalue["touid"] = touid;
+	rtvalue["thread_id"] = thread_id;
+
+	std::vector <std::shared_ptr<ChatMessage>> chat_datas;
+	auto timestamp = getCurrentTimestamp();
+	for (const auto& txt_obj : arrays) {
+		auto content = txt_obj["content"].asString();
+		auto unique_id = txt_obj["unique_id"].asString();
+		std::cout << "content is " << content << std::endl;
+		std::cout << "unique_id is " << unique_id << std::endl;
+		auto chat_msg = std::make_shared<ChatMessage>();
+		chat_msg->chat_time = timestamp;
+		chat_msg->sender_id = uid;
+		chat_msg->recv_id = touid;
+		chat_msg->unique_id = unique_id;
+		chat_msg->thread_id = thread_id;
+		chat_msg->content = content;
+		chat_msg->status = 2;
+		chat_datas.push_back(chat_msg);
+	}
+
+	std::cout << "[---------- chat_datas: ";
+	for (const auto& chat_data : chat_datas) {
+		std::cout << "message_id: " << chat_data->message_id << ", ";
+		std::cout << "unique_id: " << chat_data->unique_id << ", ";
+		std::cout << "content: " << chat_data->content << ", ";
+		std::cout << "status: " << chat_data->status << ", ";
+		std::cout << "chat_time: " << chat_data->chat_time << " ----------]" << std::endl;
+	}
+
+	//插入数据库
+	MysqlMgr::GetInstance()->AddChatMsg(chat_datas);
+
+	for (const auto& chat_data : chat_datas) {
+		Json::Value  chat_msg;
+		chat_msg["message_id"] = chat_data->message_id;
+		chat_msg["unique_id"] = chat_data->unique_id;
+		chat_msg["content"] = chat_data->content;
+		chat_msg["status"] = chat_data->status;
+		chat_msg["chat_time"] = chat_data->chat_time;
+		rtvalue["chat_datas"].append(chat_msg);
+	}
 
 	Defer defer([this, &rtvalue, session]() {
 		std::string return_str = rtvalue.toStyledString();
@@ -514,14 +574,13 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	TextChatMsgReq text_msg_req;
 	text_msg_req.set_fromuid(uid);
 	text_msg_req.set_touid(touid);
-	for (const auto& txt_obj : arrays) {
-		auto content = txt_obj["content"].asString();
-		auto unique_id = txt_obj["unique_id"].asString();
-		std::cout << "content is " << content << std::endl;
-		std::cout << "unique_id is " << unique_id << std::endl;
-		auto *text_msg = text_msg_req.add_textmsgs();
-		text_msg->set_unique_id(unique_id);
-		text_msg->set_msgcontent(content);
+	text_msg_req.set_thread_id(thread_id);
+	for (const auto& chat_data : chat_datas) {
+		auto* text_msg = text_msg_req.add_textmsgs();
+		text_msg->set_unique_id(chat_data->unique_id);
+		text_msg->set_msgcontent(chat_data->content);
+		text_msg->set_msg_id(chat_data->message_id);
+		text_msg->set_chat_time(chat_data->chat_time);
 	}
 
 	//发送通知 todo...
@@ -650,6 +709,7 @@ void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& ms
 		chat_data["unique_id"] = 0;
 		chat_data["msg_content"] = msg.content;
 		chat_data["chat_time"] = msg.chat_time;
+		chat_data["status"] = msg.status;
 		rtvalue["chat_datas"].append(chat_data);
 	}
 }
