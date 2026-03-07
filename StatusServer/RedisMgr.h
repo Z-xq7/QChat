@@ -9,6 +9,7 @@ public:
     ~RedisMgr();
     bool Get(const std::string& key, std::string& value);
     bool Set(const std::string& key, const std::string& value);
+    bool SetWithExpire(const std::string& key, const std::string& value, int expire_seconds);
     //bool Auth(const std::string& password);
     bool LPush(const std::string& key, const std::string& value);
     bool LPop(const std::string& key, std::string& value);

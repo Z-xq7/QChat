@@ -279,8 +279,13 @@ LogicSystem::LogicSystem()
 		root["email"] = email;
 		root["uid"] = userInfo.uid;
 		root["token"] = reply.token();
-		root["host"] = reply.host();
-		root["port"] = reply.port();
+		root["chathost"] = reply.host();
+		root["chatport"] = reply.port();
+		auto& gCfgMgr = ConfigMgr::Instance();
+		std::string res_port = gCfgMgr["ResServer"]["port"];
+		std::string res_host = gCfgMgr["ResServer"]["host"];
+		root["reshost"] = res_host;
+		root["resport"] = res_port;
 		std::string jsonstr = root.toStyledString();
 		beast::ostream(connection->_response.body()) << jsonstr;
 		return true;

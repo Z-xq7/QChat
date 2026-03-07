@@ -1,13 +1,17 @@
 #include "userinfopage.h"
 #include "ui_userinfopage.h"
-#include "usermgr.h"
 #include <QDebug>
 #include <QMessageBox>
 #include "imagecropperdialog.h"
 #include "imagecropperlabel.h"
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QRegularExpression>
 #include <QDir>
+#include "usermgr.h"
+#include "tcpmgr.h"
+#include "filetcpmgr.h"
+#include "global.h"
 
 UserInfoPage::UserInfoPage(QWidget *parent) :
     QWidget(parent),
@@ -16,10 +20,40 @@ UserInfoPage::UserInfoPage(QWidget *parent) :
     ui->setupUi(this);
     auto icon = UserMgr::GetInstance()->GetIcon();
     qDebug() << "icon is " << icon ;
-    QPixmap pixmap(icon);
-    QPixmap scaledPixmap = pixmap.scaled( ui->head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
-    ui->head_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
-    ui->head_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+    //使用正则表达式检查是否使用默认头像
+    QRegularExpression regex("^:/images/head_(\\d+)\\.jpg$");
+    QRegularExpressionMatch match = regex.match(icon);
+    if (match.hasMatch()) {
+        QPixmap pixmap(icon);
+        QPixmap scaledPixmap = pixmap.scaled(ui->head_lb->size(),
+                                             Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
+        ui->head_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+        ui->head_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+    }
+    else {
+        // 如果是用户上传的头像，获取存储目录
+        QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir avatarsDir(storageDir + "/avatars");
+
+        // 确保目录存在
+        if (avatarsDir.exists()) {
+            QString avatarPath = avatarsDir.filePath(QFileInfo(icon).fileName()); // 获取上传头像的完整路径
+            QPixmap pixmap(avatarPath); // 加载上传的头像图片
+            if (!pixmap.isNull()) {
+                QPixmap scaledPixmap = pixmap.scaled(ui->head_lb->size(),
+                                                     Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
+                ui->head_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+                ui->head_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+            }
+            else {
+                qWarning() << "无法加载上传的头像：" << avatarPath;
+            }
+        }
+        else {
+            qWarning() << "头像存储目录不存在：" << avatarsDir.path();
+        }
+    }
+
     //获取nick
     auto nick = UserMgr::GetInstance()->GetNick();
     //获取name
@@ -29,6 +63,9 @@ UserInfoPage::UserInfoPage(QWidget *parent) :
     ui->nick_ed->setText(nick);
     ui->name_ed->setText(name);
     ui->desc_ed->setText(desc);
+
+    //连接上传头像按钮
+    connect(ui->up_btn, &QPushButton::clicked, this, &UserInfoPage::slot_up_load);
 }
 
 UserInfoPage::~UserInfoPage()
@@ -37,7 +74,7 @@ UserInfoPage::~UserInfoPage()
 }
 
 //上传头像
-void UserInfoPage::on_up_btn_clicked()
+void UserInfoPage::slot_up_load()
 {
     // 1. 让对话框也能选 *.webp
     QString filename = QFileDialog::getOpenFileName(
@@ -86,7 +123,9 @@ void UserInfoPage::on_up_btn_clicked()
         }
     }
     // 3. 拼接最终的文件名 head.png
-    QString filePath = dir.filePath("avatars/head.png");
+    QString file_name = generateUniqueIconName();
+    QString filePath = dir.filePath("avatars" +
+                                    QString(QDir::separator()) + file_name);
 
     // 4. 保存 scaledPixmap 为 PNG（无损、最高质量）
     if (!scaledPixmap.save(filePath, "PNG")) {
@@ -99,4 +138,82 @@ void UserInfoPage::on_up_btn_clicked()
         qDebug() << "头像已保存到：" << filePath;
         // 以后读取直接用同一路径：storageDir/avatars/head.png
     }
+
+    //实现头像上传
+    QFile file(filePath);
+    if(!file.open(QIODevice::ReadOnly)){
+        qWarning() << "Could not open file:" << file.errorString();
+        return;
+    }
+
+    //保存当前文件位置指针
+    qint64 originalPos = file.pos();
+
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    if (!hash.addData(&file)) {
+        qWarning() << "Failed to read data from file:" << filePath;
+        return ;
+    }
+
+    // 5. 转化为16进制字符串
+    QString file_md5 = hash.result().toHex(); // 返回十六进制字符串
+
+    //读取文件内容并发送
+    QByteArray buffer;
+    int seq = 0;
+
+    //创建QFileInfo 对象
+    auto fileInfo = std::make_shared<QFileInfo>(filePath);
+    //获取文件名
+    QString fileName = fileInfo->fileName();
+    //文件名
+    qDebug() << "文件名是: " << fileName;
+
+    //获取文件大小
+    int total_size = fileInfo->size();
+    //最后一个发送序列
+    int last_seq = 0;
+    //获取最后一个发送序列
+    if(total_size % MAX_FILE_LEN){
+        last_seq = (total_size / MAX_FILE_LEN) +1;
+    }else{
+        last_seq = total_size / MAX_FILE_LEN;
+    }
+
+    // 恢复文件指针到原来的位置
+    file.seek(originalPos);
+
+    //这里只发送第一个数据块，后续由服务器通知继续发下一个包
+    //每次读取MAX_FILE_LEN字节并发送
+    buffer = file.read(MAX_FILE_LEN);
+
+    QJsonObject jsonObj;
+    //将文件内容转化为Base64 编码(可选)
+    QString base64Data = buffer.toBase64();
+    ++seq;
+    jsonObj["md5"] = file_md5;
+    jsonObj["name"] = file_name;
+    jsonObj["seq"] = seq;
+    jsonObj["trans_size"] = buffer.size() + (seq - 1) * MAX_FILE_LEN;
+    jsonObj["total_size"] = total_size;
+    jsonObj["token"] = UserMgr::GetInstance()->GetToken();
+    jsonObj["uid"] = UserMgr::GetInstance()->GetUid();
+
+    if (buffer.size() + (seq - 1) * MAX_FILE_LEN == total_size) {
+        jsonObj["last"] = 1;
+    } else {
+        jsonObj["last"] = 0;
+    }
+
+    jsonObj["data"] = base64Data;
+    jsonObj["last_seq"] = last_seq;
+    QJsonDocument doc(jsonObj);
+    auto send_data = doc.toJson();
+    //将md5信息和文件信息关联存储
+    UserMgr::GetInstance()->AddNameFile(file_name, fileInfo);
+    //发送消息
+    FileTcpMgr::GetInstance()->SendData(ID_UPLOAD_HEAD_ICON_REQ, send_data);
+    file.close();
 }
+
+

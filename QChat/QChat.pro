@@ -30,6 +30,7 @@ SOURCES += \
     contactuserlist.cpp \
     conuseritem.cpp \
     customizeedit.cpp \
+    filetcpmgr.cpp \
     findfaildlg.cpp \
     findsuccessdialog.cpp \
     friendinfopage.cpp \
@@ -76,6 +77,7 @@ HEADERS += \
     contactuserlist.h \
     conuseritem.h \
     customizeedit.h \
+    filetcpmgr.h \
     findfaildlg.h \
     findsuccessdialog.h \
     friendinfopage.h \

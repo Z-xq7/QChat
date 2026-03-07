@@ -21,6 +21,7 @@
 #include <QJsonObject>
 #include <QDir>
 #include <QSettings>
+#include <QUuid>
 
 //刷新
 extern std::function<void(QWidget*)> repolish;
@@ -112,13 +113,17 @@ enum ClickLbState{
 struct ServerInfo{
 public:
     ServerInfo() = default;
-    ServerInfo(const ServerInfo& other):Host(other.Host),Port(other.Port),Token(other.Token),Uid(other.Uid){}
-    QString Host;
-    QString Port;
-    QString Token;
-    int Uid;
+    ServerInfo(const ServerInfo& other):_chat_host(other._chat_host),_chat_port(other._chat_port),
+        _token(other._token),_uid(other._uid){}
+    QString _chat_host;
+    QString _chat_port;
+    QString _res_host;
+    QString _res_port;
+    QString _token;
+    int _uid;
 };
 Q_DECLARE_METATYPE(ServerInfo)
+Q_DECLARE_METATYPE(std::shared_ptr<ServerInfo>)
 
 //聊天界面的几种模式
 enum ChatUIMode{
@@ -184,6 +189,18 @@ enum class ChatMsgType {
 extern std::vector<QString> strs;
 extern std::vector<QString> heads;
 extern std::vector<QString> names;
+
+extern QString generateUniqueFileName(const QString& originalName);
+
+extern QString generateUniqueIconName();
+//TCP文件上传包头长度
+#define FILE_UPLOAD_HEAD_LEN 6
+//TCP ID长度
+#define FILE_UPLOAD_ID_LEN 2
+//TCP 长度字段的长度
+#define FILE_UPLOAD_LEN_LEN 4
+//最大文件长度
+#define MAX_FILE_LEN 2048
 
 //申请好友标签输入框最低长度
 const int MIN_APPLY_LABEL_ED_LEN = 40;

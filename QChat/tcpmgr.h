@@ -28,6 +28,8 @@ public:
     ~TcpMgr();
     //关闭tcp连接
     void CloseConnection();
+    //向服务器发送数据（封装sig_send_data信号）
+    void SendData(ReqId reqId, QByteArray data);
 
 private:
     TcpMgr();
@@ -57,12 +59,16 @@ private:
 
 
 public slots:
+    //关闭tcp连接
+    void slot_tcp_close();
     //tcp连接成功后触发
-    void slot_tcp_connect(ServerInfo);
+    void slot_tcp_connect(std::shared_ptr<ServerInfo> si);
     //数据发送成功后调用
     void slot_send_data(ReqId reqId, QByteArray data);
 
 signals:
+    //关闭连接信号
+    void sig_close();
     //连接成功信号
     void sig_con_success(bool bsuccess);
     //发送数据成功

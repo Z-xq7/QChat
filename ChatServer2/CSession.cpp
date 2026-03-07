@@ -320,5 +320,7 @@ void CSession::DealExceptionSession()
 	RedisMgr::GetInstance()->Del(USER_SESSION_PREFIX + uid_str);
 	//清除用户登录信息
 	RedisMgr::GetInstance()->Del(USERIPPREFIX + uid_str);
+	//清除用户token信息
+	RedisMgr::GetInstance()->Del(USERTOKENPREFIX + uid_str);
 }
 

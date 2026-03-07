@@ -18,6 +18,19 @@ std::function<QString(QString)> xorString = [](QString input){
     return result;
 };
 
+QString generateUniqueFileName(const QString& originalName){
+
+    QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QFileInfo fileInfo(originalName);
+    QString extension = fileInfo.suffix();
+    return uuid + (extension.isEmpty() ? "" : "." + extension);
+}
+
+QString generateUniqueIconName(){
+    QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    return uuid + ".png";
+}
+
 // 全局测试数据
 std::vector<QString> strs = {"hello world !",
                              "nice to meet u",

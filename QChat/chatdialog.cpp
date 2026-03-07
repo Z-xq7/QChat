@@ -10,6 +10,7 @@
 #include "tcpmgr.h"
 #include "usermgr.h"
 #include "conuseritem.h"
+#include <QStandardPaths>
 
 ChatDialog::ChatDialog(QWidget *parent)
     : QDialog(parent)
@@ -68,23 +69,38 @@ ChatDialog::ChatDialog(QWidget *parent)
     auto self_info = UserMgr::GetInstance()->GetUserInfo();
 
     // 设置头像
-    if (!self_info->_icon.isEmpty()) {
-        // 如果有头像路径，则使用它
-        QPixmap head_pix(self_info->_icon);
-        // 如果图片加载成功，设置图片
-        head_pix = head_pix.scaled(ui->side_head_lb->size(),
-                Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        ui->side_head_lb->setPixmap(head_pix);
-    } else {
-        // 如果没有头像路径，使用默认头像
-        // 获取当前应用程序的路径
-        QString app_path = QCoreApplication::applicationDirPath();
-        QString pix_path = QDir::toNativeSeparators(app_path +
-                                                    QDir::separator() + "static"+QDir::separator()+"head_1.jpg");
-        QPixmap head_pix(pix_path);
-        head_pix = head_pix.scaled(ui->side_head_lb->size(),
-                                   Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        ui->side_head_lb->setPixmap(head_pix);
+    QString head_icon = UserMgr::GetInstance()->GetIcon();
+    //使用正则表达式检查是否使用默认头像
+    QRegularExpression regex("^:/images/head_(\\d+)\\.jpg$");
+    QRegularExpressionMatch match = regex.match(head_icon);
+    if (match.hasMatch()) {
+        // 如果是默认头像（:/images/head_X.jpg 格式）
+        QPixmap pixmap(head_icon); // 加载默认头像图片
+        QPixmap scaledPixmap = pixmap.scaled(ui->side_head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        ui->side_head_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+        ui->side_head_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+    }
+    else {
+        // 如果是用户上传的头像，获取存储目录
+        QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir avatarsDir(storageDir + "/avatars");
+
+        // 确保目录存在
+        if (avatarsDir.exists()) {
+            QString avatarPath = avatarsDir.filePath(QFileInfo(head_icon).fileName()); // 获取上传头像的完整路径
+            QPixmap pixmap(avatarPath); // 加载上传的头像图片
+            if (!pixmap.isNull()) {
+                QPixmap scaledPixmap = pixmap.scaled(ui->side_head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                ui->side_head_lb->setPixmap(scaledPixmap);
+                ui->side_head_lb->setScaledContents(true);
+            }
+            else {
+                qWarning() << "无法加载上传的头像：" << avatarPath;
+            }
+        }
+        else {
+            qWarning() << "头像存储目录不存在：" << avatarsDir.path();
+        }
     }
 
     //加载侧边栏

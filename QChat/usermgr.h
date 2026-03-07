@@ -16,6 +16,7 @@ public:
     ~ UserMgr();
 
     void SetToken(QString token);
+    QString GetToken();
     int GetUid();
     QString GetName();
     QString GetNick();
@@ -76,6 +77,10 @@ public:
     std::shared_ptr<ChatThreadData> GetCurLoadData();
     //加载当前的下一个聊天对话的消息
     std::shared_ptr<ChatThreadData> GetNextLoadData();
+    //将md5(文件唯一名称字符串)和文件信息关联起来
+    void AddNameFile(QString name, std::shared_ptr<QFileInfo> file_info);
+    //通过文件唯一名称获取文件信息
+    std::shared_ptr<QFileInfo> GetFileInfoByName(QString name);
 
 private:
     UserMgr();
@@ -106,6 +111,8 @@ private:
     int _last_chat_thread_id;
     //已发送的消息，还未收到回应的。
     QMap<QString, std::shared_ptr<TextChatData>> _msg_unrsp_map;
+    //上传文件md5（文件唯一名称）和文件信息关联 映射
+    QMap<QString, std::shared_ptr<QFileInfo> > _name_to_fileinfo;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

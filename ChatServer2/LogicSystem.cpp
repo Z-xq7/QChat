@@ -133,8 +133,9 @@ void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id
 	Json::Value root;
 	reader.parse(msg_data, root);
 	auto uid = root["uid"].asInt();
+	auto token = root["token"].asString();
 	std::cout << "user login uid is  " << uid << " user token  is "
-		<< root["token"].asString() << endl;
+		<< token << endl;
 
 	Json::Value rtvalue;
 	Defer defer([this,&rtvalue,session]()
@@ -152,7 +153,7 @@ void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id
 		rtvalue["error"] = ErrorCodes::UidInvalid;
 		return;
 	}
-	if (token_value != root["token"].asString()) {
+	if (token_value != token) {
 		rtvalue["error"] = ErrorCodes::TokenInvalid;
 		return;
 	}
@@ -174,6 +175,7 @@ void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id
 	rtvalue["desc"] = user_info->desc;
 	rtvalue["sex"] = user_info->sex;
 	rtvalue["icon"] = user_info->icon;
+	rtvalue["token"] = token;
 
 	//从数据库获取好友申请列表
 	std::vector<std::shared_ptr<ApplyInfo>> apply_list;

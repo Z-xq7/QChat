@@ -8,7 +8,6 @@
 #include <QPaintEvent>
 #include <QPainterPath>
 #include "global.h"
-#include "httpmgr.h"
 
 namespace Ui {
 class LoginDialog;
@@ -41,9 +40,8 @@ private:
     //处理http请求
     void initHttpHandler();
     QMap<ReqId,std::function<void(const QJsonObject&)>> _handlers;
-    //缓存用户uid、token
-    int _uid;
-    QString _token;
+    //缓存用户uid、token等信息
+    std::shared_ptr<ServerInfo> _si;
 
     // 动态背景相关
     QTimer* _ani_timer;
@@ -60,14 +58,21 @@ signals:
     //切换到重置密码页面
     void switchReset();
     //连接聊天服务器（基于tcp长连接）
-    void sig_connect_tcp(ServerInfo);
+    void sig_connect_tcp(std::shared_ptr<ServerInfo>);
+    //连接资源服务器（基于tcp长连接）
+    void sig_connect_res_server(std::shared_ptr<ServerInfo>);
 
 private slots:
+    //点击登录
     void on_login_btn_clicked();
     void slot_login_mod_finish(ReqId id,QString res,ErrorCodes err);
+    //聊天服务器连接完毕处理
     void slot_tcp_con_finish(bool bsuccess);
+    //登录失败
     void slot_login_failed(int);
     void updateAnimation();
+    //资源服务器连接完毕处理
+    void slot_res_con_finish(bool bsuccess);
 };
 
 #endif // LOGINDIALOG_H

@@ -1,0 +1,20 @@
+#pragma once
+#include <hiredis.h>
+#include <string>
+
+// 分布式锁的实现，基于 Redis 的 SET 命令和 Lua 脚本
+class DistLock
+{
+public:
+	static DistLock& Inst();
+	~DistLock() = default;
+	// 尝试获取锁，返回锁的唯一标识符（UUID），如果获取失败则返回空字符串
+	std::string acquireLock(redisContext* context, const std::string& lockName,
+		int lockTimeout, int acquireTimeout);
+	// 释放锁，只有锁的持有者才能释放，返回是否成功
+	bool releaseLock(redisContext* context, const std::string& lockName,
+		const std::string& identifier);
+private:
+	DistLock() = default;
+};
+

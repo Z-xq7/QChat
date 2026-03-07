@@ -16,7 +16,8 @@ public:
     ~UserInfoPage();
 
 private slots:
-    void on_up_btn_clicked();
+    //void on_up_btn_clicked();
+    void slot_up_load();
 
 private:
     Ui::UserInfoPage *ui;

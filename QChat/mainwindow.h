@@ -56,6 +56,7 @@ public slots:
     void SlotSwitchChat();      //由登录页面切换到聊天页面
     void SlotOffline();         //异地登录收到通知退回到登录页面
     void SlotExcepConOffline(); //连接异常通知下线
+    void SlotResServerConOffline();     //资源服务器断线
 
 };
 

@@ -5,6 +5,7 @@
 #include <QTranslator>
 #include <QFile>
 #include "tcpmgr.h"
+#include "filetcpmgr.h"
 
 int main(int argc, char *argv[])
 {
@@ -42,6 +43,8 @@ int main(int argc, char *argv[])
 
     //启动tcp线程
     TcpThread tcpthread;
+    //启动资源网络线程
+    FileTcpThread file_tcp_thread;
     MainWindow w;
     w.show();
     return a.exec();
