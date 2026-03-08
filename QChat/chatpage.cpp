@@ -10,6 +10,7 @@
 #include "tcpmgr.h"
 #include <algorithm>  // 添加算法头文件以支持std::sort
 #include <QStandardPaths>
+#include "filetcpmgr.h"
 
 ChatPage::ChatPage(QWidget *parent)
     : QWidget(parent)
@@ -95,16 +96,44 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
             // 如果是用户上传的头像，获取存储目录
             QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
             QDir avatarsDir(storageDir + "/avatars");
+            auto file_name = QFileInfo(self_info->_icon).fileName();
 
             // 确保目录存在
             if (avatarsDir.exists()) {
-                QString avatarPath = avatarsDir.filePath(QFileInfo(self_info->_icon).fileName()); // 获取上传头像的完整路径
+                QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
                 QPixmap pixmap(avatarPath); // 加载上传的头像图片
                 if (!pixmap.isNull()) {
                     pChatItem->setUserIcon(pixmap);
                 }
                 else {
                     qWarning() << "无法加载上传的头像：" << avatarPath;
+                    auto icon_label = pChatItem->getIconLabel();
+                    UserMgr::GetInstance()->AddLabelToReset(avatarPath, icon_label);
+                    //先加载默认的
+                    QPixmap pixmap(":/images/head_default.png");
+                    QPixmap scaledPixmap = pixmap.scaled(icon_label->size(),
+                                                         Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
+                    icon_label->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+                    icon_label->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+
+                    //判断是否正在下载
+                    bool is_loading = UserMgr::GetInstance()->IsDownLoading(file_name);
+                    if (is_loading) {
+                        qWarning() << "正在下载: " << file_name;
+                    }
+                    else {
+                        //发送请求获取资源
+                        auto download_info = std::make_shared<DownloadInfo>();
+                        download_info->_name = file_name;
+                        download_info->_current_size = 0;
+                        download_info->_seq = 1;
+                        download_info->_total_size = 0;
+                        download_info->_client_path = avatarPath;
+                        //添加文件到管理者
+                        UserMgr::GetInstance()->AddDownloadFile(file_name, download_info);
+                        //发送消息
+                        FileTcpMgr::GetInstance()->SendDownloadInfo(download_info);
+                    }
                 }
             }
             else {
@@ -143,16 +172,44 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
             // 如果是用户上传的头像，获取存储目录
             QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
             QDir avatarsDir(storageDir + "/avatars");
+            auto file_name = QFileInfo(friend_info->_icon).fileName();
 
             // 确保目录存在
             if (avatarsDir.exists()) {
-                QString avatarPath = avatarsDir.filePath(QFileInfo(friend_info->_icon).fileName()); // 获取上传头像的完整路径
+                QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
                 QPixmap pixmap(avatarPath); // 加载上传的头像图片
                 if (!pixmap.isNull()) {
                     pChatItem->setUserIcon(pixmap);
                 }
                 else {
                     qWarning() << "无法加载上传的头像：" << avatarPath;
+                    auto icon_label = pChatItem->getIconLabel();
+                    UserMgr::GetInstance()->AddLabelToReset(avatarPath, icon_label);
+                    //先加载默认的
+                    QPixmap pixmap(":/images/head_default.png");
+                    QPixmap scaledPixmap = pixmap.scaled(icon_label->size(),
+                                                         Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
+                    icon_label->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+                    icon_label->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+
+                    //判断是否正在下载
+                    bool is_loading = UserMgr::GetInstance()->IsDownLoading(file_name);
+                    if (is_loading) {
+                        qWarning() << "正在下载: " << file_name;
+                    }
+                    else {
+                        //发送请求获取资源
+                        auto download_info = std::make_shared<DownloadInfo>();
+                        download_info->_name = file_name;
+                        download_info->_current_size = 0;
+                        download_info->_seq = 1;
+                        download_info->_total_size = 0;
+                        download_info->_client_path = avatarPath;
+                        //添加文件到管理者
+                        UserMgr::GetInstance()->AddDownloadFile(file_name, download_info);
+                        //发送消息
+                        FileTcpMgr::GetInstance()->SendDownloadInfo(download_info);
+                    }
                 }
             }
             else {
@@ -206,7 +263,7 @@ void ChatPage::on_send_btn_clicked()
 {
     //如果当前用户信息为空，则返回
     if(_chat_data == nullptr){
-        qDebug() << "*** Friend_info is empty ***";
+        qDebug() << "[ChatPage]: *** Friend_info is empty ***";
         return;
     }
 
@@ -251,7 +308,7 @@ void ChatPage::on_send_btn_clicked()
             pBubble = new TextBubble(role, msgList[i].content);
             //累计的文本大小大于1024，则发送给服务器
             if(txt_size + msgList[i].content.length()> 1024){
-                qDebug() << "--- Send to ChatServer: textArray is " << textArray << " ---";
+                qDebug() << "[ChatPage]: --- Send to ChatServer: textArray is " << textArray << " ---";
                 textObj["fromuid"] = user_info->_uid;
                 textObj["touid"] = _chat_data->GetOtherId();
                 textObj["thread_id"] = thread_id;
@@ -304,7 +361,7 @@ void ChatPage::on_send_btn_clicked()
     }
 
     //最后不管消息大小有没有达到1024，都会发送给服务器
-    qDebug() << "--- Send to ChatServer: textArray is " << textArray << " ---";
+    qDebug() << "[ChatPage]: --- Send to ChatServer: textArray is " << textArray << " ---";
 
     //发送给服务器
     textObj["text_array"] = textArray;

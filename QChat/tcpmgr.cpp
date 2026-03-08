@@ -27,7 +27,7 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
     registerMetaType();
     //当socket连接成功后的处理逻辑
     QObject::connect(&_socket, &QTcpSocket::connected, this, [&]() {
-        qDebug() << "Connected to server!";
+        qDebug() << "[TcpMgr]: Connected to server!";
         // 连接建立后发送消息
         emit sig_con_success(true);
     });
@@ -56,7 +56,7 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
                 _buffer = _buffer.mid(sizeof(quint16) * 2);
 
                 // 输出读取的数据
-                qDebug() << "Message ID:" << _message_id << ", Length:" << _message_len;
+                qDebug() << "[TcpMgr]: Message ID:" << _message_id << ", Length:" << _message_len;
 
             }
 
@@ -69,7 +69,7 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
             _b_recv_pending = false;
             // 读取消息体
             QByteArray messageBody = _buffer.mid(0, _message_len);
-            qDebug() << "receive body msg is " << messageBody ;
+            qDebug() << "[TcpMgr]: receive body msg is " << messageBody ;
 
             _buffer = _buffer.mid(_message_len);
             handleMsg(ReqId(_message_id),_message_len,messageBody);
@@ -81,12 +81,12 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
     QObject::connect(&_socket, QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::errorOccurred),
         this, [&](QAbstractSocket::SocketError socketError) {
         Q_UNUSED(socketError)
-        qDebug() << "Error:" << _socket.errorString();
+        qDebug() << "[TcpMgr]: Error:" << _socket.errorString();
     });
 
     // sokcet处理连接断开
     QObject::connect(&_socket, &QTcpSocket::disconnected, this, [&]() {
-        qDebug() << "Disconnected from server.";
+        qDebug() << "[TcpMgr]: Disconnected from server.";
         //并且发送通知到界面
         emit sig_connection_closed();
     });
@@ -120,7 +120,7 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
         _bytes_send = 0;
         _pending = true;
         qint64 w2 = _socket.write(_current_block);
-        qDebug() << "[TcpMgr] Dequeued and write() returned" << w2;
+        qDebug() << "[TcpMgr]: Dequeued and write() returned" << w2;
     });
 
     //关闭socket
@@ -170,26 +170,26 @@ void TcpMgr::initHandlers()
     //注册获取登录回包逻辑（跳转到聊天页面）
     _handlers.insert(ReqId::ID_CHAT_LOGIN_RSP, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Login failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Login failed,err is Json Parse Err" << err;
             emit sig_login_failed(err);
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "Login Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: Login Failed, err is " << err ;
             emit sig_login_failed(err);
             return;
         }
@@ -224,26 +224,26 @@ void TcpMgr::initHandlers()
     //注册获取搜索好友回包逻辑（跳转到添加好友）
     _handlers.insert(ReqId::ID_SEARCH_USER_RSP, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Search User failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Search User failed,err is Json Parse Err" << err;
             emit sig_user_search(nullptr);
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "Search User Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: Search User Failed, err is " << err ;
             emit sig_user_search(nullptr);
             return;
         }
@@ -252,7 +252,7 @@ void TcpMgr::initHandlers()
         auto search_info = std::make_shared<SearchInfo>(jsonObj["uid"].toInt(),
             jsonObj["name"].toString(),jsonObj["nick"].toString(),jsonObj["desc"].toString(),
                 jsonObj["sex"].toInt(),jsonObj["icon"].toString());
-        qDebug() << "---------- SearchInfo: server back icon is: " << jsonObj["icon"].toString() << " ------------";
+        qDebug() << "[TcpMgr]: ---------- SearchInfo: server back icon is: " << jsonObj["icon"].toString() << " ------------";
 
         emit sig_user_search(search_info);
     });
@@ -260,53 +260,53 @@ void TcpMgr::initHandlers()
     //注册获取发送好友申请回包逻辑
     _handlers.insert(ReqId::ID_ADD_FRIEND_RSP, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Add Friend RSP failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Add Friend RSP failed,err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "Add Friend RSP Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: Add Friend RSP Failed, err is " << err ;
             return;
         }
 
-        qDebug()<< "Add Friend RSP success !";
+        qDebug()<< "[TcpMgr]: Add Friend RSP success !";
     });
 
     //注册收到好友申请逻辑
     _handlers.insert(ReqId::ID_NOTIFY_ADD_FRIEND_REQ, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "NOTIFY_ADD_FRIEND REQ failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: NOTIFY_ADD_FRIEND REQ failed,err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "NOTIFY_ADD_FRIEND REQ Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: NOTIFY_ADD_FRIEND REQ Failed, err is " << err ;
             return;
         }
 
@@ -324,31 +324,31 @@ void TcpMgr::initHandlers()
         //显示好友申请
         emit sig_friend_apply(apply_info);
 
-        qDebug()<< "--- NOTIFY_ADD_FRIEND REQ success ! ---";
+        qDebug()<< "[TcpMgr]: --- NOTIFY_ADD_FRIEND REQ success ! ---";
     });
 
     //注册通知用户好友申请被对方通过逻辑
     _handlers.insert(ReqId::ID_NOTIFY_AUTH_FRIEND_REQ, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "AUTH_FRIEND failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: AUTH_FRIEND failed,err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "AUTH_FRIEND Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: AUTH_FRIEND Failed, err is " << err ;
             return;
         }
 
@@ -379,31 +379,31 @@ void TcpMgr::initHandlers()
         //将新加的好友显示出来
         emit sig_add_auth_friend(auth_info);
 
-        qDebug()<< "AUTH_FRIEND success !";
+        qDebug()<< "[TcpMgr]: AUTH_FRIEND success !";
     });
 
     //注册通知用户成功审核好友申请逻辑
     _handlers.insert(ReqId::ID_AUTH_FRIEND_RSP, [this](ReqId id,int len,QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "--- handle id is: " << id << " data is: " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
         //将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         //检查转换是否成功
         if(jsonDoc.isNull()){
-            qDebug() << "Failed to create QJsonDocument";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
         //转换为QJsonObject
         QJsonObject jsonObj = jsonDoc.object();
         if(!jsonObj.contains("error")){
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "AUTH_FRIEND_RSP failed,err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: AUTH_FRIEND_RSP failed,err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if(err != ErrorCodes::SUCCESS){
-            qDebug() << "AUTH_FRIEND_RSP Failed, err is " << err ;
+            qDebug() << "[TcpMgr]: AUTH_FRIEND_RSP Failed, err is " << err ;
             return;
         }
 
@@ -434,19 +434,19 @@ void TcpMgr::initHandlers()
         //将新加的好友显示出来
         emit sig_auth_rsp(rsp);
 
-        qDebug()<< "AUTH_FRIEND_RSP success !";
+        qDebug()<< "[TcpMgr]: AUTH_FRIEND_RSP success !";
     });
 
     //注册将发送消息传给服务器，服务器的应答
     _handlers.insert(ID_TEXT_CHAT_MSG_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "--- handle id is " << id << " data is " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is " << id << " data is " << data << " ---";
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -454,17 +454,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Chat Msg Rsp Failed, err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Chat Msg Rsp Failed, err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "Chat Msg Rsp Failed, err is " << err;
+            qDebug() << "[TcpMgr]: Chat Msg Rsp Failed, err is " << err;
             return;
         }
 
-        qDebug() << "--- Receive Text Chat Rsp Success ---" ;
+        qDebug() << "[TcpMgr]: --- Receive Text Chat Rsp Success ---" ;
 
         //ui设置送达等标记 todo...
         //收到消息后转发给页面
@@ -490,13 +490,13 @@ void TcpMgr::initHandlers()
     //注册有消息的通知显示，接收对方发来的消息
     _handlers.insert(ID_NOTIFY_TEXT_CHAT_MSG_REQ, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "--- handle id is " << id << " data is " << data << " ---";
+        qDebug() << "[TcpMgr]: --- handle id is " << id << " data is " << data << " ---";
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -504,17 +504,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Notify Chat Msg Failed, err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Notify Chat Msg Failed, err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "Notify Chat Msg Failed, err is " << err;
+            qDebug() << "[TcpMgr]: Notify Chat Msg Failed, err is " << err;
             return;
         }
 
-        qDebug() << "--- Receive Text Chat Notify Success ---";
+        qDebug() << "[TcpMgr]: --- Receive Text Chat Notify Success ---";
 
         auto thread_id = jsonObj["thread_id"].toInt();
         auto sender = jsonObj["fromuid"].toInt();
@@ -539,13 +539,13 @@ void TcpMgr::initHandlers()
     //异地登录或连接异常通知下线
     _handlers.insert(ID_NOTIFY_OFF_LINE_REQ,[this](ReqId id, int len, QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -553,18 +553,18 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "Notify Chat Msg Failed, err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: Notify Chat Msg Failed, err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "Notify Chat Msg Failed, err is " << err;
+            qDebug() << "[TcpMgr]: Notify Chat Msg Failed, err is " << err;
             return;
         }
 
         auto uid = jsonObj["uid"].toInt();
-        qDebug() << "--- Receive offline Notify Success, uid is " << uid <<" ---";
+        qDebug() << "[TcpMgr]: --- Receive offline Notify Success, uid is " << uid <<" ---";
         //异地登录发送通知到界面
         emit sig_notify_offline();
     });
@@ -572,13 +572,13 @@ void TcpMgr::initHandlers()
     //注册心跳信息服务器回包
     _handlers.insert(ID_HEART_BEAT_RSP,[this](ReqId id, int len, QByteArray data){
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -586,43 +586,43 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "HEART_BEAT_RSP Failed, err is Json Parse Err" << err;
+            qDebug() << "[TcpMgr]: HEART_BEAT_RSP Failed, err is Json Parse Err" << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "HEART_BEAT_RSP Failed, err is " << err;
+            qDebug() << "[TcpMgr]: HEART_BEAT_RSP Failed, err is " << err;
             return;
         }
 
-        qDebug() << "--- Receive HEART_BEAT_RSP Success ---";
+        qDebug() << "[TcpMgr]: --- Receive HEART_BEAT_RSP Success ---";
     });
 
     //注册请求聊天列表的服务器回包
     _handlers.insert(ID_LOAD_CHAT_THREAD_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
         QJsonObject jsonObj = jsonDoc.object();
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "chat thread json parse failed " << err;
+            qDebug() << "[TcpMgr]: chat thread json parse failed " << err;
             return;
         }
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "get chat thread rsp failed, error is " << err;
+            qDebug() << "[TcpMgr]: get chat thread rsp failed, error is " << err;
             return;
         }
 
-        qDebug() << "--- Receive chat thread rsp Success ---";
+        qDebug() << "[TcpMgr]: --- Receive chat thread rsp Success ---";
 
         auto thread_array = jsonObj["threads"].toArray();
         std::vector<std::shared_ptr<ChatThreadInfo>> chat_threads;
@@ -643,13 +643,13 @@ void TcpMgr::initHandlers()
     //注册接收到服务器传来的创建新私人对话的回包
     _handlers.insert(ID_CREATE_PRIVATE_CHAT_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -657,17 +657,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "parse create private chat json parse failed " << err;
+            qDebug() << "[TcpMgr]: parse create private chat json parse failed " << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "get create private chat failed, error is " << err;
+            qDebug() << "[TcpMgr]: get create private chat failed, error is " << err;
             return;
         }
 
-        qDebug() << "--- Receive create private chat rsp Success ---";
+        qDebug() << "[TcpMgr]: --- Receive create private chat rsp Success ---";
 
         int uid = jsonObj["uid"].toInt();
         int other_id = jsonObj["other_id"].toInt();
@@ -680,13 +680,13 @@ void TcpMgr::initHandlers()
     //注册向服务器请求查询当前聊天对话内容的请求，服务器的回包
     _handlers.insert(ID_LOAD_CHAT_MSG_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -694,17 +694,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "parse Load Chat Msg Rsp json parse failed " << err;
+            qDebug() << "[TcpMgr]: parse Load Chat Msg Rsp json parse failed " << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "get Load Chat Msg Rsp failed, error is " << err;
+            qDebug() << "[TcpMgr]: get Load Chat Msg Rsp failed, error is " << err;
             return;
         }
 
-        qDebug() << "--- Receive Load Chat Msg Rsp Success ---";
+        qDebug() << "[TcpMgr]: --- Receive Load Chat Msg Rsp Success ---";
 
         int thread_id = jsonObj["thread_id"].toInt();
         int last_msg_id = jsonObj["last_msg_id"].toInt();
@@ -735,7 +735,7 @@ void TcpMgr::handleMsg(ReqId id, int len, QByteArray data)
 {
     auto find_iter =  _handlers.find(id);
     if(find_iter == _handlers.end()){
-        qDebug()<< "not found id ["<< id << "] to handle";
+        qDebug()<< "[TcpMgr]: not found id ["<< id << "] to handle";
         return ;
     }
 
@@ -748,9 +748,9 @@ void TcpMgr::slot_tcp_close() {
 
 void TcpMgr::slot_tcp_connect(std::shared_ptr<ServerInfo> si)
 {
-    qDebug()<< "receive tcp connect signal";
+    qDebug()<< "[TcpMgr]: receive tcp connect signal";
     // 尝试连接到服务器
-    qDebug() << "Connecting to chat server...";
+    qDebug() << "[TcpMgr]: Connecting to chat server...";
     _host = si->_chat_host;
     _port = static_cast<uint16_t>(si->_chat_port.toUInt());
     _socket.connectToHost(_host, _port);
@@ -789,7 +789,7 @@ void TcpMgr::slot_send_data(ReqId reqId, QByteArray dataBytes)
 
     // 发送数据
     _socket.write(_current_block);
-    qDebug() << "tcp mgr send byte data is " << block ;
+    qDebug() << "[TcpMgr]: tcp mgr send byte data is " << block ;
 }
 
 

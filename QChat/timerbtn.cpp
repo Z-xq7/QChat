@@ -29,7 +29,7 @@ void TimerBtn::mouseReleaseEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton) {
         // 在这里处理鼠标左键释放事件
-        qDebug() << "MyButton was released!";
+        qDebug() << "[TimerBtn]: MyButton was released!";
         this->setEnabled(false);
         this->setText(QString::number(_counter));
         _timer->start(1000);

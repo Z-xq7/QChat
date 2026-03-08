@@ -54,7 +54,7 @@ AuthenFriend::AuthenFriend(QWidget *parent)
 
 AuthenFriend::~AuthenFriend()
 {
-    qDebug()<< "AuthenFriend destruct";
+    qDebug()<< "[AuthenFriend]: AuthenFriend destruct";
     delete ui;
 }
 
@@ -126,7 +126,7 @@ void AuthenFriend::SetApplyInfo(std::shared_ptr<ApplyInfo> apply_info)
 
 void AuthenFriend::ShowMoreLabel()
 {
-    qDebug()<< "receive more label clicked";
+    qDebug()<< "[AuthenFriend]: receive more label clicked";
     ui->more_lb_wid->hide();
 
     ui->lb_list->setFixedWidth(325);
@@ -283,7 +283,7 @@ void AuthenFriend::SlotLabelEnter()
 
 void AuthenFriend::SlotRemoveFriendLabel(QString name)
 {
-    qDebug() << "receive close signal";
+    qDebug() << "[AuthenFriend]: receive close signal";
 
     _label_point.setX(2);
     _label_point.setY(6);
@@ -386,13 +386,13 @@ void AuthenFriend::SlotAddFirendLabelByClickTip(QString text)
     lb->setObjectName("tipslb");
     lb->setText(text);
     connect(lb, &ClickedLabel::clicked, this, &AuthenFriend::SlotChangeFriendLabelByTip);
-    qDebug() << "ui->lb_list->width() is " << ui->lb_list->width();
-    qDebug() << "_tip_cur_point.x() is " << _tip_cur_point.x();
+    qDebug() << "[AuthenFriend]: ui->lb_list->width() is " << ui->lb_list->width();
+    qDebug() << "[AuthenFriend]: _tip_cur_point.x() is " << _tip_cur_point.x();
 
     QFontMetrics fontMetrics(lb->font()); // 获取QLabel控件的字体信息
     int textWidth = fontMetrics.horizontalAdvance(lb->text()); // 获取文本的宽度
     int textHeight = fontMetrics.height(); // 获取文本的高度
-    qDebug() << "textWidth is " << textWidth;
+    qDebug() << "[AuthenFriend]: textWidth is " << textWidth;
 
     if (_tip_cur_point.x() + textWidth+ tip_offset+3 > ui->lb_list->width()) {
 
@@ -416,7 +416,7 @@ void AuthenFriend::SlotAddFirendLabelByClickTip(QString text)
 
 void AuthenFriend::SlotApplySure()
 {
-    qDebug() << "Slot Apply Sure ";
+    qDebug() << "[AuthenFriend]: Slot Apply Sure ";
     //添加发送逻辑
     QJsonObject jsonObj;
     auto uid = UserMgr::GetInstance()->GetUid();

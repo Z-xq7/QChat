@@ -19,7 +19,7 @@ SearchList::SearchList(QWidget *parent):QListWidget(parent),_find_dlg(nullptr), 
     //连接点击的信号和槽
     connect(this, &QListWidget::itemClicked, this, &SearchList::slot_item_clicked);
     //添加条目
-    qDebug() << "addtipitem created !";
+    qDebug() << "[SearchList]: addtipitem created !";
     addTipItem();
     //连接搜索条目
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_user_search, this, &SearchList::slot_user_search);
@@ -56,7 +56,7 @@ void SearchList::addTipItem()
 {
     auto *invalid_item = new QWidget();
     QListWidgetItem *item_tmp = new QListWidgetItem;
-    qDebug()<<"item_tmp sizeHint is " << item_tmp->sizeHint();
+    qDebug()<<"[SearchList]: item_tmp sizeHint is " << item_tmp->sizeHint();
     item_tmp->setSizeHint(QSize(230,65));
     this->addItem(item_tmp);
 
@@ -66,7 +66,7 @@ void SearchList::addTipItem()
 
     auto *add_user_item = new AddUserItem();
     QListWidgetItem *item = new QListWidgetItem;
-    qDebug()<<"item sizeHint is " << item->sizeHint();
+    qDebug()<<"[SearchList]: item sizeHint is " << item->sizeHint();
     item->setSizeHint(add_user_item->sizeHint());
     this->addItem(item);
     this->setItemWidget(item, add_user_item);
@@ -76,22 +76,22 @@ void SearchList::slot_item_clicked(QListWidgetItem *item)
 {
     QWidget *widget = this->itemWidget(item); //获取自定义widget对象
     if(!widget){
-        qDebug()<< "slot item clicked widget is nullptr";
+        qDebug()<< "[SearchList]: slot item clicked widget is nullptr";
         return;
     }
     // 对自定义widget进行操作， 将item 转化为基类ListItemBase
     ListItemBase *customItem = qobject_cast<ListItemBase*>(widget);
     if(!customItem){
-        qDebug()<< "slot item clicked widget is nullptr";
+        qDebug()<< "[SearchList]: slot item clicked widget is nullptr";
         return;
     }
 
-    qDebug() << "customItem is valid";
+    qDebug() << "[SearchList]: customItem is valid";
     auto itemType = customItem->GetItemType();
-    qDebug() << "itemType is:" << itemType;
+    qDebug() << "[SearchList]: itemType is:" << itemType;
 
     if(itemType == ListItemType::INVALID_ITEM){
-        qDebug()<< "slot invalid item clicked ";
+        qDebug()<< "[SearchList]: slot invalid item clicked ";
         return;
     }
     if(itemType == ListItemType::ADD_USER_TIP_ITEM){
@@ -100,7 +100,7 @@ void SearchList::slot_item_clicked(QListWidgetItem *item)
         }
 
         if(!_search_edit){
-            qDebug() << "_search_edit is null";
+            qDebug() << "[SearchList]: _search_edit is null";
             return;
         }
 
@@ -130,7 +130,7 @@ void SearchList::slot_user_search(std::shared_ptr<SearchInfo> si)
         //如果查找的是自己,先直接返回，以后可以扩充
         auto self_uid = UserMgr::GetInstance()->GetUid();
         if(si->_uid == self_uid){
-            qDebug() << "--- 查找的用户为您自己->直接返回 ---";
+            qDebug() << "[SearchList]: --- 查找的用户为您自己->直接返回 ---";
             return;
         }
 
@@ -139,7 +139,7 @@ void SearchList::slot_user_search(std::shared_ptr<SearchInfo> si)
         bool bExist = UserMgr::GetInstance()->CheckFriendById(si->_uid);
         if(bExist){
             //已经是好友了->直接跳转到聊天界面
-            qDebug() << "--- 查找的用户已是您的好友->直接跳转到聊天界面 ---";
+            qDebug() << "[SearchList]: --- 查找的用户已是您的好友->直接跳转到聊天界面 ---";
             emit sig_jump_chat_item(si);
             return;
         }

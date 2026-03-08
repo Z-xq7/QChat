@@ -33,6 +33,7 @@ public:
 
     void SendData(ReqId reqId, QByteArray data);
     void CloseConnection();
+    void SendDownloadInfo(std::shared_ptr<DownloadInfo> download);
 
 private:
     explicit FileTcpMgr(QObject *parent = nullptr);
@@ -62,6 +63,8 @@ signals:
     void sig_send_data(ReqId reqId, QByteArray data);
     void sig_con_success(bool bsuccess);
     void sig_connection_closed();
+    //重新加载label头像
+    void sig_reset_label_icon(QString path);
 
 public slots:
     void slot_send_data(ReqId reqId, QByteArray data);

@@ -60,13 +60,13 @@ ResetDialog::~ResetDialog()
 
 void ResetDialog::on_return_btn_clicked()
 {
-    qDebug() << "sure btn clicked ";
+    qDebug() << "[ResetDialog]: sure btn clicked ";
     emit switchLogin();
 }
 
 void ResetDialog::on_varify_btn_clicked()
 {
-    qDebug()<<"receive varify btn clicked ";
+    qDebug()<<"[ResetDialog]: receive varify btn clicked ";
     auto email = ui->email_edit->text();
     auto bcheck = checkEmailValid();
     if(!bcheck){
@@ -204,7 +204,7 @@ void ResetDialog::initHandlers()
         }
         auto email = jsonObj["email"].toString();
         showTip(tr("验证码已发送到邮箱，注意查收"), true);
-        qDebug()<< "email is " << email ;
+        qDebug()<< "[ResetDialog]: email is " << email ;
     });
 
     //重置密码回包逻辑
@@ -216,8 +216,8 @@ void ResetDialog::initHandlers()
         }
         auto email = jsonObj["email"].toString();
         showTip(tr("重置成功,点击返回登录"), true);
-        qDebug()<< "email is " << email ;
-        qDebug()<< "user uuid is " <<  jsonObj["uuid"].toString();
+        qDebug()<< "[ResetDialog]: email is " << email ;
+        qDebug()<< "[ResetDialog]: user uuid is " <<  jsonObj["uuid"].toString();
     });
 }
 

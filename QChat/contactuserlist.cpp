@@ -13,7 +13,7 @@
 
 ContactUserList::ContactUserList(QWidget *parent):_add_friend_item(nullptr),_load_pending(false)
 {
-    qDebug() << "ContactUserList init !!!";
+    qDebug() << "[ContactUserList]: ContactUserList init !!!";
     Q_UNUSED(parent);
     //关闭垂直和水平滚动条
     this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -91,7 +91,7 @@ void ContactUserList::addContactUserList()
     //加载后端发送过来的好友列表
     auto con_list = UserMgr::GetInstance()->GetConListPerPage();
 
-    if(con_list.empty()) qDebug() << "****************** con_list is empty!!! ******************";
+    if(con_list.empty()) qDebug() << "[ContactUserList]: ****************** con_list is empty!!! ******************";
 
     for(auto & con_ele : con_list){
         auto *con_user_wid = new ConUserItem();
@@ -167,7 +167,7 @@ bool ContactUserList::eventFilter(QObject *watched, QEvent *event)
                 QCoreApplication::quit(); // 完成后退出应用程序
             });
             // 滚动到底部，加载新的联系人
-            qDebug()<<"--- load more contact user ---";
+            qDebug()<<"[ContactUserList]: --- load more contact user ---";
             //发送信号通知聊天界面加载更多聊天内容
             emit sig_loading_contact_user();
         }
@@ -180,33 +180,33 @@ void ContactUserList::slot_item_clicked(QListWidgetItem *item)
 {
     QWidget *widget = this->itemWidget(item); // 获取自定义widget对象
     if(!widget){
-        qDebug()<< "slot item clicked widget is nullptr";
+        qDebug()<< "[ContactUserList]: slot item clicked widget is nullptr";
         return;
     }
 
     // 对自定义widget进行操作， 将item 转化为基类ListItemBase
     ListItemBase *customItem = qobject_cast<ListItemBase*>(widget);
     if(!customItem){
-        qDebug()<< "slot item clicked widget is nullptr";
+        qDebug()<< "[ContactUserList]: slot item clicked widget is nullptr";
         return;
     }
     //判断类型
     auto itemType = customItem->GetItemType();
     if(itemType == ListItemType::INVALID_ITEM
         || itemType == ListItemType::GROUP_TIP_ITEM){
-        qDebug()<< "slot invalid item clicked ";
+        qDebug()<< "[ContactUserList]: slot invalid item clicked ";
         return;
     }
     if(itemType == ListItemType::APPLY_FRIEND_ITEM){
         // 创建对话框，提示用户
-        qDebug()<< "apply friend item clicked ";
+        qDebug()<< "[ContactUserList]: apply friend item clicked ";
         //跳转到好友申请界面
         emit sig_switch_apply_friend_page();
         return;
     }
     if(itemType == ListItemType::CONTACT_USER_ITEM){
         // 创建对话框，提示用户
-        qDebug()<< "contact user item clicked ";
+        qDebug()<< "[ContactUserList]: contact user item clicked ";
 
         auto con_item = qobject_cast<ConUserItem*>(customItem);
         auto user_info = con_item->GetInfo();
@@ -219,7 +219,7 @@ void ContactUserList::slot_item_clicked(QListWidgetItem *item)
 
 void ContactUserList::slot_add_auth_firend(std::shared_ptr<AuthInfo> auth_info)
 {
-    qDebug() << "--- ContactUserList: slot add auth friend ---";
+    qDebug() << "[ContactUserList]: --- ContactUserList: slot add auth friend ---";
 
     //判断好友是否已经在好友列表中了
     bool isFriend = UserMgr::GetInstance()->CheckFriendById(auth_info->_uid);
@@ -244,7 +244,7 @@ void ContactUserList::slot_add_auth_firend(std::shared_ptr<AuthInfo> auth_info)
 
 void ContactUserList::slot_auth_rsp(std::shared_ptr<AuthRsp> auth_rsp)
 {
-    qDebug() << "--- ContactUserList: slot auth rsp called ---";
+    qDebug() << "[ContactUserList]: --- ContactUserList: slot auth rsp called ---";
 
     bool isFriend = UserMgr::GetInstance()->CheckFriendById(auth_rsp->_uid);
     if(isFriend){

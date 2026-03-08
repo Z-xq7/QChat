@@ -130,6 +130,7 @@
     <ClCompile Include="CServer.cpp" />
     <ClCompile Include="CSession.cpp" />
     <ClCompile Include="DistLock.cpp" />
+    <ClCompile Include="DownloadWorker.cpp" />
     <ClCompile Include="FileInfo.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="FileWorker.cpp" />
@@ -153,6 +154,7 @@
     <ClInclude Include="CSession.h" />
     <ClInclude Include="data.h" />
     <ClInclude Include="DistLock.h" />
+    <ClInclude Include="DownloadWorker.h" />
     <ClInclude Include="FileInfo.h" />
     <ClInclude Include="FileSystem.h" />
     <ClInclude Include="FileWorker.h" />

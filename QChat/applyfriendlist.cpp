@@ -5,7 +5,7 @@
 
 ApplyFriendList::ApplyFriendList(QWidget *parent)
 {
-    qDebug() << "ApplyFriendList create !!!";
+    qDebug() << "[ApplyFriendList]: ApplyFriendList create !!!";
     Q_UNUSED(parent);
     this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

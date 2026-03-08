@@ -72,7 +72,7 @@ LoginDialog::LoginDialog(QWidget *parent)
             // 当前是正常模式，切换到密码模式
             ui->pass_edit->setEchoMode(QLineEdit::Password);
         }
-        qDebug() << "Label was clicked!";
+        qDebug() << "[LoginDialog]: Label was clicked!";
     });
 
     // 初始化背景
@@ -81,7 +81,7 @@ LoginDialog::LoginDialog(QWidget *parent)
 
 LoginDialog::~LoginDialog()
 {
-    qDebug() << "LoginDialog distructed ...";
+    qDebug() << "[LoginDialog]: LoginDialog distructed ...";
     if (_ani_timer) {
         _ani_timer->stop();
     }
@@ -175,7 +175,7 @@ void LoginDialog::initHead()
 {
     // 加载图片
     QPixmap originalPixmap(":/images/favicon.png");
-    qDebug()<< originalPixmap.size() << ui->head_label->size();
+    qDebug()<< "[LoginDialog]: " << originalPixmap.size() << ui->head_label->size();
     originalPixmap = originalPixmap.scaled(ui->head_label->size(),
                                            Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
@@ -229,7 +229,7 @@ bool LoginDialog::checkUserValid()
 {
     auto email = ui->email_edit->text();
     if(email.isEmpty()){
-        qDebug() << "email empty " ;
+        qDebug() << "[LoginDialog]: email empty " ;
         AddTipErr(TipErr::TIP_EMAIL_ERR, tr("邮箱不能为空"));
         return false;
     }
@@ -241,7 +241,7 @@ bool LoginDialog::checkPwdValid()
 {
     auto pwd = ui->pass_edit->text();
     if(pwd.length() < 6 || pwd.length() > 15){
-        qDebug() << "Pass length invalid";
+        qDebug() << "[LoginDialog]: Pass length invalid";
         //提示长度不准确
         AddTipErr(TipErr::TIP_PWD_ERR, tr("密码长度应为6~15"));
         return false;
@@ -294,7 +294,7 @@ void LoginDialog::initHttpHandler()
         _si->_res_port = jsonObj["resport"].toString();
 
 
-        qDebug()<< "email is " << email << " uid is " << _si->_uid <<" chat host is "
+        qDebug()<< "[LoginDialog]: email is " << email << " uid is " << _si->_uid <<" chat host is "
                  << _si->_chat_host << " chat port is "
                  << _si->_chat_port << " token is " << _si->_token
                  << " res host is " << _si->_res_host
@@ -305,13 +305,13 @@ void LoginDialog::initHttpHandler()
 
 void LoginDialog::slot_forget_pwd()
 {
-    qDebug()<<"slot forget pwd";
+    qDebug()<<"[LoginDialog]: slot forget pwd";
     emit switchReset();
 }
 
 void LoginDialog::on_login_btn_clicked()
 {
-    qDebug()<<"login btn clicked";
+    qDebug()<<"[LoginDialog]: login btn clicked";
     if(checkUserValid() == false){
         return;
     }

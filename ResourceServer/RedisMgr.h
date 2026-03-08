@@ -298,6 +298,9 @@ public:
 
 	bool SetFileInfo(const std::string& name, std::shared_ptr<FileInfo>);
 	std::shared_ptr<FileInfo> GetFileInfo(const std::string& name);
+	std::shared_ptr<FileInfo> GetDownloadInfo(const std::string& name);
+	bool SetDownLoadInfo(const std::string& name, std::shared_ptr<FileInfo>);
+	bool DelDownLoadInfo(const std::string& name);
 
 private:
 	RedisMgr();

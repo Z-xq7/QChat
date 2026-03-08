@@ -6,6 +6,7 @@
 #include "userdata.h"
 #include <vector>
 #include <mutex>
+#include <QLabel>
 
 class UserMgr:public QObject,public Singleton<UserMgr>,
         public std::enable_shared_from_this<UserMgr>
@@ -21,6 +22,7 @@ public:
     QString GetName();
     QString GetNick();
     QString GetIcon();
+    void SetIcon(QString name);
     QString GetDesc();
 
     //获取申请列表
@@ -77,10 +79,24 @@ public:
     std::shared_ptr<ChatThreadData> GetCurLoadData();
     //加载当前的下一个聊天对话的消息
     std::shared_ptr<ChatThreadData> GetNextLoadData();
-    //将md5(文件唯一名称字符串)和文件信息关联起来
-    void AddNameFile(QString name, std::shared_ptr<QFileInfo> file_info);
-    //通过文件唯一名称获取文件信息
-    std::shared_ptr<QFileInfo> GetFileInfoByName(QString name);
+    //将md5(文件唯一名称字符串)和上传的文件信息关联起来
+    void AddUploadFile(QString name, std::shared_ptr<QFileInfo> file_info);
+    //移除上传的文件信息
+    void RmvUploadFile(QString name);
+    //获取上传信息
+    std::shared_ptr<QFileInfo> GetUploadInfoByName(QString name);
+    //判断文件是否在上传
+    bool IsDownLoading(QString name);
+    //将文件加到下载map中
+    void AddDownloadFile(QString name, std::shared_ptr<DownloadInfo> file_info);
+    //将文件从下载map中移除
+    void RmvDownloadFile(QString name);
+    //获取下载文件的信息
+    std::shared_ptr<DownloadInfo> GetDownloadInfo(QString name);
+    //添加资源路径到将要重置的Label集合
+    void AddLabelToReset(QString path, QLabel* label);
+    //重置用户label头像
+    void ResetLabelIcon(QString path);
 
 private:
     UserMgr();
@@ -112,7 +128,11 @@ private:
     //已发送的消息，还未收到回应的。
     QMap<QString, std::shared_ptr<TextChatData>> _msg_unrsp_map;
     //上传文件md5（文件唯一名称）和文件信息关联 映射
-    QMap<QString, std::shared_ptr<QFileInfo> > _name_to_fileinfo;
+    QMap<QString, std::shared_ptr<QFileInfo> > _name_to_upload_info;
+    std::mutex _down_load_mtx;
+    //名字关联下载信息
+    QMap<QString, std::shared_ptr<DownloadInfo> > _name_to_download_info;
+    QHash<QString, QList<QLabel*>> _path_to_reset_labels;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

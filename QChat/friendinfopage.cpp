@@ -34,6 +34,6 @@ void FriendInfoPage::SetInfo(std::shared_ptr<UserInfo> user_info)
 
 void FriendInfoPage::on_msg_chat_clicked()
 {
-    qDebug() << "--- msg chat btn clicked ---";
+    qDebug() << "[FriendInfoPage]: --- msg chat btn clicked ---";
     emit sig_jump_chat_item(_user_info);
 }

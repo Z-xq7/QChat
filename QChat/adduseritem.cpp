@@ -8,7 +8,7 @@ AddUserItem::AddUserItem(QWidget *parent)
 {
     ui->setupUi(this);
     SetItemType(ListItemType::ADD_USER_TIP_ITEM);
-    qDebug() << "adduseritem created !";
+    qDebug() << "[AddUserItem]: adduseritem created !";
 }
 
 AddUserItem::~AddUserItem()

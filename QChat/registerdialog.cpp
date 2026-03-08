@@ -75,7 +75,7 @@ RegisterDialog::RegisterDialog(QWidget *parent)
             // 当前是正常模式，切换到密码模式
             ui->pass_edit->setEchoMode(QLineEdit::Password);
         }
-        qDebug() << "Label was clicked!";
+        qDebug() << "[RegisterDialog]: Label was clicked!";
     });
 
     connect(ui->confirm_visible, &ClickedLabel::clicked, this, [this]() {
@@ -87,7 +87,7 @@ RegisterDialog::RegisterDialog(QWidget *parent)
             // 当前是正常模式，切换到密码模式
             ui->confirm_edit->setEchoMode(QLineEdit::Password);
         }
-        qDebug() << "Label was clicked!";
+        qDebug() << "[RegisterDialog]: Label was clicked!";
     });
 
     //创建定时器
@@ -110,7 +110,7 @@ RegisterDialog::RegisterDialog(QWidget *parent)
 
 RegisterDialog::~RegisterDialog()
 {
-    qDebug() << "RegisterDialog distructed ...";
+    qDebug() << "[RegisterDialog]: RegisterDialog distructed ...";
     delete ui;
 }
 
@@ -180,7 +180,7 @@ void RegisterDialog::initHttpHandlers()
 
         auto email = jsonObj["email"].toString();
         showTip(tr("验证码已经发送到邮箱，注意查收"),true);
-        qDebug() << "email is: " << email;
+        qDebug() << "[RegisterDialog]: email is: " << email;
     });
 
     //注册用户回包逻辑
@@ -192,8 +192,8 @@ void RegisterDialog::initHttpHandlers()
         }
         auto email = jsonObj["email"].toString();
         showTip(tr("用户注册成功"), true);
-        qDebug()<< "user uuid is: " << jsonObj["uid"].toString();
-        qDebug()<< "email is " << email ;
+        qDebug()<< "[RegisterDialog]: user uuid is: " << jsonObj["uid"].toString();
+        qDebug()<< "[RegisterDialog]: email is " << email ;
         ChangeTipPage();
     });
 }

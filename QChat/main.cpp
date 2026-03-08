@@ -25,12 +25,12 @@ int main(int argc, char *argv[])
     //读取qss样式配置
     QFile qss(":/style/stylesheet.qss");
     if(qss.open(QFile::ReadOnly)){
-        qDebug("open success");
+        qDebug("[Main]: open success");
         QString style = QLatin1String(qss.readAll());
         a.setStyleSheet(style);
         qss.close();
     }else{
-        qDebug("open filed");
+        qDebug("[Main]: open filed");
     }
     //读取配置文件config.ini
     QString filename = "config.ini";

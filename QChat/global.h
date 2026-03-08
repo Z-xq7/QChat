@@ -185,6 +185,15 @@ enum class ChatMsgType {
     FILE = 3
 };
 
+//下载文件信息
+struct DownloadInfo {
+    QString _name;
+    int _total_size;
+    int _current_size;
+    int _seq;
+    QString _client_path;
+};
+
 //仅做测试用！
 extern std::vector<QString> strs;
 extern std::vector<QString> heads;

@@ -52,7 +52,7 @@ ApplyFriend::ApplyFriend(QWidget *parent) :
 }
 ApplyFriend::~ApplyFriend()
 {
-    qDebug()<< "ApplyFriend destruct";
+    qDebug()<< "[ApplyFriend]: ApplyFriend destruct";
     delete ui;
 }
 
@@ -119,7 +119,7 @@ void ApplyFriend::SetSearchInfo(std::shared_ptr<SearchInfo> si)
 
 void ApplyFriend::ShowMoreLabel()
 {
-    qDebug()<< "receive more label clicked";
+    qDebug()<< "[ApplyFriend]: receive more label clicked";
     ui->more_lb_wid->hide();
     ui->lb_list->setFixedWidth(325);
     _tip_cur_point = QPoint(5, 5);
@@ -261,13 +261,13 @@ void ApplyFriend::SlotLabelEnter()
     lb->setObjectName("tipslb");
     lb->setText(text);
     connect(lb, &ClickedLabel::clicked, this, &ApplyFriend::SlotChangeFriendLabelByTip);
-    qDebug() << "ui->lb_list->width() is " << ui->lb_list->width();
-    qDebug() << "_tip_cur_point.x() is " << _tip_cur_point.x();
+    qDebug() << "[ApplyFriend]: ui->lb_list->width() is " << ui->lb_list->width();
+    qDebug() << "[ApplyFriend]: _tip_cur_point.x() is " << _tip_cur_point.x();
 
     QFontMetrics fontMetrics(lb->font()); // 获取QLabel控件的字体信息
     int textWidth = fontMetrics.horizontalAdvance(lb->text()); // 获取文本的宽度
     int textHeight = fontMetrics.height(); // 获取文本的高度
-    qDebug() << "textWidth is " << textWidth;
+    qDebug() << "[ApplyFriend]: textWidth is " << textWidth;
 
     if (_tip_cur_point.x() + textWidth + tip_offset + 3 > ui->lb_list->width()) {
         _tip_cur_point.setX(5);
@@ -284,7 +284,7 @@ void ApplyFriend::SlotLabelEnter()
 
 void ApplyFriend::SlotRemoveFriendLabel(QString name)
 {
-    qDebug() << "receive close signal";
+    qDebug() << "[ApplyFriend]: receive close signal";
     _label_point.setX(2);
     _label_point.setY(6);
     auto find_iter = _friend_labels.find(name);
@@ -379,12 +379,12 @@ void ApplyFriend::SlotAddFirendLabelByClickTip(QString text)
     lb->setObjectName("tipslb");
     lb->setText(text);
     connect(lb, &ClickedLabel::clicked, this, &ApplyFriend::SlotChangeFriendLabelByTip);
-    qDebug() << "ui->lb_list->width() is " << ui->lb_list->width();
-    qDebug() << "_tip_cur_point.x() is " << _tip_cur_point.x();
+    qDebug() << "[ApplyFriend]: ui->lb_list->width() is " << ui->lb_list->width();
+    qDebug() << "[ApplyFriend]: _tip_cur_point.x() is " << _tip_cur_point.x();
     QFontMetrics fontMetrics(lb->font()); // 获取QLabel控件的字体信息
     int textWidth = fontMetrics.horizontalAdvance(lb->text()); // 获取文本的宽度
     int textHeight = fontMetrics.height(); // 获取文本的高度
-    qDebug() << "textWidth is " << textWidth;
+    qDebug() << "[ApplyFriend]: textWidth is " << textWidth;
     if (_tip_cur_point.x() + textWidth+ tip_offset+3 > ui->lb_list->width()) {
         _tip_cur_point.setX(5);
         _tip_cur_point.setY(_tip_cur_point.y() + textHeight + 15);
@@ -400,14 +400,14 @@ void ApplyFriend::SlotAddFirendLabelByClickTip(QString text)
 
 void ApplyFriend::SlotApplyCancel()
 {
-    qDebug() << "Slot Apply Cancel";
+    qDebug() << "[ApplyFriend]: Slot Apply Cancel";
     this->hide();
     deleteLater();
 }
 
 void ApplyFriend::SlotApplySure()
 {
-    qDebug() << "Slot Apply Sure called" ;
+    qDebug() << "[ApplyFriend]: Slot Apply Sure called" ;
     QJsonObject jsonObj;
     auto uid = UserMgr::GetInstance()->GetUid();
     jsonObj["uid"] = uid;

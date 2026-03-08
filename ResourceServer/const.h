@@ -18,6 +18,11 @@ enum ErrorCodes {
 	FileSaveRedisFailed = 1013, //文件存储redis失败
 	CreateFilePathFailed = 1014, //文件路径创建失败
 	FileWritePermissionFailed = 1015,  //文件写权限不足
+	FileReadPermissionFailed = 1016,  //文件读权限不足
+	FileSeqInvalid = 1017,     //文件序列有误
+	FileOffsetInvalid = 1018,   //文件偏移量有误
+	FileReadFailed = 1019,      //文件读取失败
+	RedisReadErr = 1020,        //redis读取失败
 };
 
 // Defer类
@@ -45,10 +50,20 @@ private:
 #define MAX_RECVQUE  2000000
 #define MAX_SENDQUE 2000000
 
+//最大传输文件的大小
+#define MAX_FILE_LEN 2048
+
+//分布式锁的持有时间
+#define LOCK_TIME_OUT 10
+//分布式锁的重试时间
+#define ACQUIRE_TIME_OUT 5
+
 //4个逻辑工作者
 #define LOGIC_WORKER_COUNT 4
 //4个文件工作者
 #define FILE_WORKER_COUNT 4
+//4个下载工作者
+#define DOWN_LOAD_WORKER_COUNT	4
 
 enum MSG_IDS {
 	ID_TEST_MSG_REQ = 1001,       //测试消息
@@ -59,6 +74,8 @@ enum MSG_IDS {
 	ID_SYNC_FILE_RSP = 1006,      //同步文件回复回复
 	ID_UPLOAD_HEAD_ICON_REQ = 1031,      //上传头像请求
 	ID_UPLOAD_HEAD_ICON_RSP = 1032,      //上传头像回复
+	ID_DOWN_LOAD_FILE_REQ = 1033,        //下载文件请求
+	ID_DOWN_LOAD_FILE_RSP = 1034,        //下载文件回复
 };
 
 #define USERIPPREFIX  "uip_"
@@ -71,8 +88,3 @@ enum MSG_IDS {
 #define LOCK_PREFIX "lock_"
 #define USER_SESSION_PREFIX "usession_"
 #define LOCK_COUNT "lockcount"
-
-//分布式锁的持有时间
-#define LOCK_TIME_OUT 10
-//分布式锁的重试时间
-#define ACQUIRE_TIME_OUT 5
