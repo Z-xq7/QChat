@@ -40,7 +40,7 @@ private:
 	std::function<void()> func_;
 };
 
-#define MAX_LENGTH  1024*4
+#define MAX_LENGTH  1024*6
 //头部总长度
 #define HEAD_TOTAL_LEN 6
 //头部id长度
@@ -76,6 +76,8 @@ enum MSG_IDS {
 	ID_UPLOAD_HEAD_ICON_RSP = 1032,      //上传头像回复
 	ID_DOWN_LOAD_FILE_REQ = 1033,        //下载文件请求
 	ID_DOWN_LOAD_FILE_RSP = 1034,        //下载文件回复
+	ID_IMG_CHAT_UPLOAD_REQ = 1037,        //上传聊天图片资源
+	ID_IMG_CHAT_UPLOAD_RSP = 1038,        //上传聊天图片资源回复
 };
 
 #define USERIPPREFIX  "uip_"

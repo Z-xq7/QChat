@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include "userdata.h"
 #include <QTimer>
+#include <QFile>
+#include "filetcpmgr.h"
 
 TcpThread::TcpThread()
 {
@@ -685,13 +687,13 @@ void TcpMgr::initHandlers()
     //注册聊天chatpage将图片消息发送出去传给服务器，服务器的应答
     _handlers.insert(ID_IMG_CHAT_MSG_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
-        qDebug() << "handle id is " << id << " data is " << data;
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
         // 将QByteArray转换为QJsonDocument
         QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
             return;
         }
 
@@ -699,17 +701,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "parse create private chat json parse failed " << err;
+            qDebug() << "[TcpMgr]: parse create private chat json parse failed " << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "get create private chat failed, error is " << err;
+            qDebug() << "[TcpMgr]: get create private chat failed, error is " << err;
             return;
         }
 
-        qDebug() << "Receive create private chat rsp Success";
+        qDebug() << "[TcpMgr]: Receive create private chat rsp Success";
 
         //收到消息后转发给页面
         auto thread_id = jsonObj["thread_id"].toInt();
@@ -720,14 +722,52 @@ void TcpMgr::initHandlers()
         auto msg_id = jsonObj["message_id"].toInt();
         QString chat_time = jsonObj["chat_time"].toString();
         int status = jsonObj["status"].toInt();
+        auto text_or_url = jsonObj["text_or_url"].toString();
 
         auto file_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
 
         auto chat_data = std::make_shared<ImgChatData>(file_info, unique_id, thread_id, ChatFormType::PRIVATE,
                                                        ChatMsgType::TEXT, sender, status, chat_time);
-
-        //发送信号通知界面
+        //发送信号通知聊天界面
         emit sig_chat_img_rsp(thread_id, chat_data);
+
+        //创建QFileInfo 对象 todo 留作以后收到服务器返回消息后再发送
+        QFile file(file_info->_text_or_url);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "[TcpMgr]: Could not open file:" << file.errorString();
+            return;
+        }
+
+        file.seek(file_info->_current_size);
+        auto buffer = file.read(MAX_FILE_LEN);
+        qDebug() << "buffer is " << buffer;
+        //将文件内容转换为base64编码
+        QString base64Data = buffer.toBase64();
+        QJsonObject file_obj;
+        file_obj["name"] = file_info->_unique_name;
+        file_obj["unique_id"] = unique_id;
+        file_obj["seq"] = file_info->_seq;
+        file_info->_current_size = buffer.size() + (file_info->_seq - 1) * MAX_FILE_LEN;
+        file_obj["trans_size"] = file_info->_current_size;
+        file_obj["total_size"] = file_info->_total_size;
+        file_obj["token"] = UserMgr::GetInstance()->GetToken();
+        file_obj["md5"] = file_info->_md5;
+        file_obj["uid"] = UserMgr::GetInstance()->GetUid();
+        file_obj["data"] = base64Data;
+
+        if (buffer.size() + (file_info->_seq - 1) * MAX_FILE_LEN >= file_info->_total_size) {
+            file_obj["last"] = 1;
+        }
+        else {
+            file_obj["last"] = 0;
+        }
+
+        //发送文件  todo 留作以后收到服务器返回消息后再发送
+        QJsonDocument doc_file(file_obj);
+        QByteArray fileData = doc_file.toJson(QJsonDocument::Compact);
+
+        //发送消息给ResourceServer
+        FileTcpMgr::GetInstance()->SendData(ReqId::ID_IMG_CHAT_UPLOAD_REQ, fileData);
     });
 
     //注册有消息的通知显示，接收对方发来的消息

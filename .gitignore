@@ -125,6 +125,9 @@ npm-shrinkwrap.json
 .DS_Store
 Thumbs.db
 
+# 日志文件
+*.log
+
 # 证书和敏感信息
 *.pem
 *.key

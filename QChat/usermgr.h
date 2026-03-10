@@ -102,6 +102,8 @@ public:
     void AddTransFile(QString name, std::shared_ptr<MsgInfo> msg_info);
     //通过名字查找传输中的文件
     std::shared_ptr<MsgInfo> GetTransFileByName(QString name);
+    //通过名字删除传输的文件
+    void RmvTransFileByName(QString name);
 
 private:
     UserMgr();

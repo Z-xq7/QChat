@@ -22,6 +22,7 @@ class LogicWorker
 public:
 	LogicWorker();
 	~LogicWorker();
+
 	void PostTask(std::shared_ptr<LogicNode> task);
 	void RegisterCallBacks();
 
