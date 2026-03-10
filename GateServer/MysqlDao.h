@@ -1,5 +1,6 @@
 #pragma once
 #include "const.h"
+#include "Logger.h"
 #include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/statement.h>
@@ -30,14 +31,12 @@ public:
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
 				// 将时间戳转换为秒
 				long long timestamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
-				// 将连接和时间戳封装到SqlConnection对象中，并加入连接池
+				// 将连接和时间戳封装进SqlConnection对象中，并添加到连接池
 				pool_.push(std::make_unique<SqlConnection>(con, timestamp));
 			}
-			SetColor(GREEN);
-			std::cout << "--- mysql pool init success, pool size is " << poolSize_ << " ---" << std::endl;
-			SetColor(RESET);
+			LOG_INFO("mysql pool init success, pool size is " << poolSize_);
 
-			// 启动一个线程定期检查连接的健康状态
+			// 启动一个线程专门用来检测连接的健康状态
 			_check_thread = std::thread([this]() {
 				while (!b_stop_) {
 					checkConnectionPro();
@@ -45,27 +44,25 @@ public:
 					std::this_thread::sleep_for(std::chrono::seconds(60));
 				}
 			});
-			// 设置线程为分离状态，这样在程序结束时不需要等待线程完成
+			// 将线程设为分离状态，这样在程序结束时不需要等待线程结束
 			_check_thread.detach();
 		}
 		catch (sql::SQLException& e) {
 			// 处理异常
-			SetColor(RED);
-			std::cout << "*** mysql pool init failed, error is " << e.what()<< " ***" << std::endl;
-			SetColor(RESET);
+			LOG_ERROR("mysql pool init failed, error is " << e.what());
 		}
 	}
 
-	// 定期检查连接的健康状态，并尝试重连
+	// 用于检测连接的健康状态（保活）
 	void checkConnectionPro() {
-		//1 先读取“目标处理数”
+		//1 先读取出目前池处理数量
 		size_t targetCount;
 		{
 			std::lock_guard<std::mutex> guard(mutex_);
 			targetCount = pool_.size();
 		}
 
-		//2 当前已经处理的数量
+		//2 当前已经处理数量
 		size_t processed = 0;
 
 		//3 时间戳
@@ -84,7 +81,7 @@ public:
 			}
 
 			bool healthy = true;
-			//解锁后做检查/重连逻辑
+			//检测连接保活/保鲜逻辑
 			if (timestamp - con->_last_oper_time >= 5) {
 				try {
 					std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
@@ -92,7 +89,7 @@ public:
 					con->_last_oper_time = timestamp;
 				}
 				catch (sql::SQLException& e) {
-					std::cout << "*** Mysql: Error keeping connection alive: " << e.what() << " ***" << std::endl;
+					LOG_ERROR("Mysql: Error keeping connection alive: " << e.what());
 					healthy = false;
 					_fail_count++;
 				}
@@ -107,7 +104,7 @@ public:
 			++processed;
 		}
 
-		std::cout << "*** Mysql: Connection check completed, " << _fail_count << " connections failed ***" << std::endl;
+		LOG_INFO("Mysql: Connection check completed, " << _fail_count << " connections failed");
 
 		while (_fail_count > 0) {
 			auto b_res = reconnect(timestamp);
@@ -133,12 +130,12 @@ public:
 				pool_.push(std::move(newCon));
 			}
 
-			std::cout << "*** Mysql: Reconnect success ***" << std::endl;
+			LOG_INFO("Mysql: Reconnect success");
 			return true;
 
 		}
 		catch (sql::SQLException& e) {
-			std::cout << "*** Mysql: Reconnect failed, error is " << e.what() << " ***" << std::endl;
+			LOG_ERROR("Mysql: Reconnect failed, error is " << e.what());
 			return false;
 		}
 	}

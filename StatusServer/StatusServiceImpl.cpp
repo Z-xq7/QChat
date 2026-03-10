@@ -2,6 +2,7 @@
 #include "ConfigMgr.h"
 #include "const.h"
 #include "RedisMgr.h"
+#include "Logger.h"
 #include <climits>
 
 std::string generate_unique_string() {
@@ -38,18 +39,20 @@ StatusServiceImpl::StatusServiceImpl()
 		server.name = cfg[word]["name"];
 		_servers[server.name] = server;
 	}
-
+	
+	LOG_INFO("StatusServiceImpl initialized with " << _servers.size() << " chat servers");
 }
 
 Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
 {
-	std::string prefix("--- qchat status server has received ---");
 	const auto& server = getChatServer();
 	reply->set_host(server.host);
 	reply->set_port(server.port);
 	reply->set_error(ErrorCodes::Success);
 	reply->set_token(generate_unique_string());
 	insertToken(request->uid(), reply->token());
+	
+	LOG_INFO("GetChatServer for uid: " << request->uid() << ", assigned server: " << server.name << ":" << server.port);
 	return Status::OK;
 }
 
@@ -57,14 +60,14 @@ ChatServer StatusServiceImpl::getChatServer() {
 	std::lock_guard<std::mutex> guard(_server_mtx);
 	auto minServer = _servers.begin()->second;
 
-	//从Redis中获取连接数，获取连接数最少的服务器
+	//从Redis中获取服务器连接数，获取连接数最少的服务器
 	auto count_str = RedisMgr::GetInstance()->HGet(LOGIN_COUNT, minServer.name);
 	if (count_str.empty()) {
-		//不存在则默认设置为最大
+		//如果不存在默认设置为最大
 		minServer.con_count = INT_MAX;
 	}
 	else {
-		//存在则设置为实际连接数
+		//否则设置为实际连接数
 		minServer.con_count = std::stoi(count_str);
 	}
 
@@ -87,6 +90,8 @@ ChatServer StatusServiceImpl::getChatServer() {
 			minServer = server.second;
 		}
 	}
+	
+	LOG_DEBUG("Selected server: " << minServer.name << " with connection count: " << minServer.con_count);
 	return minServer;
 }
 
@@ -101,16 +106,20 @@ Status StatusServiceImpl::Login(ServerContext* context, const LoginReq* request,
 	bool success = RedisMgr::GetInstance()->Get(token_key, token_value);
 	if (success) {
 		reply->set_error(ErrorCodes::UidInvalid);
+		LOG_WARN("Login failed: invalid uid " << uid);
 		return Status::OK;
 	}
 	
 	if (token_value != token) {
 		reply->set_error(ErrorCodes::TokenInvalid);
+		LOG_WARN("Login failed: invalid token for uid " << uid);
 		return Status::OK;
 	}
 	reply->set_error(ErrorCodes::Success);
 	reply->set_uid(uid);
 	reply->set_token(token);
+	
+	LOG_INFO("Login success for uid: " << uid);
 	return Status::OK;
 }
 
@@ -119,4 +128,5 @@ void StatusServiceImpl::insertToken(int uid, std::string token)
 	std::string uid_str = std::to_string(uid);
 	std::string token_key = USERTOKENPREFIX + uid_str;
 	RedisMgr::GetInstance()->Set(token_key, token);
+	LOG_DEBUG("Inserted token for uid: " << uid);
 }

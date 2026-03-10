@@ -1,0 +1,39 @@
+[2026-03-09 00:45:52.679] [INFO] [ResourceServer.cpp:47] [main] [thread:24900] Logger system initialized successfully, log file: log/resourceserver_20260309_004552.log
+[2026-03-09 00:45:52.683] [INFO] [ConfigMgr.cpp:9] [ConfigMgr] [thread:24900] Config path: E:\VS_QChat\ResourceServer\config.ini
+[2026-03-09 00:45:52.684] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [GateServer]
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=13419
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [Mysql]
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=47.108.113.95
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Passwd=123456
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=3307
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Schema=qchat
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] User=root
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [Output]
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Path=bin
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [PeerServer]
+[2026-03-09 00:45:52.685] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Servers=chatserver2
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [Redis]
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=47.108.113.95
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Passwd=123456
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=6380
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [SelfServer]
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=0.0.0.0
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Name=reserver
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=9090
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] RPCPort=51055
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [Static]
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Path=static
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [StatusServer]
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=127.0.0.1
+[2026-03-09 00:45:52.686] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=50052
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [VarifyServer]
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=127.0.0.1
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=50051
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:24900] [chatserver2]
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Host=127.0.0.1
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Name=chatserver2
+[2026-03-09 00:45:52.687] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:24900] Port=50056
+[2026-03-09 00:45:52.687] [INFO] [ConfigMgr.cpp:82] [InitPath] [thread:24900] Directory already exists: E:\VS_QChat\ResourceServer\bin\static
+[2026-03-09 00:45:52.687] [INFO] [ResourceServer.cpp:57] [main] [thread:24900] ResourceServer [reserver] starting...
+[2026-03-09 00:45:52.692] [INFO] [CServer.cpp:13] [CServer] [thread:24900] Server start success, listen on port: 9090
+[2026-03-09 00:45:52.694] [INFO] [ResourceServer.cpp:72] [main] [thread:24900] ResourceServer started successfully

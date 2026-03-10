@@ -1,0 +1,46 @@
+[2026-03-10 15:45:05.090] [INFO] [ResourceServer.cpp:47] [main] [thread:46168] Logger system initialized successfully, log file: log/resourceserver_20260310_154505.log
+[2026-03-10 15:45:05.091] [INFO] [ConfigMgr.cpp:9] [ConfigMgr] [thread:46168] Config path: E:\VS_QChat\ResourceServer\config.ini
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [GateServer]
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=13419
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [Mysql]
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=47.108.113.95
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Passwd=123456
+[2026-03-10 15:45:05.092] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=3307
+[2026-03-10 15:45:05.093] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Schema=qchat
+[2026-03-10 15:45:05.093] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] User=root
+[2026-03-10 15:45:05.093] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [Output]
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Path=bin
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [PeerServer]
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Servers=chatserver2
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [Redis]
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=47.108.113.95
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Passwd=123456
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=6380
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [SelfServer]
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=0.0.0.0
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Name=reserver
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=9090
+[2026-03-10 15:45:05.094] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] RPCPort=51055
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [Static]
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Path=static
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [StatusServer]
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=127.0.0.1
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=50052
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [VarifyServer]
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=127.0.0.1
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=50051
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:46168] [chatserver2]
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Host=127.0.0.1
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Name=chatserver2
+[2026-03-10 15:45:05.095] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:46168] Port=50056
+[2026-03-10 15:45:05.096] [INFO] [ConfigMgr.cpp:82] [InitPath] [thread:46168] Directory already exists: E:\VS_QChat\ResourceServer\bin\static
+[2026-03-10 15:45:05.096] [INFO] [ResourceServer.cpp:57] [main] [thread:46168] ResourceServer [reserver] starting...
+[2026-03-10 15:45:05.101] [INFO] [CServer.cpp:13] [CServer] [thread:46168] Server start success, listen on port: 9090
+[2026-03-10 15:45:05.104] [INFO] [ResourceServer.cpp:72] [main] [thread:46168] ResourceServer started successfully
+[2026-03-10 15:45:19.137] [INFO] [CSession.cpp:40] [Start] [thread:46168] Session [211d9ee0-ee80-4a84-9c4c-bbe70bf7fddf] started to read
+[2026-03-10 15:45:33.049] [ERROR] [CSession.cpp:132] [operator ()] [thread:46408] Handle read failed, error: End of file [asio.misc:2 at D:\myself\cppsoft\boost\include\boost\asio\detail\win_iocp_socket_recv_op.hpp:89:5 in function 'void __cdecl boost::asio::detail::win_iocp_socket_recv_op<class boost::asio::mutable_buffer,class `private: void __cdecl CSession::asyncReadLen(unsigned __int64,unsigned __int64,class std::function<void __cdecl(class boost::system::error_code const &,unsigned __int64)>)'::`2'::<lambda_1>,class boost::asio::any_io_executor>::do_complete(void *,class boost::asio::detail::win_iocp_operation *,const class boost::system::error_code &,unsigned __int64)']
+[2026-03-10 15:45:33.050] [DEBUG] [CSession.cpp:18] [~CSession] [thread:46408] Session [211d9ee0-ee80-4a84-9c4c-bbe70bf7fddf] destruct
+[2026-03-10 15:45:39.431] [WARN] [ResourceServer.cpp:66] [operator ()] [thread:46168] Received shutdown signal, stopping services...
+[2026-03-10 15:45:39.434] [INFO] [ResourceServer.cpp:74] [main] [thread:46168] ResourceServer shutdown completed
+[2026-03-10 15:45:39.435] [INFO] [CServer.cpp:18] [~CServer] [thread:46168] Server destruct, listen on port: 9090
+[2026-03-10 15:45:39.435] [DEBUG] [CSession.cpp:18] [~CSession] [thread:46168] Session [83a5bcae-87c6-4b03-86a6-02b1fd8c0341] destruct

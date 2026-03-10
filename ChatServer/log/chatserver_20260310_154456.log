@@ -1,0 +1,78 @@
+[2026-03-10 15:44:56.557] [INFO] [ChatServer.cpp:54] [main] [thread:13112] ========== ChatServer Starting ==========
+[2026-03-10 15:44:56.558] [INFO] [ConfigMgr.cpp:9] [ConfigMgr] [thread:13112] Config path: E:\VS_QChat\ChatServer\config.ini
+[2026-03-10 15:44:56.559] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [GateServer]
+[2026-03-10 15:44:56.559] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=13419
+[2026-03-10 15:44:56.559] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [Mysql]
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=47.108.113.95
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Passwd=123456
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=3307
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Schema=qchat
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] User=root
+[2026-03-10 15:44:56.560] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [PeerServer]
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Servers=chatserver2
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [Redis]
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=47.108.113.95
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Passwd=123456
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=6380
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [SelfServer]
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=0.0.0.0
+[2026-03-10 15:44:56.561] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Name=chatserver1
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=8090
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] RPCPort=50055
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [StatusServer]
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=127.0.0.1
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=50052
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [VarifyServer]
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=127.0.0.1
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=50051
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:13112] [chatserver2]
+[2026-03-10 15:44:56.562] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Host=127.0.0.1
+[2026-03-10 15:44:56.563] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Name=chatserver2
+[2026-03-10 15:44:56.563] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:13112] Port=50056
+[2026-03-10 15:44:56.563] [INFO] [ChatServer.cpp:58] [main] [thread:13112] Server name: chatserver1
+[2026-03-10 15:44:57.022] [DEBUG] [RedisMgr.cpp:205] [HSet] [thread:13112] Redis HSET success - key: logincount, hkey: chatserver1
+[2026-03-10 15:44:57.023] [INFO] [CServer.cpp:13] [CServer] [thread:13112] Server start success, listen on port: 8090
+[2026-03-10 15:44:57.030] [INFO] [ChatServer.cpp:87] [main] [thread:13112] RPC Server listening on 0.0.0.0:50055
+[2026-03-10 15:45:19.154] [DEBUG] [CSession.cpp:175] [operator ()] [thread:40592] Receive msg_id: 1005 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:19.167] [DEBUG] [CSession.cpp:186] [operator ()] [thread:40592] Receive msg_len: 73 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:19.175] [DEBUG] [CSession.cpp:126] [operator ()] [thread:40592] Receive data - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56, data: {
+    "token": "de814584-d194-414f-bd60-ed53b26832de",
+    "uid": 1005
+}
+
+[2026-03-10 15:45:19.176] [DEBUG] [LogicSystem.cpp:85] [DealMsg] [thread:44632] recv_msg id is 1005
+[2026-03-10 15:45:19.185] [INFO] [LogicSystem.cpp:141] [LoginHandler] [thread:44632] User login request - uid: 1005, token: de814584-d194-414f-bd60-ed53b26832de
+[2026-03-10 15:45:19.226] [DEBUG] [RedisMgr.cpp:42] [Get] [thread:44632] Redis GET success - key: utoken_1005
+[2026-03-10 15:45:19.249] [DEBUG] [RedisMgr.cpp:42] [Get] [thread:44632] Redis GET success - key: ubaseinfo_1005
+[2026-03-10 15:45:19.249] [DEBUG] [LogicSystem.cpp:952] [GetBaseInfo] [thread:44632] Get base info from redis - uid: 1005, name: 曾祥奇
+[2026-03-10 15:45:20.131] [DEBUG] [RedisMgr.cpp:33] [Get] [thread:44632] Redis GET - key not found: uip_1005
+[2026-03-10 15:45:20.148] [DEBUG] [RedisMgr.cpp:75] [Set] [thread:44632] Redis SET success - key: uip_1005
+[2026-03-10 15:45:20.170] [DEBUG] [RedisMgr.cpp:75] [Set] [thread:44632] Redis SET success - key: usession_1005
+[2026-03-10 15:45:20.188] [INFO] [LogicSystem.cpp:275] [LoginHandler] [thread:44632] User login success - uid: 1005, name: 曾祥奇
+[2026-03-10 15:45:20.269] [DEBUG] [CSession.cpp:175] [operator ()] [thread:40592] Receive msg_id: 1025 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:20.269] [DEBUG] [CSession.cpp:186] [operator ()] [thread:40592] Receive msg_len: 12 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:20.269] [DEBUG] [CSession.cpp:126] [operator ()] [thread:40592] Receive data - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56, data: {"uid":1005}
+[2026-03-10 15:45:20.269] [DEBUG] [LogicSystem.cpp:85] [DealMsg] [thread:44632] recv_msg id is 1025
+[2026-03-10 15:45:20.270] [INFO] [LogicSystem.cpp:620] [GetUserThreadsHandler] [thread:44632] Get user threads request - uid: 1005, last_id: 0
+[2026-03-10 15:45:20.307] [DEBUG] [LogicSystem.cpp:657] [GetUserThreadsHandler] [thread:44632] Get user threads success - uid: 1005, thread_count: 1
+[2026-03-10 15:45:20.335] [DEBUG] [CSession.cpp:175] [operator ()] [thread:40592] Receive msg_id: 1029 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:20.336] [DEBUG] [CSession.cpp:186] [operator ()] [thread:40592] Receive msg_len: 31 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:20.336] [DEBUG] [CSession.cpp:126] [operator ()] [thread:40592] Receive data - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56, data: {"message_id":0,"thread_id":10}
+[2026-03-10 15:45:20.336] [DEBUG] [LogicSystem.cpp:85] [DealMsg] [thread:44632] recv_msg id is 1029
+[2026-03-10 15:45:20.336] [INFO] [LogicSystem.cpp:698] [LoadChatMsg] [thread:44632] Load chat messages - thread_id: 10, message_id: 0
+[2026-03-10 15:45:20.376] [DEBUG] [LogicSystem.cpp:731] [LoadChatMsg] [thread:44632] Load chat messages success - message_count: 9
+[2026-03-10 15:45:30.237] [DEBUG] [CSession.cpp:175] [operator ()] [thread:40592] Receive msg_id: 1023 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:30.237] [DEBUG] [CSession.cpp:186] [operator ()] [thread:40592] Receive msg_len: 16 - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:30.238] [DEBUG] [CSession.cpp:126] [operator ()] [thread:40592] Receive data - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56, data: {"fromuid":1005}
+[2026-03-10 15:45:30.238] [DEBUG] [LogicSystem.cpp:85] [DealMsg] [thread:44632] recv_msg id is 1023
+[2026-03-10 15:45:30.238] [DEBUG] [LogicSystem.cpp:605] [HeartBeatHandler] [thread:44632] Receive heart beat - uid: 1005
+[2026-03-10 15:45:33.049] [ERROR] [CSession.cpp:147] [operator ()] [thread:40592] Handle read head failed - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56, error: End of file [asio.misc:2 at D:\myself\cppsoft\boost\include\boost\asio\detail\win_iocp_socket_recv_op.hpp:89:5 in function 'void __cdecl boost::asio::detail::win_iocp_socket_recv_op<class boost::asio::mutable_buffer,class `private: void __cdecl CSession::asyncReadLen(unsigned __int64,unsigned __int64,class std::function<void __cdecl(class boost::system::error_code const &,unsigned __int64)>)'::`2'::<lambda_1>,class boost::asio::any_io_executor>::do_complete(void *,class boost::asio::detail::win_iocp_operation *,const class boost::system::error_code &,unsigned __int64)']
+[2026-03-10 15:45:33.095] [DEBUG] [RedisMgr.cpp:42] [Get] [thread:40592] Redis GET success - key: usession_1005
+[2026-03-10 15:45:33.118] [DEBUG] [RedisMgr.cpp:332] [Del] [thread:40592] Redis DEL success - key: usession_1005
+[2026-03-10 15:45:33.144] [DEBUG] [RedisMgr.cpp:332] [Del] [thread:40592] Redis DEL success - key: uip_1005
+[2026-03-10 15:45:33.165] [DEBUG] [RedisMgr.cpp:332] [Del] [thread:40592] Redis DEL success - key: utoken_1005
+[2026-03-10 15:45:33.188] [DEBUG] [CSession.cpp:22] [~CSession] [thread:40592] Session destructed - session_id: 093c1d97-a149-41e4-affe-aad8f5bc4e56
+[2026-03-10 15:45:50.055] [INFO] [ChatServer.cpp:96] [operator ()] [thread:13112] Received shutdown signal, stopping server...
+[2026-03-10 15:45:50.079] [INFO] [ChatServer.cpp:110] [main] [thread:13112] ========== ChatServer Stopped ==========
+[2026-03-10 15:45:50.087] [DEBUG] [CSession.cpp:22] [~CSession] [thread:13112] Session destructed - session_id: 5a203606-fc6a-44e9-a5dd-896271bb5385
+[2026-03-10 15:45:50.108] [DEBUG] [RedisMgr.cpp:307] [HDel] [thread:13112] Redis HDEL success - key: logincount, field: chatserver1

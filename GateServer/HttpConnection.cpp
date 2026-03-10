@@ -1,4 +1,5 @@
 #include "HttpConnection.h"
+#include "Logger.h"
 
 HttpConnection::HttpConnection(boost::asio::io_context& ioc):_socket(ioc)
 {
@@ -81,47 +82,39 @@ void HttpConnection::Start()
 			{
 				if (ec)
 				{
-					SetColor(RED);
-					std::cout << "*** http read err is: " << ec.message() << " ***" << std::endl;
-					SetColor(RESET);
+					LOG_ERROR("http read error: " << ec.message());
 					return;
 				}
-				//http服务器不需要粘包处理，故可以忽略已发送字节数
+				//http连接需要进行黏包处理但是可以后面再发送接收字节数，这里先忽略
 				boost::ignore_unused(bytes_transferred);
 				//打印请求内容
-				SetColor(YELLOW);
-				std::cout << "--- http request received ---\n" << self->_request << std::endl;
-				SetColor(RESET);
+				LOG_DEBUG("http request received:\n" << self->_request);
 				//处理客户端请求
 				self->HandleReq();
-				//启动超时检测
+				//检测超时器
 				self->CheckDeadLine();
 			}
 			catch (std::exception& e)
 			{
-				SetColor(RED);
-				std::cerr << "*** HttpConnection Start Error: " << e.what() << " ***" << std::endl;
-				SetColor(RESET);
+				LOG_ERROR("HttpConnection Start exception: " << e.what());
 			}
 		}
 	);
 }
 
-//定时器检测客户端超时连接（掉线）
+//超时器（检测客户端超时连接，清除）
 void HttpConnection::CheckDeadLine()
 {
 	auto self = shared_from_this();
 	deadline_.async_wait([self](beast::error_code ec)
 		{
-			//定时器出错
+			//超时器报错
 			if (ec)
 			{
-				SetColor(RED);
-				std::cout << "*** http deadline err is: " << ec.message() << " ***" << std::endl;
-				SetColor(RESET);
+				LOG_ERROR("http deadline error: " << ec.message());
 				return;
 			}
-			//没有出错，关闭客户端连接
+			//没有出错就关闭客户端连接
 			self->_socket.close(ec);
 		}
 	);
@@ -230,27 +223,23 @@ void HttpConnection::HandleReq()
 	}
 }
 
-//响应客户端（回发数据）
+//响应客户端（返回数据）
 void HttpConnection::WriteResponse()
 {
 	auto self = shared_from_this();
-	//设置回应内容长度
+	//设置回应数据长度
 	_response.content_length(_response.body().size());
-	SetColor(GREEN);
-	std::cout << "--- http response to be sent ---\n" << _response << std::endl;
-	SetColor(RESET);
-	//异步回应客户端
+	LOG_DEBUG("http response to be sent:\n" << _response);
+	//异步响应客户端
 	http::async_write(_socket,_response,[self](beast::error_code ec, std::size_t bytes_transferred)
 		{
 			//关闭客户端发送通道
 			self->_socket.shutdown(tcp::socket::shutdown_send, ec);
 			if (ec)
 			{
-				SetColor(RED);
-				std::cout << "*** http write err is: " << ec.message() << " ***" << std::endl;
-				SetColor(RESET);
+				LOG_ERROR("http write error: " << ec.message());
 			}
-			//回应完成后取消定时器
+			//响应完成后取消超时器
 			self->deadline_.cancel();
 		}
 	);

@@ -1,0 +1,34 @@
+[2026-03-10 15:40:10.145] [INFO] [StatusServer.cpp:89] [main] [thread:41000] Logger initialized successfully, log file: log/statusserver_20260310_154010.log
+[2026-03-10 15:40:10.145] [INFO] [ConfigMgr.cpp:8] [ConfigMgr] [thread:41000] Config file path: E:\VS_QChat\StatusServer\config.ini
+[2026-03-10 15:40:10.146] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: GateServer ]
+[2026-03-10 15:40:10.146] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 13419
+[2026-03-10 15:40:10.146] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: Mysql ]
+[2026-03-10 15:40:10.146] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 47.108.113.95
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   password = 123456
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 3307
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   schema = qchat
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   user = root
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: Redis ]
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 47.108.113.95
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   password = 123456
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 6380
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: StatusServer ]
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 127.0.0.1
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 50052
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: VarifyServer ]
+[2026-03-10 15:40:10.147] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 127.0.0.1
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 50051
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: chatserver1 ]
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 127.0.0.1
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   name = chatserver1
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 8090
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: chatserver2 ]
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   host = 127.0.0.1
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   name = chatserver2
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   port = 8091
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:41000] [ Section: chatservers ]
+[2026-03-10 15:40:10.148] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:41000]   name = chatserver1,chatserver2
+[2026-03-10 15:40:10.149] [INFO] [StatusServiceImpl.cpp:43] [StatusServiceImpl] [thread:41000] StatusServiceImpl initialized with 2 chat servers
+[2026-03-10 15:40:10.152] [INFO] [StatusServer.cpp:38] [RunServer] [thread:41000] Server listening on 127.0.0.1:50052
+[2026-03-10 15:40:21.109] [WARN] [StatusServer.cpp:48] [operator ()] [thread:41844] Shutting down server...
+[2026-03-10 15:40:21.110] [INFO] [StatusServer.cpp:59] [RunServer] [thread:41000] Server stopped successfully

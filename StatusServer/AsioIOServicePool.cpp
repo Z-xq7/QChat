@@ -1,5 +1,5 @@
 ﻿#include "AsioIOServicePool.h"
-#include <iostream>
+#include "Logger.h"
 
 AsioIOServicePool::AsioIOServicePool(std::size_t size):_ioServices(size),
 _works(size), _nextIOService(0){
@@ -13,13 +13,13 @@ _works(size), _nextIOService(0){
 			_ioServices[i].run();
 			});
 	}
+	
+	LOG_INFO("AsioIOServicePool initialized with " << size << " io_services");
 }
 
 AsioIOServicePool::~AsioIOServicePool() {
 	Stop();
-	SetColor(BLUE);
-	std::cout << "--- AsioIOServicePool destruct ---" << std::endl;
-	SetColor(RESET);
+	LOG_INFO("AsioIOServicePool destructed");
 }
 
 boost::asio::io_context& AsioIOServicePool::GetIOService() {
@@ -44,4 +44,6 @@ void AsioIOServicePool::Stop(){
 	for (auto& t : _threads) {
 		t.join();
 	}
+	
+	LOG_DEBUG("AsioIOServicePool stopped all services");
 }

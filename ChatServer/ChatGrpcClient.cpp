@@ -4,6 +4,7 @@
 #include "UserMgr.h"
 #include "CSession.h"
 #include "MysqlMgr.h"
+#include "Logger.h"
 
 ChatGrpcClient::ChatGrpcClient()
 {
@@ -28,7 +29,7 @@ ChatGrpcClient::ChatGrpcClient()
 	}
 }
 
-//处理添加好友请求
+//处理添加好友的请求
 AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFriendReq& request)
 {
 	AddFriendRsp rsp;
@@ -41,7 +42,7 @@ AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFri
 	auto find_iter = _pools.find(server_ip);
 	if (find_iter == _pools.end())
 	{
-		std::cout << "--- server ip: " << server_ip << " not found in pool ---" << std::endl;
+		LOG_WARN("NotifyAddFriend - server not found in pool, server_ip: " << server_ip);
 		return rsp;
 	}
 
@@ -57,7 +58,7 @@ AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFri
 
 	if (!status.ok())
 	{
-		std::cout << "NotifyAddFriend RPC failed: " << status.error_message() << std::endl;
+		LOG_ERROR("NotifyAddFriend RPC failed - error: " << status.error_message());
 		rsp.set_error(ErrorCodes::RPCFailed);
 		return rsp;
 	}
@@ -74,13 +75,13 @@ AuthFriendRsp ChatGrpcClient::NotifyAuthFriend(std::string server_ip, const Auth
 		rsp.set_touid(request.touid());
 		});
 
-	//先从连接池中获取对应服务器的连接，如果没有说明连接池中没有对应服务器的连接，即没有这个用户在线，直接返回成功即可
+	//先从连接池中获取对应的服务器连接，如果没有说明连接池没有对应的服务器连接，或没有连接（没有上线），直接返回成功即可
 	auto find_iter = _pools.find(server_ip);
 	if (find_iter == _pools.end()) {
 		return rsp;
 	}
 
-	//若果连接池中有对应服务器的连接，则通过grpc通知对应服务器有认证结果
+	//如果连接池中有对应的服务器连接，则通过grpc通知对应服务器认证结果
 	auto& pool = find_iter->second;
 	ClientContext context;
 	auto stub = pool->getConnection();
@@ -91,6 +92,7 @@ AuthFriendRsp ChatGrpcClient::NotifyAuthFriend(std::string server_ip, const Auth
 		});
 
 	if (!status.ok()) {
+		LOG_ERROR("NotifyAuthFriend RPC failed - error: " << status.error_message());
 		rsp.set_error(ErrorCodes::RPCFailed);
 		return rsp;
 	}
@@ -102,7 +104,7 @@ bool ChatGrpcClient::GetBaseInfo(std::string base_key, int uid, std::shared_ptr<
 	return true;
 }
 
-//处理文本消息请求
+//处理文本消息的发送
 TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const TextChatMsgReq& request, const Json::Value& rtvalue)
 {
 	TextChatMsgRsp rsp;
@@ -123,7 +125,7 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
 	auto find_iter = _pools.find(server_ip);
 	if (find_iter == _pools.end())
 	{
-		std::cout << "--- server ip: " << server_ip << " not found in pool ---" << std::endl;
+		LOG_WARN("NotifyTextChatMsg - server not found in pool, server_ip: " << server_ip);
 		return rsp;
 	}
 
@@ -138,14 +140,14 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
 
 	if (!status.ok())
 	{
-		std::cout << "*** NotifyTextChatMsg RPC failed: " << status.error_message() << " ***" << std::endl;
+		LOG_ERROR("NotifyTextChatMsg RPC failed - error: " << status.error_message());
 		rsp.set_error(ErrorCodes::RPCFailed);
 		return rsp;
 	}
 	return rsp;
 }
 
-//处理踢人请求
+//踢掉用户的请求
 KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, const KickUserReq& request)
 {
 	KickUserRsp rsp;
@@ -158,7 +160,7 @@ KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, const KickUser
 	auto find_iter = _pools.find(server_ip);
 	if (find_iter == _pools.end())
 	{
-		std::cout << "--- server ip: " << server_ip << " not found in pool ---" << std::endl;
+		LOG_WARN("NotifyKickUser - server not found in pool, server_ip: " << server_ip);
 		return rsp;
 	}
 
@@ -172,7 +174,7 @@ KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, const KickUser
 	Status status = stub->NotifyKickUser(&context, request, &rsp);
 	if (!status.ok())
 	{
-		std::cout << "*** NotifyKickUser RPC failed: " << status.error_message() << " ***" << std::endl;
+		LOG_ERROR("NotifyKickUser RPC failed - error: " << status.error_message());
 		rsp.set_error(ErrorCodes::RPCFailed);
 		return rsp;
 	}

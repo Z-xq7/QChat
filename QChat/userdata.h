@@ -138,6 +138,8 @@ public:
                  QString content,int _send_uid,int status, QString chat_time);
     ChatDataBase(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
                  QString content, int send_uid,int status, QString chat_time);
+    ChatDataBase(int msg_id, QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+                 QString content, int send_uid, int status, QString chat_time);
 
     int GetMsgId() { return _msg_id; }
     int GetThreadId() { return _thread_id; }
@@ -187,11 +189,25 @@ public:
 
     TextChatData(int msg_id, QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type, QString content,
                  int send_uid, int status, QString chat_time=""):
-        ChatDataBase(unique_id, thread_id, form_type, msg_type, content, send_uid, status, chat_time){}
+        ChatDataBase(msg_id, unique_id, thread_id, form_type, msg_type, content, send_uid, status, chat_time){}
 
     TextChatData() = default;
 };
 Q_DECLARE_METATYPE(std::vector<std::shared_ptr<TextChatData>>)
+
+class ImgChatData : public ChatDataBase {
+public:
+    ImgChatData(std::shared_ptr<MsgInfo> msg_info, QString unique_id,
+                int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+                int send_uid, int status, QString chat_time = ""):
+        ChatDataBase(unique_id,thread_id, form_type, msg_type, msg_info->_text_or_url,
+                     send_uid, status, chat_time), _msg_info(msg_info){
+
+    }
+
+    std::shared_ptr<MsgInfo> _msg_info;
+};
+Q_DECLARE_METATYPE(std::shared_ptr<ImgChatData>)
 
 //聊天列表信息
 struct ChatThreadInfo{

@@ -85,8 +85,6 @@ signals:
     void sig_add_auth_friend(std::shared_ptr<AuthInfo>);
     //同意别人的好友申请
     void sig_auth_rsp(std::shared_ptr<AuthRsp>);
-    //聊天文本变化->接收对方发来消息
-    void sig_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
     //异地登录通知下线
     void sig_notify_offline();
     //连接异常通知连接关闭
@@ -97,8 +95,12 @@ signals:
     void sig_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天界面chatpage的聊天对话消息
     void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
-    //发送消息后服务器回传接收到消息的信号后的通知
+    //发送文本消息后服务器回传接收到消息的信号后的通知
     void sig_chat_msg_rsp(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
+    //发送图片消息后服务器回传接收到消息的信号后的通知
+    void sig_chat_img_rsp(int thread_id, std::shared_ptr<ImgChatData>chat_data);
+    //聊天文本变化->接收对方发来消息
+    void sig_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
 };
 
 #endif // TCPMGR_H

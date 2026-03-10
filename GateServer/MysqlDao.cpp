@@ -1,5 +1,6 @@
 #include "MysqlDao.h"
 #include "ConfigMgr.h"
+#include "Logger.h"
 
 MysqlDao::MysqlDao()
 {
@@ -10,7 +11,7 @@ MysqlDao::MysqlDao()
 	const auto& schema = cfg["Mysql"]["schema"];
 	const auto& user = cfg["Mysql"]["user"];
 	//智能指针初始化要么在构造函数初始化列表中，要么在构造函数体内用reset方法，不能在两者中混用，否则会导致内存泄漏
-	std::cout << "[ MysqlDao init with host:" << host << ", port:" << port << ", user:" << user << ", schema:" << schema << " ]" << std::endl;
+	LOG_INFO("MysqlDao init with host:" << host << ", port:" << port << ", user:" << user << ", schema:" << schema);
 	pool_.reset(new MySqlPool(host + ":" + port, user, pwd, schema, 5));
 }
 
@@ -41,7 +42,7 @@ int MysqlDao::RegUser(const std::string& name, const std::string& email, const s
 		std::unique_ptr<sql::ResultSet> res(stmtResult->executeQuery("SELECT @result AS result"));
 		if (res->next()) {
 			int result = res->getInt("result");
-			std::cout << "Result: " << result << std::endl;
+			LOG_INFO("RegUser result: " << result);
 			pool_->returnConnection(std::move(con));
 			return result;
 		}
@@ -50,9 +51,7 @@ int MysqlDao::RegUser(const std::string& name, const std::string& email, const s
 	}
 	catch (sql::SQLException& e) {
 		pool_->returnConnection(std::move(con));
-		std::cerr << "SQLException: " << e.what();
-		std::cerr << " (MySQL error code: " << e.getErrorCode();
-		std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+		LOG_ERROR("SQLException: " << e.what() << " (MySQL error code: " << e.getErrorCode() << ", SQLState: " << e.getSQLState() << ")");
 		return -1;
 	}
 }
@@ -172,7 +171,7 @@ bool MysqlDao::CheckEmail(const std::string& name, const std::string& email) {
 
 		// 遍历结果集**********************  存疑：while循环是否只遍历一遍就结束了？ ***********************
 		while (res->next()) {
-			std::cout << "[ Check Email: " << res->getString("email") << " ]" << std::endl;
+			LOG_DEBUG("Check Email: " << res->getString("email"));
 			if (email != res->getString("email")) {
 				pool_->returnConnection(std::move(con));
 				return false;
@@ -184,11 +183,7 @@ bool MysqlDao::CheckEmail(const std::string& name, const std::string& email) {
 	}
 	catch (sql::SQLException& e) {
 		pool_->returnConnection(std::move(con));
-		SetColor(RED);
-		std::cerr << "SQLException: " << e.what();
-		std::cerr << " (MySQL error code: " << e.getErrorCode();
-		std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-		SetColor(RESET);
+		LOG_ERROR("SQLException: " << e.what() << " (MySQL error code: " << e.getErrorCode() << ", SQLState: " << e.getSQLState() << ")");
 		return false;
 	}
 }
@@ -210,17 +205,13 @@ bool MysqlDao::UpdatePwd(const std::string& name, const std::string& newpwd) {
 		// 执行更新
 		int updateCount = pstmt->executeUpdate();
 
-		std::cout << "[ Updated rows: " << updateCount << " ]" << std::endl;
+		LOG_INFO("Updated rows: " << updateCount);
 		pool_->returnConnection(std::move(con));
 		return true;
 	}
 	catch (sql::SQLException& e) {
 		pool_->returnConnection(std::move(con));
-		SetColor(RED);
-		std::cerr << "SQLException: " << e.what();
-		std::cerr << " (MySQL error code: " << e.getErrorCode();
-		std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-		SetColor(RESET);
+		LOG_ERROR("SQLException: " << e.what() << " (MySQL error code: " << e.getErrorCode() << ", SQLState: " << e.getSQLState() << ")");
 		return false;
 	}
 }
@@ -248,7 +239,7 @@ bool MysqlDao::CheckPwd(const std::string& email, const std::string& pwd, UserIn
 		while (res->next()) {
 			origin_pwd = res->getString("pwd");
 			// 输出查询到的密码
-			std::cout << "Password: " << origin_pwd << std::endl;
+			LOG_DEBUG("Password: " << origin_pwd);
 			break;
 		}
 
@@ -262,9 +253,7 @@ bool MysqlDao::CheckPwd(const std::string& email, const std::string& pwd, UserIn
 		return true;
 	}
 	catch (sql::SQLException& e) {
-		std::cerr << "SQLException: " << e.what();
-		std::cerr << " (MySQL error code: " << e.getErrorCode();
-		std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
+		LOG_ERROR("SQLException: " << e.what() << " (MySQL error code: " << e.getErrorCode() << ", SQLState: " << e.getSQLState() << ")");
 		return false;
 	}
 }
@@ -289,7 +278,7 @@ bool MysqlDao::CheckPwd(const std::string& email, const std::string& pwd, UserIn
 //		  // 执行存储过程
 //		stmt->execute();
 //		// 如果存储过程设置了会话变量或有其他方式获取输出参数的值，你可以在这里执行SELECT查询来获取它们
-//	   // 例如，如果存储过程设置了一个会话变量@result来存储输出结果，可以这样获取：
+//	   // 例如，如果存储过程设置了一个会话变量@result来存储返回结果，可以这样获取：
 //		std::unique_ptr<sql::Statement> stmtResult(con->_con->createStatement());
 //		std::unique_ptr<sql::ResultSet> res(stmtResult->executeQuery("SELECT @userId AS uid"));
 //		if (!(res->next())) {

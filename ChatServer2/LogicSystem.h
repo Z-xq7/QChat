@@ -50,6 +50,8 @@ private:
 	void CreatePrivateChat(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//处理加载聊天消息的逻辑：1.先从数据库获取聊天消息；2.把聊天消息返回给客户端
 	void LoadChatMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理聊天图片消息的逻辑
+	void DealChatImgMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 
 	//判断字符串是否为纯数字（用来判断客户端搜索的是uid还是名字）
 	bool isPureDigit(const std::string& str);

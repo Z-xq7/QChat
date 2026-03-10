@@ -1,0 +1,45 @@
+[2026-03-10 15:44:48.324] [INFO] [StatusServer.cpp:89] [main] [thread:44668] Logger initialized successfully, log file: log/statusserver_20260310_154448.log
+[2026-03-10 15:44:48.325] [INFO] [ConfigMgr.cpp:8] [ConfigMgr] [thread:44668] Config file path: E:\VS_QChat\StatusServer\config.ini
+[2026-03-10 15:44:48.326] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: GateServer ]
+[2026-03-10 15:44:48.326] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 13419
+[2026-03-10 15:44:48.326] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: Mysql ]
+[2026-03-10 15:44:48.326] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 47.108.113.95
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   password = 123456
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 3307
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   schema = qchat
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   user = root
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: Redis ]
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 47.108.113.95
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   password = 123456
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 6380
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: StatusServer ]
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 127.0.0.1
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 50052
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: VarifyServer ]
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 127.0.0.1
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 50051
+[2026-03-10 15:44:48.327] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: chatserver1 ]
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 127.0.0.1
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   name = chatserver1
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 8090
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: chatserver2 ]
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   host = 127.0.0.1
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   name = chatserver2
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   port = 8091
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:44668] [ Section: chatservers ]
+[2026-03-10 15:44:48.328] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:44668]   name = chatserver1,chatserver2
+[2026-03-10 15:44:48.328] [INFO] [StatusServiceImpl.cpp:43] [StatusServiceImpl] [thread:44668] StatusServiceImpl initialized with 2 chat servers
+[2026-03-10 15:44:48.332] [INFO] [StatusServer.cpp:38] [RunServer] [thread:44668] Server listening on 127.0.0.1:50052
+[2026-03-10 15:45:18.903] [INFO] [RedisConPool.cpp:25] [RedisConPool] [thread:45780] RedisConPool create redis connection success!
+[2026-03-10 15:45:18.957] [INFO] [RedisConPool.cpp:25] [RedisConPool] [thread:45780] RedisConPool create redis connection success!
+[2026-03-10 15:45:19.003] [INFO] [RedisConPool.cpp:25] [RedisConPool] [thread:45780] RedisConPool create redis connection success!
+[2026-03-10 15:45:19.043] [INFO] [RedisConPool.cpp:25] [RedisConPool] [thread:45780] RedisConPool create redis connection success!
+[2026-03-10 15:45:19.044] [INFO] [RedisMgr.cpp:13] [RedisMgr] [thread:45780] RedisMgr initialized with host: 47.108.113.95, port: 6380
+[2026-03-10 15:45:19.066] [DEBUG] [RedisMgr.cpp:331] [HGet] [thread:45780] HGET command success for key: logincount, hkey: chatserver1
+[2026-03-10 15:45:19.088] [DEBUG] [RedisMgr.cpp:331] [HGet] [thread:45780] HGET command success for key: logincount, hkey: chatserver2
+[2026-03-10 15:45:19.090] [DEBUG] [StatusServiceImpl.cpp:94] [getChatServer] [thread:45780] Selected server: chatserver1 with connection count: 0
+[2026-03-10 15:45:19.116] [DEBUG] [RedisMgr.cpp:84] [Set] [thread:45780] SET command success for key: utoken_1005
+[2026-03-10 15:45:19.116] [DEBUG] [StatusServiceImpl.cpp:131] [insertToken] [thread:45780] Inserted token for uid: 1005
+[2026-03-10 15:45:19.116] [INFO] [StatusServiceImpl.cpp:55] [GetChatServer] [thread:45780] GetChatServer for uid: 1005, assigned server: chatserver1:8090
+[2026-03-10 15:46:06.094] [WARN] [StatusServer.cpp:48] [operator ()] [thread:14224] Shutting down server...
+[2026-03-10 15:46:06.098] [INFO] [StatusServer.cpp:59] [RunServer] [thread:44668] Server stopped successfully

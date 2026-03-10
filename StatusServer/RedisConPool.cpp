@@ -1,33 +1,28 @@
 #include "RedisConPool.h"
+#include "Logger.h"
 
 RedisConPool::RedisConPool(std::size_t size, const char* host, int port, const char* pwd):
 	_poolsize(size), _host(host), _port(port), _pwd(pwd), _b_stop(false), _counter(0), _fail_count(0)
 {
-	//创建连接池
-	for (std::size_t i = 1; i < size; ++i) {
+	//初始化连接池
+	for (std::size_t i = 0; i < size; ++i) {
 		auto* conn = redisConnect(host, port);
 		if (conn == nullptr || conn->err) {
 			if (conn) {
 				redisFree(conn);
 			}
-			SetColor(RED);
-			std::cout << "*** RedisConPool create redis connection error! ***" << std::endl;
-			SetColor(RESET);
+			LOG_ERROR("RedisConPool create redis connection error!");
 			continue;
 		}
-		//创建成功，输入密码
+		//连接成功后，进行验证
 		redisReply* reply = (redisReply*)redisCommand(conn, "AUTH %s", _pwd);
 		if (reply == nullptr || reply->type == REDIS_REPLY_ERROR) {
-			SetColor(RED);
-			std::cout << "*** RedisConPool AUTH error! ***" << std::endl;
-			SetColor(RESET);
+			LOG_ERROR("RedisConPool AUTH error!");
 			freeReplyObject(reply);
 			redisFree(conn);
 			continue;
 		}
-		SetColor(GREEN);
-		std::cout << "--- RedisConPool create redis connection success! ---" << std::endl;
-		SetColor(RESET);
+		LOG_INFO("RedisConPool create redis connection success!");
 		freeReplyObject(reply);
 		_pool.push(conn);
 	}
@@ -86,7 +81,13 @@ redisContext* RedisConPool::GetConNonBlock() {
 void RedisConPool::ReturnRedisCon(redisContext* con)
 {
 	std::lock_guard<std::mutex> lock(_mutex);
-	if (_b_stop) return;
+	if (_b_stop) {
+		// 修复：在停止状态下，调用者仍持有连接，需要释放
+		if (con) {
+			redisFree(con);
+		}
+		return;
+	}
 	_pool.push(con);
 	_cond.notify_one();
 }
@@ -98,7 +99,10 @@ void RedisConPool::ClearConnections()
 	while (!_pool.empty()) {
 		auto* conn = _pool.front();
 		_pool.pop();
-		redisFree(conn);
+		// 添加安全检查
+		if (conn) {
+			redisFree(conn);
+		}
 	}
 }
 
@@ -106,13 +110,22 @@ void RedisConPool::ClearConnections()
 void RedisConPool::Close() {
 	_b_stop = true;
 	_cond.notify_all();
+
+	// 等待检查线程完全退出
+	if (_check_thread.joinable()) {
+		_check_thread.join();
+	}
 }
 
-//重连操作
+//重新连接
 bool RedisConPool::Reconnect() {
+	// 如果正在停止，不要创建新连接
+	if (_b_stop) {
+		return false;
+	}
 	auto context = redisConnect(_host, _port);
 	if (context == nullptr || context->err != 0) {
-		std::cout << "[*** 连接失败: Redis Reconnect Failed! context error: " << context->errstr << " ***]" << std::endl;
+		LOG_ERROR("Redis Reconnect Failed! context error: " << (context ? context->errstr : "null context"));
 		if (context != nullptr) {
 			redisFree(context);
 		}
@@ -120,8 +133,8 @@ bool RedisConPool::Reconnect() {
 	}
 
 	auto reply = (redisReply*)redisCommand(context, "AUTH %s", _pwd);
-	if (reply->type == REDIS_REPLY_ERROR) {
-		std::cout << "[*** 认证失败: Redis Reconnect Failed! ***]" << std::endl;
+	if (reply == nullptr || reply->type == REDIS_REPLY_ERROR) {
+		LOG_ERROR("Redis Reconnect AUTH Failed!");
 		//执行成功 释放redisCommand执行后返回的redisReply所占用的内存
 		freeReplyObject(reply);
 		redisFree(context);
@@ -130,23 +143,28 @@ bool RedisConPool::Reconnect() {
 
 	//执行成功 释放redisCommand执行后返回的redisReply所占用的内存
 	freeReplyObject(reply);
-	std::cout << "[--- 连接成功: Redis Reconnect Success! ---]" << std::endl;
+	LOG_INFO("Redis Reconnect Success!");
 	ReturnRedisCon(context);
 	return true;
 }
 
-//检测redis有无断线
+//检测redis连接健康
 void RedisConPool::CheckThreadPro() {
+	// 提前检查是否正在停止
+	if (_b_stop) {
+		return;
+	}
+
 	size_t pool_size;
 	{
-		// 先拿到当前连接数
+		// 先获得当前池大小
 		std::lock_guard<std::mutex> lock(_mutex);
 		pool_size = _pool.size();
 	}
 
 	for (int i = 0; i < pool_size && !_b_stop; ++i) {
 		redisContext* ctx = nullptr;
-		// 1) 取出一个连接(持有锁)(非阻塞)
+		// 1) 取出一个连接(非阻塞)(如果有)
 		//bool bsuccess = false;
 		auto* context = GetConNonBlock();
 		if (context == nullptr) {
@@ -156,9 +174,9 @@ void RedisConPool::CheckThreadPro() {
 		redisReply* reply = nullptr;
 		try {
 			reply = (redisReply*)redisCommand(context, "PING");
-			// 2. 先看底层 I/O／协议层有没有错
+			// 2. 先看底层 I/O、协议是否出错
 			if (context->err) {
-				std::cout << "[*** Redis Connection error: " << context->errstr << " ***]" << std::endl;
+				LOG_ERROR("Redis Connection error: " << context->errstr);
 				if (reply) {
 					freeReplyObject(reply);
 				}
@@ -167,9 +185,9 @@ void RedisConPool::CheckThreadPro() {
 				continue;
 			}
 
-			// 3. 再看 Redis 自身返回的是不是 ERROR
+			// 3. 再看 Redis 服务端返回的是不是 ERROR
 			if (!reply || reply->type == REDIS_REPLY_ERROR) {
-				std::cout << "[*** Reply is null, redis ping failed: ***]" << std::endl;
+				LOG_ERROR("Reply is null, redis ping failed");
 				if (reply) {
 					freeReplyObject(reply);
 				}
@@ -177,7 +195,7 @@ void RedisConPool::CheckThreadPro() {
 				_fail_count++;
 				continue;
 			}
-			// 4. 如果都没问题，则还回去
+			// 4. 如果没有问题，就还回去
 			//std::cout << "connection alive" << std::endl;
 			freeReplyObject(reply);
 			ReturnRedisCon(context);
@@ -192,16 +210,18 @@ void RedisConPool::CheckThreadPro() {
 		}
 	}
 
-	std::cout << "[*** Redis Connection check completed, " << _fail_count << " connections failed ***]" << std::endl;
+	if (_fail_count > 0) {
+		LOG_WARN("Redis Connection check completed, " << _fail_count << " connections failed");
+	}
 
-	//执行重连操作
+	//执行重新连接
 	while (_fail_count > 0) {
 		auto res = Reconnect();
 		if (res) {
 			_fail_count--;
 		}
 		else {
-			//留给下次再重试
+			//放弃这次重连尝试
 			break;
 		}
 	}

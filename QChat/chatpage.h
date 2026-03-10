@@ -21,6 +21,8 @@ public:
 
     //设置当前聊天用户信息
     void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
+    //设置聊天中头像
+    void SetChatIcon(ChatItemBase* pChatItem, QString icon);
     //添加消息
     void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
     //清空聊天信息

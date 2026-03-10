@@ -1,0 +1,222 @@
+[2026-03-10 15:44:36.908] [INFO] [ConfigMgr.cpp:8] [ConfigMgr] [thread:43536] Config file path: E:\VS_QChat\GateServer\config.ini
+[2026-03-10 15:44:36.909] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: GateServer ]
+[2026-03-10 15:44:36.909] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 13419
+[2026-03-10 15:44:36.909] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: Mysql ]
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] host = 47.108.113.95
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] password = 123456
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 3307
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] schema = qchat
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] user = root
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: Redis ]
+[2026-03-10 15:44:36.910] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] host = 47.108.113.95
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] password = 123456
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 6380
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: ResServer ]
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] RPCPort = 51055
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] host = 127.0.0.1
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] name = reserver
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 9090
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: StatusServer ]
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] host = 127.0.0.1
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 50052
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:43536] [ Section: VarifyServer ]
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] host = 127.0.0.1
+[2026-03-10 15:44:36.911] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:43536] port = 50051
+[2026-03-10 15:44:36.915] [INFO] [GateServer.cpp:69] [main] [thread:43536] GateServer is running on port 13419
+[2026-03-10 15:45:17.990] [INFO] [CServer.cpp:29] [operator ()] [thread:43536] new connection accepted
+[2026-03-10 15:45:18.004] [DEBUG] [HttpConnection.cpp:91] [operator ()] [thread:34184] http request received:
+POST /user_login HTTP/1.1
+Host: localhost:13419
+Content-Type: application/json
+Content-Length: 54
+Connection: Keep-Alive
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,en,*
+User-Agent: Mozilla/5.0
+
+{
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:45:18.005] [INFO] [LogicSystem.cpp:213] [operator ()] [thread:34184] receive body: {
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:45:18.007] [INFO] [MysqlDao.cpp:14] [MysqlDao] [thread:34184] MysqlDao init with host:47.108.113.95, port:3307, user:root, schema:qchat
+[2026-03-10 15:45:18.699] [INFO] [MysqlDao.h:37] [MySqlPool] [thread:34184] mysql pool init success, pool size is 5
+[2026-03-10 15:45:18.726] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:45:18.759] [DEBUG] [MysqlDao.cpp:242] [CheckPwd] [thread:34184] Password: 745230
+[2026-03-10 15:45:18.819] [INFO] [RPCConPool.h:34] [RPCConPool] [thread:34184] RPCConPool<class message::StatusService> created with 5 connections
+[2026-03-10 15:45:19.118] [INFO] [LogicSystem.cpp:250] [operator ()] [thread:34184] succeed to load userinfo uid is 1005
+[2026-03-10 15:45:19.119] [INFO] [LogicSystem.cpp:251] [operator ()] [thread:34184] chat server info: host=127.0.0.1, port=8090, token=de814584-d194-414f-bd60-ed53b26832de
+[2026-03-10 15:45:19.119] [DEBUG] [HttpConnection.cpp:232] [WriteResponse] [thread:34184] http response to be sent:
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/json
+Server: GateServer
+Content-Length: 220
+
+{
+   "chathost" : "127.0.0.1",
+   "chatport" : "8090",
+   "email" : "123@qq.com",
+   "error" : 0,
+   "reshost" : "127.0.0.1",
+   "resport" : "9090",
+   "token" : "de814584-d194-414f-bd60-ed53b26832de",
+   "uid" : 1005
+}
+
+[2026-03-10 15:45:19.119] [ERROR] [HttpConnection.cpp:114] [operator ()] [thread:34184] http deadline error: 由于线程退出或应用程序请求，已中止 I/O 操作。
+[2026-03-10 15:46:18.890] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:47:19.023] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:47:47.203] [INFO] [CServer.cpp:29] [operator ()] [thread:43536] new connection accepted
+[2026-03-10 15:47:47.221] [DEBUG] [HttpConnection.cpp:91] [operator ()] [thread:14420] http request received:
+POST /user_login HTTP/1.1
+Host: localhost:13419
+Content-Type: application/json
+Content-Length: 54
+Connection: Keep-Alive
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,en,*
+User-Agent: Mozilla/5.0
+
+{
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:47:47.224] [INFO] [LogicSystem.cpp:213] [operator ()] [thread:14420] receive body: {
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:47:47.270] [DEBUG] [MysqlDao.cpp:242] [CheckPwd] [thread:14420] Password: 745230
+[2026-03-10 15:47:47.588] [INFO] [LogicSystem.cpp:250] [operator ()] [thread:14420] succeed to load userinfo uid is 1005
+[2026-03-10 15:47:47.589] [INFO] [LogicSystem.cpp:251] [operator ()] [thread:14420] chat server info: host=127.0.0.1, port=8090, token=21a77c19-b14a-46d9-9d4a-e0bd1d62f9f7
+[2026-03-10 15:47:47.589] [DEBUG] [HttpConnection.cpp:232] [WriteResponse] [thread:14420] http response to be sent:
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/json
+Server: GateServer
+Content-Length: 220
+
+{
+   "chathost" : "127.0.0.1",
+   "chatport" : "8090",
+   "email" : "123@qq.com",
+   "error" : 0,
+   "reshost" : "127.0.0.1",
+   "resport" : "9090",
+   "token" : "21a77c19-b14a-46d9-9d4a-e0bd1d62f9f7",
+   "uid" : 1005
+}
+
+[2026-03-10 15:48:19.163] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:49:19.278] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:50:19.414] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:51:19.524] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:52:19.643] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:53:19.760] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:54:19.890] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:55:20.002] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:56:20.116] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:57:20.232] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:58:20.400] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:59:20.516] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 15:59:26.263] [INFO] [CServer.cpp:29] [operator ()] [thread:43536] new connection accepted
+[2026-03-10 15:59:26.287] [DEBUG] [HttpConnection.cpp:91] [operator ()] [thread:24712] http request received:
+POST /user_login HTTP/1.1
+Host: localhost:13419
+Content-Type: application/json
+Content-Length: 54
+Connection: Keep-Alive
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,en,*
+User-Agent: Mozilla/5.0
+
+{
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:59:26.295] [INFO] [LogicSystem.cpp:213] [operator ()] [thread:24712] receive body: {
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 15:59:26.349] [DEBUG] [MysqlDao.cpp:242] [CheckPwd] [thread:24712] Password: 745230
+[2026-03-10 15:59:26.587] [INFO] [LogicSystem.cpp:250] [operator ()] [thread:24712] succeed to load userinfo uid is 1005
+[2026-03-10 15:59:26.587] [INFO] [LogicSystem.cpp:251] [operator ()] [thread:24712] chat server info: host=127.0.0.1, port=8090, token=7c451a83-9f86-465e-88be-0175ecdf5d23
+[2026-03-10 15:59:26.587] [DEBUG] [HttpConnection.cpp:232] [WriteResponse] [thread:24712] http response to be sent:
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/json
+Server: GateServer
+Content-Length: 220
+
+{
+   "chathost" : "127.0.0.1",
+   "chatport" : "8090",
+   "email" : "123@qq.com",
+   "error" : 0,
+   "reshost" : "127.0.0.1",
+   "resport" : "9090",
+   "token" : "7c451a83-9f86-465e-88be-0175ecdf5d23",
+   "uid" : 1005
+}
+
+[2026-03-10 16:00:20.631] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:01:20.745] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:02:20.874] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:03:20.987] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:04:21.115] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:05:21.226] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:06:21.357] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:07:21.463] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:08:02.237] [INFO] [CServer.cpp:29] [operator ()] [thread:43536] new connection accepted
+[2026-03-10 16:08:02.259] [DEBUG] [HttpConnection.cpp:91] [operator ()] [thread:23004] http request received:
+POST /user_login HTTP/1.1
+Host: localhost:13419
+Content-Type: application/json
+Content-Length: 54
+Connection: Keep-Alive
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,en,*
+User-Agent: Mozilla/5.0
+
+{
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 16:08:02.259] [INFO] [LogicSystem.cpp:213] [operator ()] [thread:23004] receive body: {
+    "email": "123@qq.com",
+    "passwd": "745230"
+}
+
+[2026-03-10 16:08:02.296] [DEBUG] [MysqlDao.cpp:242] [CheckPwd] [thread:23004] Password: 745230
+[2026-03-10 16:08:02.654] [INFO] [LogicSystem.cpp:250] [operator ()] [thread:23004] succeed to load userinfo uid is 1005
+[2026-03-10 16:08:02.654] [INFO] [LogicSystem.cpp:251] [operator ()] [thread:23004] chat server info: host=127.0.0.1, port=8090, token=2c2c0356-7528-4a69-a05a-202323dde1e8
+[2026-03-10 16:08:02.654] [DEBUG] [HttpConnection.cpp:232] [WriteResponse] [thread:23004] http response to be sent:
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/json
+Server: GateServer
+Content-Length: 220
+
+{
+   "chathost" : "127.0.0.1",
+   "chatport" : "8090",
+   "email" : "123@qq.com",
+   "error" : 0,
+   "reshost" : "127.0.0.1",
+   "resport" : "9090",
+   "token" : "2c2c0356-7528-4a69-a05a-202323dde1e8",
+   "uid" : 1005
+}
+
+[2026-03-10 16:08:21.606] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed
+[2026-03-10 16:09:21.739] [INFO] [MysqlDao.h:107] [checkConnectionPro] [thread:47160] Mysql: Connection check completed, 0 connections failed

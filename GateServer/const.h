@@ -44,26 +44,11 @@ enum ErrorCodes
 	PasswdInvalid = 1009,   // 密码不合法
 };
 
-// 颜色枚举（方便调用）
-enum ConsoleColor {
-    BLACK = 30,
-    RED = 31,
-    GREEN = 32,
-    YELLOW = 33,
-    BLUE = 34,
-    RESET = 0 // 重置
-};
-
-// 设置输出颜色的函数
- static void SetColor(ConsoleColor color) {
-	std::cout << "\033[" << static_cast<int>(color) << "m";
-}
-
- //Defer类实现类似Go语言中的defer功能，在对象生命周期结束时执行指定的函数
+ //Defer类实现（类Go语言中的defer功能）在对象析构函数中自动调用指定的函数
 class Defer
  {
  public:
-	 //构造函数接受一个函数对象，并在析构函数中调用它
+	 //构造函数接受一个函数对象，并保存在成员变量中
 	Defer(std::function<void()> func) : func_(func) {}
 	~Defer() { func_(); }
  private:

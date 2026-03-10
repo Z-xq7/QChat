@@ -3,6 +3,7 @@
 #include "CSession.h"
 #include "RedisMgr.h"
 #include "MysqlMgr.h"
+#include "Logger.h"
 #include <json/json.h>
 #include <json/reader.h>
 #include <json/value.h>
@@ -13,7 +14,7 @@ ChatServiceImpl::ChatServiceImpl()
 Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendReq* request,
 	AddFriendRsp* reply)
 {
-	//查找用户是否在本服务器上
+	//查询用户是否在本服务器上
 	auto touid = request->touid();
 	auto session = UserMgr::GetInstance()->GetSession(touid);
 	Defer defer([request,reply]()
@@ -23,13 +24,14 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendR
 		reply->set_touid(request->touid());
 	});
 
-	//用户不在内存中则直接返回成功，等待对方登录后通过查询redis获取申请消息
+	//用户不在内存中，直接返回成功，等待对方登录后通过查询redis获取申请信息
 	if (session == nullptr)
 	{
+		LOG_DEBUG("NotifyAddFriend - user not online, touid: " << touid);
 		return Status::OK;
 	}
 
-	//在内存中则直接通知对方
+	//在内存中，直接通知对方
 	Json::Value rtvalue;
 	rtvalue["error"] = ErrorCodes::Success;
 	rtvalue["applyuid"] = request->applyuid();
@@ -41,6 +43,7 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendR
 
 	std::string return_str = rtvalue.toStyledString();
 	session->Send(return_str,ID_NOTIFY_ADD_FRIEND_REQ);
+	LOG_DEBUG("NotifyAddFriend success - touid: " << touid);
 
 	return Status::OK;
 }
@@ -48,7 +51,7 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendR
 Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context,
 	const AuthFriendReq* request, AuthFriendRsp* response)
 {
-	//查找用户是否在本服务器
+	//查询用户是否在本服务器
 	auto touid = request->touid();
 	auto fromuid = request->fromuid();
 	auto session = UserMgr::GetInstance()->GetSession(touid);
@@ -59,12 +62,13 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context,
 		response->set_touid(request->touid());
 		});
 
-	//用户不在内存中则直接返回
+	//用户不在内存中，直接返回
 	if (session == nullptr) {
+		LOG_DEBUG("NotifyAuthFriend - user not online, touid: " << touid);
 		return Status::OK;
 	}
 
-	//在内存中则直接发送通知对方
+	//在内存中，直接发送通知对方
 	Json::Value  rtvalue;
 	rtvalue["error"] = ErrorCodes::Success;
 	rtvalue["fromuid"] = request->fromuid();
@@ -96,31 +100,32 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context,
 
 	std::string return_str = rtvalue.toStyledString();
 	session->Send(return_str, ID_NOTIFY_AUTH_FRIEND_REQ);
+	LOG_DEBUG("NotifyAuthFriend success - fromuid: " << fromuid << ", touid: " << touid);
 	return Status::OK;
 }
 
 Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context,
 	const TextChatMsgReq* request, TextChatMsgRsp* response)
 {
-	//查找用户是否在本服务器
+	//查询用户是否在本服务器
 	auto touid = request->touid();
 	auto session = UserMgr::GetInstance()->GetSession(touid);
 	response->set_error(ErrorCodes::Success);
 
-	//用户不在内存中则直接返回
+	//用户不在内存中，直接返回
 	if (session == nullptr) {
-		std::cout << "*** NotifyTextChatMsg user is not online ***" << std::endl;
+		LOG_DEBUG("NotifyTextChatMsg - user not online, touid: " << touid);
 		return Status::OK;
 	}
 
-	//在内存中则直接发送通知对方
+	//在内存中，直接发送通知对方
 	Json::Value  rtvalue;
 	rtvalue["error"] = ErrorCodes::Success;
 	rtvalue["fromuid"] = request->fromuid();
 	rtvalue["touid"] = request->touid();
 	rtvalue["thread_id"] = request->thread_id();
 
-	//将聊天消息组织为数组
+	//将文本消息组织为数组
 	Json::Value text_array;
 	for (auto& msg : request->textmsgs()) {
 		Json::Value msg_value;
@@ -130,11 +135,12 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context,
 		msg_value["chat_time"] = msg.chat_time();
 		text_array.append(msg_value);
 	}
-	//将消息数组放入返回值中
+	//将消息数组加入返回值中
 	rtvalue["chat_datas"] = text_array;
-	//回送消息
+	//发送消息
 	std::string return_str = rtvalue.toStyledString();
 	session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+	LOG_DEBUG("NotifyTextChatMsg success - fromuid: " << request->fromuid() << ", touid: " << touid);
 
 	return Status::OK;
 }
@@ -142,8 +148,8 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context,
 Status ChatServiceImpl::NotifyKickUser(grpc::ServerContext* context, const message::KickUserReq* request,
 	message::KickUserRsp* response)
 {
-	//这里不能加分布式锁，因为在另一个用户登录的服务器会先加分布式锁再调用rpc请求这个接口，如果这里加锁会导致死锁
-	//查找用户是否在本服务器
+	//这里不能加分布式锁，因为这是一个用户登录的服务器在加分布式锁后调用rpc请求这个接口，会造成死锁，会导致死锁
+	//查询用户是否在本服务器
 	auto uid = request->uid();
 	auto session = UserMgr::GetInstance()->GetSession(uid);
 	Defer defer([request,response]()
@@ -152,14 +158,16 @@ Status ChatServiceImpl::NotifyKickUser(grpc::ServerContext* context, const messa
 		response->set_uid(request->uid());
 	});
 
-	//用户不在内存中则直接返回
+	//用户不在内存中，直接返回
 	if (session == nullptr) {
+		LOG_DEBUG("NotifyKickUser - user not online, uid: " << uid);
 		return Status::OK;
 	}
 
-	//在内存中则直接发送通知对方
+	//在内存中，直接发送通知对方
+	LOG_INFO("NotifyKickUser - kicking user, uid: " << uid << ", session_id: " << session->GetSessionId());
 	session->NotifyOffline(uid);
-	//清除旧的session
+	//清理旧的session
 	_p_server->ClearSession(session->GetSessionId());
 
 	return Status::OK;
@@ -172,7 +180,7 @@ void ChatServiceImpl::RegisterServer(std::shared_ptr<CServer> pServer)
 
 bool ChatServiceImpl::GetBaseInfo(std::string base_key, int uid, std::shared_ptr<UserInfo>& userinfo)
 {
-	//优先查redis中查询用户信息
+	//先优先查redis中查询用户信息
 	std::string info_str = "";
 	bool b_base = RedisMgr::GetInstance()->Get(base_key, info_str);
 	if (b_base) {
@@ -187,21 +195,21 @@ bool ChatServiceImpl::GetBaseInfo(std::string base_key, int uid, std::shared_ptr
 		userinfo->desc = root["desc"].asString();
 		userinfo->sex = root["sex"].asInt();
 		userinfo->icon = root["icon"].asString();
-		std::cout << "--- user login uid is  " << userinfo->uid << " name  is "
-			<< userinfo->name << " pwd is " << userinfo->pwd << " email is " << userinfo->email << " ---" << endl;
+		LOG_DEBUG("GetBaseInfo from redis - uid: " << uid << ", name: " << userinfo->name);
 	}
 	else {
-		//redis中没有则查询mysql
+		//redis里没有，则查询mysql
 		//查询数据库
 		std::shared_ptr<UserInfo> user_info = nullptr;
 		user_info = MysqlMgr::GetInstance()->GetUser(uid);
 		if (user_info == nullptr) {
+			LOG_WARN("GetBaseInfo failed - uid not found: " << uid);
 			return false;
 		}
 
 		userinfo = user_info;
 
-		//将数据库内容写入redis缓存
+		//从数据库拉取，写入redis缓存
 		Json::Value redis_root;
 		redis_root["uid"] = uid;
 		redis_root["pwd"] = userinfo->pwd;
@@ -212,6 +220,7 @@ bool ChatServiceImpl::GetBaseInfo(std::string base_key, int uid, std::shared_ptr
 		redis_root["sex"] = userinfo->sex;
 		redis_root["icon"] = userinfo->icon;
 		RedisMgr::GetInstance()->Set(base_key, redis_root.toStyledString());
+		LOG_DEBUG("GetBaseInfo from mysql - uid: " << uid << ", name: " << userinfo->name);
 	}
 
 	return true;

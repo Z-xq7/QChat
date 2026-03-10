@@ -16,6 +16,14 @@ ChatDataBase::ChatDataBase(QString unique_id, int thread_id, ChatFormType form_t
 
 }
 
+ChatDataBase::ChatDataBase(int msg_id, QString unique_id, int thread_id, ChatFormType form_type,
+    ChatMsgType msg_type, QString content, int send_uid, int status, QString chat_time):
+    _msg_id(msg_id), _unique_id(unique_id), _thread_id(thread_id), _form_type(form_type), _msg_type(msg_type),
+    _content(content), _send_uid(send_uid), _status(status), _chat_time(chat_time)
+{
+
+}
+
 SearchInfo::SearchInfo(int uid, QString name, QString nick, QString desc, int sex,QString icon):
     _uid(uid),_name(name),_nick(nick),_desc(desc),_sex(sex),_icon(icon)
 {

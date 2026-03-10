@@ -7,6 +7,7 @@
 #include <vector>
 #include <mutex>
 #include <QLabel>
+#include "global.h"
 
 class UserMgr:public QObject,public Singleton<UserMgr>,
         public std::enable_shared_from_this<UserMgr>
@@ -97,6 +98,10 @@ public:
     void AddLabelToReset(QString path, QLabel* label);
     //重置用户label头像
     void ResetLabelIcon(QString path);
+    //添加传输中的文件
+    void AddTransFile(QString name, std::shared_ptr<MsgInfo> msg_info);
+    //通过名字查找传输中的文件
+    std::shared_ptr<MsgInfo> GetTransFileByName(QString name);
 
 private:
     UserMgr();
@@ -133,6 +138,10 @@ private:
     //名字关联下载信息
     QMap<QString, std::shared_ptr<DownloadInfo> > _name_to_download_info;
     QHash<QString, QList<QLabel*>> _path_to_reset_labels;
+    //名字关联发送的信息
+    QHash<QString, std::shared_ptr<MsgInfo> > _name_to_msg_info;
+    //传输锁
+    std::mutex _trans_mtx;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

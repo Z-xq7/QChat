@@ -75,6 +75,9 @@
     <ClCompile Include="DownloadWorker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Logger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AsioIOServicePool.h">
@@ -141,6 +144,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="DownloadWorker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

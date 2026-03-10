@@ -134,6 +134,7 @@
     <ClCompile Include="FileInfo.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="FileWorker.cpp" />
+    <ClCompile Include="Logger.cpp" />
     <ClCompile Include="LogicSystem.cpp" />
     <ClCompile Include="LogicWorker.cpp" />
     <ClCompile Include="message.grpc.pb.cc" />
@@ -158,6 +159,7 @@
     <ClInclude Include="FileInfo.h" />
     <ClInclude Include="FileSystem.h" />
     <ClInclude Include="FileWorker.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="LogicSystem.h" />
     <ClInclude Include="LogicWorker.h" />
     <ClInclude Include="message.grpc.pb.h" />

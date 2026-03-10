@@ -5,16 +5,17 @@
 #include "RedisMgr.h"
 #include "ConfigMgr.h"
 #include "UserMgr.h"
+#include "Logger.h"
 
 CServer::CServer(boost::asio::io_context& io_context, short port):_io_context(io_context), _port(port),
 	_acceptor(io_context, tcp::endpoint(tcp::v4(),port)), _timer(_io_context, std::chrono::seconds(60))
 {
-	cout << "【 Server start success, listen on port : " << _port << " 】" << endl;
+	LOG_INFO("Server start success, listen on port: " << _port);
 	StartAccept();
 }
 
 CServer::~CServer() {
-	cout << "【 Server destruct listen on port : " << _port << " 】" << endl;
+	LOG_INFO("Server destruct, listen on port: " << _port);
 }
 
 void CServer::HandleAccept(shared_ptr<CSession> new_session, const boost::system::error_code& error){
@@ -24,7 +25,7 @@ void CServer::HandleAccept(shared_ptr<CSession> new_session, const boost::system
 		_sessions.insert(make_pair(new_session->GetSessionId(), new_session));
 	}
 	else {
-		cout << "session accept failed, error is " << error.what() << endl;
+		LOG_ERROR("Session accept failed - error: " << error.what());
 	}
 
 	StartAccept();
@@ -72,14 +73,14 @@ bool CServer::CheckValid(std::string uuid)
 
 void CServer::on_timer(const boost::system::error_code& ec) {
 	if (ec) {
-		std::cout << "timer error: " << ec.message() << std::endl;
+		LOG_ERROR("Timer error: " << ec.message());
 		return;
 	}
-	//统计session数量,用于设置登录数量。此处进行优化，不用每次有用户登录或者退出都去设置一次，而是定时去设置一次，减少对redis的访问压力
+	//统计session数量,这里做了优化，不是每个用户登录增加或退出就去更新一次，而是定时去更新一次，减少对redis的访问压力
 	int session_count = 0;
 	//收集过期session
 	std::vector<std::shared_ptr<CSession>> _expired_sessions;
-	//此处加锁遍历session
+	//此处拷贝一份session
 	std::map<std::string, shared_ptr<CSession>> sessions_copy;
 	{
 		lock_guard<mutex> lock(_mutex);
@@ -90,7 +91,7 @@ void CServer::on_timer(const boost::system::error_code& ec) {
 	for (auto iter = sessions_copy.begin(); iter != sessions_copy.end(); iter++) {
 		auto b_expired = iter->second->IsHeartbeatExpired(now);
 		if (b_expired) {
-			//关闭socket, 其实这里也会触发async_read的错误处理
+			//关闭socket, 其实这里也会触发async_read的错误回调
 			iter->second->Close();
 			//收集过期信息
 			_expired_sessions.push_back(iter->second);
@@ -99,19 +100,19 @@ void CServer::on_timer(const boost::system::error_code& ec) {
 		session_count++;
 	}
 
-	//设置session数量
+	//更新session数量
 	auto& cfg = ConfigMgr::Inst();
 	auto self_name = cfg["SelfServer"]["Name"];
 	auto count_str = std::to_string(session_count);
-	std::cout << "CServer::on_timer -> ";
+	LOG_DEBUG("Timer update - active_sessions: " << session_count << ", expired_sessions: " << _expired_sessions.size());
 	RedisMgr::GetInstance()->HSet(LOGIN_COUNT, self_name, count_str);
 
-	//处理过期session, 单独提出，防止死锁
+	//清理过期session, 以避免内存泄漏
 	for (auto &session : _expired_sessions) {
 		session->DealExceptionSession();
 	}
 	
-	//再次设置，下一个60s检测
+	//再次设置，在下一个60s触发
 	_timer.expires_after(std::chrono::seconds(60));
 	_timer.async_wait([this](boost::system::error_code ec) {
 		on_timer(ec);

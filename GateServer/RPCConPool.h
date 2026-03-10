@@ -1,5 +1,6 @@
 #pragma once
 #include "const.h"
+#include "Logger.h"
 #include <grpcpp/grpcpp.h>
 #include <atomic>
 #include <condition_variable>
@@ -9,7 +10,7 @@
 #include <string>
 #include <typeinfo>
 
-// Channel是gRPC中表示与服务器的连接的类，Stub是通过Channel创建的用于调用RPC方法的对象
+// Channel在gRPC中表示客户端与服务器连接的类，Stub是通过Channel创建出来用于调用RPC方法的对象
 using grpc::Channel;
 
 // Generic RPC connection pool for any gRPC Service type that provides:
@@ -20,7 +21,7 @@ using grpc::Channel;
 template <class Service>
 class RPCConPool {
 public:
-	//Stub是模版参数Service的嵌套类型，表示RPC方法调用的接口
+	//Stub是模板参数Service的嵌套类型，表示RPC服务调用的接口
     using Stub = typename Service::Stub;
 
     RPCConPool(size_t poolsize, std::string host, std::string port)
@@ -30,9 +31,7 @@ public:
                 grpc::InsecureChannelCredentials());
             _connections.push(Service::NewStub(channel));
         }
-        SetColor(GREEN);
-        std::cout << "--- RPCConPool<" << typeid(Service).name() << "> created with " << _poolSize << " connections ---" << std::endl;
-        SetColor(RESET);
+        LOG_INFO("RPCConPool<" << typeid(Service).name() << "> created with " << _poolSize << " connections");
     }
 
     ~RPCConPool() {
@@ -41,9 +40,7 @@ public:
         while (!_connections.empty()) {
             _connections.pop();
         }
-        SetColor(BLUE);
-        std::cout << "--- RPCConPool destruct ---" << std::endl;
-        SetColor(RESET);
+        LOG_DEBUG("RPCConPool destruct");
     }
 
 	//获取一个可用的RPC stub连接，如果连接池已停止则返回nullptr
@@ -60,7 +57,7 @@ public:
         return connection;
     }
 
-	//返回一个stub连接到连接池，如果连接池已停止则直接丢弃该连接
+	//归还一个stub连接到连接池，如果连接池已停止则直接丢弃连接
     void ReturnConnection(std::unique_ptr<Stub> connection) {
         std::lock_guard<std::mutex> lock(_mutex);
         if (_b_stop.load()) {

@@ -69,6 +69,18 @@ enum MSG_IDS {
 	ID_CREATE_PRIVATE_CHAT_RSP = 1028, //创建私聊线程回复
 	ID_LOAD_CHAT_MSG_REQ = 1029,      //加载聊天消息
 	ID_LOAD_CHAT_MSG_RSP = 1030,      //加载聊天消息
+
+	ID_IMG_CHAT_MSG_REQ = 1035,       //图片聊天消息请求
+	ID_IMG_CHAT_MSG_RSP = 1036,       //图片聊天信息回复
+	ID_NOTIFY_IMG_CHAT_MSG_REQ = 1039   //通知用户图片聊天信息
+};
+
+//消息状态
+enum MsgStatus {
+	UN_READ = 0,  //对方未读
+	SEND_FAILED = 1,  //发送失败
+	READED = 2,  //对方已读
+	UN_UPLOAD = 3 //未上传完成
 };
 
 #define USERIPPREFIX  "uip_"

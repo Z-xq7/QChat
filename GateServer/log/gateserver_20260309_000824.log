@@ -1,0 +1,25 @@
+[2026-03-09 00:08:24.710] [INFO] [ConfigMgr.cpp:8] [ConfigMgr] [thread:28400] Config file path: E:\VS_QChat\GateServer\config.ini
+[2026-03-09 00:08:24.711] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: GateServer ]
+[2026-03-09 00:08:24.711] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 13419
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: Mysql ]
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] host = 47.108.113.95
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] password = 123456
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 3307
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] schema = qchat
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] user = root
+[2026-03-09 00:08:24.712] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: Redis ]
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] host = 47.108.113.95
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] password = 123456
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 6380
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: ResServer ]
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] RPCPort = 51055
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] host = 127.0.0.1
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] name = reserver
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 9090
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: StatusServer ]
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] host = 127.0.0.1
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 50052
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:34] [ConfigMgr] [thread:28400] [ Section: VarifyServer ]
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] host = 127.0.0.1
+[2026-03-09 00:08:24.713] [DEBUG] [ConfigMgr.cpp:37] [ConfigMgr] [thread:28400] port = 50051
+[2026-03-09 00:08:24.716] [INFO] [GateServer.cpp:69] [main] [thread:28400] GateServer is running on port 13419

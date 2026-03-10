@@ -1,0 +1,35 @@
+[2026-03-08 23:43:23.428] [INFO] [ChatServer.cpp:54] [main] [thread:8160] ========== ChatServer Starting ==========
+[2026-03-08 23:43:23.429] [INFO] [ConfigMgr.cpp:9] [ConfigMgr] [thread:8160] Config path: E:\VS_QChat\ChatServer\config.ini
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [GateServer]
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=13419
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [Mysql]
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=47.108.113.95
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Passwd=123456
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=3307
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Schema=qchat
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] User=root
+[2026-03-08 23:43:23.430] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [PeerServer]
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Servers=chatserver2
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [Redis]
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=47.108.113.95
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Passwd=123456
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=6380
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [SelfServer]
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=0.0.0.0
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Name=chatserver1
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=8090
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] RPCPort=50055
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [StatusServer]
+[2026-03-08 23:43:23.431] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=127.0.0.1
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=50052
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [VarifyServer]
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=127.0.0.1
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=50051
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:38] [ConfigMgr] [thread:8160] [chatserver2]
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Host=127.0.0.1
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Name=chatserver2
+[2026-03-08 23:43:23.432] [DEBUG] [ConfigMgr.cpp:40] [ConfigMgr] [thread:8160] Port=50056
+[2026-03-08 23:43:23.432] [INFO] [ChatServer.cpp:58] [main] [thread:8160] Server name: chatserver1
+[2026-03-08 23:43:24.225] [DEBUG] [RedisMgr.cpp:205] [HSet] [thread:8160] Redis HSET success - key: logincount, hkey: chatserver1
+[2026-03-08 23:43:24.226] [INFO] [CServer.cpp:13] [CServer] [thread:8160] Server start success, listen on port: 8090
+[2026-03-08 23:43:24.230] [INFO] [ChatServer.cpp:87] [main] [thread:8160] RPC Server listening on 0.0.0.0:50055

@@ -151,24 +151,37 @@ enum class ChatRole{
     Other       //其他人
 };
 
-//聊天信息
-struct MsgInfo{
-    QString msgFlag;    //"text,image,file"
-    QString content;    //表示文件和图像的url
-    QPixmap pixmap;     //文件和图片的缩略图
-};
-
+//消息类型
 enum class MsgType {
-    TEXT_MSG = 0, //文本消息
-    IMG_MSG = 1,  //图片消息
-    VIDEO_MSG = 2, //视频消息
-    FILE_MSG = 3//文件消息,
+    TEXT_MSG = 0,       //文本消息
+    IMG_MSG = 1,        //图片消息
+    VIDEO_MSG = 2,      //视频消息
+    FILE_MSG = 3        //文件消息,
 };
 
+//消息状态
 enum MsgStatus{
     UN_READ = 0,        //对方未读
     SEND_FAILED = 1,    //发送失败
-    READED = 2          //对方已读
+    READED = 2,         //对方已读
+    UN_UPLOAD = 3       //未上传完成
+};
+
+//聊天信息
+struct MsgInfo{
+    MsgInfo(MsgType msgtype, QString text_or_url, QPixmap pixmap, QString unique_name, qint64 total_size, QString md5)
+    :_msg_type(msgtype), _text_or_url(text_or_url), _preview_pix(pixmap),_unique_name(unique_name),_total_size(total_size),
+        _current_size(0),_seq(1),_md5(md5)
+    {}
+
+    MsgType _msg_type;      //消息类型, 文本，图片，视频，文件
+    QString _text_or_url;   //表示文件和图像的url,文本信息
+    QPixmap _preview_pix;   //文件和图片的缩略图
+    QString _unique_name;   //文件唯一名字
+    qint64 _total_size;     //文件总大小
+    qint64 _current_size;   //传输大小
+    qint64 _seq;            //传输序号
+    QString _md5;           //文件md5
 };
 
 //聊天形式，私聊和群聊
@@ -202,6 +215,9 @@ extern std::vector<QString> names;
 extern QString generateUniqueFileName(const QString& originalName);
 
 extern QString generateUniqueIconName();
+
+extern QString calculateFileHash(const QString& filePath);
+
 //TCP文件上传包头长度
 #define FILE_UPLOAD_HEAD_LEN 6
 //TCP ID长度

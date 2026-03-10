@@ -8,6 +8,7 @@
 #include "LogicSystem.h"
 #include "RedisMgr.h"
 #include "ConfigMgr.h"
+#include "Logger.h"
 
 CSession::CSession(boost::asio::io_context& io_context, CServer* server):
 	_socket(io_context), _server(server), _b_close(false),_b_head_parse(false), _user_uid(0){
@@ -16,11 +17,12 @@ CSession::CSession(boost::asio::io_context& io_context, CServer* server):
 	_recv_head_node = make_shared<MsgNode>(HEAD_TOTAL_LEN);
 	_last_heartbeat = std::time(nullptr);
 }
-CSession::~CSession() {
-	std::cout << "~CSession destruct" << endl;
 
-	////********** 已在心跳检测中优化了，这里可注掉 **********
-	////减少服务器登录数量
+CSession::~CSession() {
+	LOG_DEBUG("Session destructed - session_id: " << _session_id);
+
+	////********** 这里被优化了，先不再用 **********
+	////减少服务器登录人数
 	//auto& cfg = ConfigMgr::Inst();
 	//auto self_name = cfg["SelfServer"]["Name"];
 	//RedisMgr::GetInstance()->DecreaseCount(self_name);
@@ -52,7 +54,7 @@ void CSession::Send(std::string msg, short msgid) {
 	std::lock_guard<std::mutex> lock(_send_lock);
 	int send_que_size = _send_que.size();
 	if (send_que_size > MAX_SENDQUE) {
-		std::cout << "session: " << _session_id << " send que fulled, size is " << MAX_SENDQUE << endl;
+		LOG_WARN("Send queue full - session_id: " << _session_id << ", size: " << MAX_SENDQUE);
 		return;
 	}
 
@@ -69,7 +71,7 @@ void CSession::Send(char* msg, short max_length, short msgid) {
 	std::lock_guard<std::mutex> lock(_send_lock);
 	int send_que_size = _send_que.size();
 	if (send_que_size > MAX_SENDQUE) {
-		std::cout << "session: " << _session_id << " send que fulled, size is " << MAX_SENDQUE << endl;
+		LOG_WARN("Send queue full - session_id: " << _session_id << ", size: " << MAX_SENDQUE);
 		return;
 	}
 
@@ -98,21 +100,21 @@ void CSession::AsyncReadBody(int total_len)
 	asyncReadFull(total_len, [self, this, total_len](const boost::system::error_code& ec, std::size_t bytes_transfered) {
 		try {
 			if (ec) {
-				std::cout << "handle read failed, error is " << ec.what() << endl;
+				LOG_ERROR("Handle read body failed - session_id: " << _session_id << ", error: " << ec.what());
 				Close();
 				DealExceptionSession();
 				return;
 			}
 
 			if (bytes_transfered < total_len) {
-				std::cout << "read length not match, read [" << bytes_transfered << "] , total ["
-					<< total_len<<"]" << endl;
+				LOG_WARN("Read length not match - session_id: " << _session_id 
+					<< ", read: " << bytes_transfered << ", expected: " << total_len);
 				Close();
 				_server->ClearSession(_session_id);
 				return;
 			}
 
-			//判断连接无效
+			//判断连接是否有效
 			if (!_server->CheckValid(_session_id)) {
 				Close();
 				return;
@@ -121,17 +123,17 @@ void CSession::AsyncReadBody(int total_len)
 			memcpy(_recv_msg_node->_data , _data , bytes_transfered);
 			_recv_msg_node->_cur_len += bytes_transfered;
 			_recv_msg_node->_data[_recv_msg_node->_total_len] = '\0';
-			cout << "receive data is " << _recv_msg_node->_data << endl;
+			LOG_DEBUG("Receive data - session_id: " << _session_id << ", data: " << _recv_msg_node->_data);
 
 			//更新session心跳时间
 			UpdateHeartbeat();
 			//此处将消息投递到逻辑队列中
 			LogicSystem::GetInstance()->PostMsgToQue(make_shared<LogicNode>(shared_from_this(), _recv_msg_node));
-			//继续监听头部接受事件
+			//继续监听头部接收事件
 			AsyncReadHead(HEAD_TOTAL_LEN);
 		}
 		catch (std::exception& e) {
-			std::cout << "Exception code is " << e.what() << endl;
+			LOG_ERROR("AsyncReadBody exception - session_id: " << _session_id << ", error: " << e.what());
 		}
 		});
 }
@@ -142,21 +144,21 @@ void CSession::AsyncReadHead(int total_len)
 	asyncReadFull(HEAD_TOTAL_LEN, [self, this](const boost::system::error_code& ec, std::size_t bytes_transfered) {
 		try {
 			if (ec) {
-				std::cout << "handle read failed, error is " << ec.what() << endl;
+				LOG_ERROR("Handle read head failed - session_id: " << _session_id << ", error: " << ec.what());
 				Close();
 				DealExceptionSession();
 				return;
 			}
 
 			if (bytes_transfered < HEAD_TOTAL_LEN) {
-				std::cout << "read length not match, read [" << bytes_transfered << "] , total ["
-					<< HEAD_TOTAL_LEN << "]" << endl;
+				LOG_WARN("Read length not match - session_id: " << _session_id 
+					<< ", read: " << bytes_transfered << ", expected: " << HEAD_TOTAL_LEN);
 				Close();
 				_server->ClearSession(_session_id);
 				return;
 			}
 
-			//判断连接无效
+			//判断连接是否有效
 			if (!_server->CheckValid(_session_id)) {
 				Close();
 				return;
@@ -168,47 +170,46 @@ void CSession::AsyncReadHead(int total_len)
 			//获取头部MSGID数据
 			short msg_id = 0;
 			memcpy(&msg_id, _recv_head_node->_data, HEAD_ID_LEN);
-			//网络字节序转化为本地字节序
+			//网络字节序转换为主机字节序
 			msg_id = boost::asio::detail::socket_ops::network_to_host_short(msg_id);
-			std::cout << "msg_id is " << msg_id << endl;
+			LOG_DEBUG("Receive msg_id: " << msg_id << " - session_id: " << _session_id);
 			//id非法
 			if (msg_id > MAX_LENGTH) {
-				std::cout << "invalid msg_id is " << msg_id << endl;
+				LOG_WARN("Invalid msg_id: " << msg_id << " - session_id: " << _session_id);
 				_server->ClearSession(_session_id);
 				return;
 			}
 			short msg_len = 0;
 			memcpy(&msg_len, _recv_head_node->_data + HEAD_ID_LEN, HEAD_DATA_LEN);
-			//网络字节序转化为本地字节序
+			//网络字节序转换为主机字节序
 			msg_len = boost::asio::detail::socket_ops::network_to_host_short(msg_len);
-			std::cout << "msg_len is " << msg_len << endl;
+			LOG_DEBUG("Receive msg_len: " << msg_len << " - session_id: " << _session_id);
 
 			//id非法
 			if (msg_len > MAX_LENGTH) {
-				std::cout << "invalid data length is " << msg_len << endl;
+				LOG_WARN("Invalid data length: " << msg_len << " - session_id: " << _session_id);
 				_server->ClearSession(_session_id);
 				return;
 			}
 
 			_recv_msg_node = make_shared<RecvNode>(msg_len, msg_id);
-			//继续监听消息体接受事件
+			//继续监听消息体接收事件
 			AsyncReadBody(msg_len);
 			//更新session心跳时间
 			UpdateHeartbeat();
 		}
 		catch (std::exception& e) {
-			std::cout << "Exception code is " << e.what() << endl;
+			LOG_ERROR("AsyncReadHead exception - session_id: " << _session_id << ", error: " << e.what());
 		}
 		});
 }
 
 void CSession::HandleWrite(const boost::system::error_code& error, std::shared_ptr<CSession> shared_self) {
-	//增加异常处理
+	//此处捕获异常
 	try {
 		auto self = shared_from_this();
 		if (!error) {
 			std::lock_guard<std::mutex> lock(_send_lock);
-			//cout << "send data " << _send_que.front()->_data+HEAD_LENGTH << endl;
 			_send_que.pop();
 			if (!_send_que.empty()) {
 				auto& msgnode = _send_que.front();
@@ -217,13 +218,13 @@ void CSession::HandleWrite(const boost::system::error_code& error, std::shared_p
 			}
 		}
 		else {
-			std::cout << "handle write failed, error is " << error.what() << endl;
+			LOG_ERROR("Handle write failed - session_id: " << _session_id << ", error: " << error.what());
 			Close();
 			DealExceptionSession();
 		}
 	}
 	catch (std::exception& e) {
-		std::cerr << "Exception code : " << e.what() << endl;
+		LOG_ERROR("HandleWrite exception - error: " << e.what());
 	}
 	
 }
@@ -278,7 +279,7 @@ LogicNode::LogicNode(shared_ptr<CSession>  session,
 bool CSession::IsHeartbeatExpired(std::time_t& now) {
 	double diff_sec = std::difftime(now, _last_heartbeat);
 	if (diff_sec > HEARTBEAT_EXPIRE_TIME) {
-		std::cout << "*** heartbeat expired, session id is  " << _session_id << " ***" << endl;
+		LOG_WARN("Heartbeat expired - session_id: " << _session_id << ", diff_sec: " << diff_sec);
 		return true;
 	}
 

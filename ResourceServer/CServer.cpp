@@ -1,20 +1,21 @@
 #include "CServer.h"
-#include <iostream>
+#include "Logger.h"
 #include "AsioIOServicePool.h"
-//#include "UserMgr.h"
 #include "RedisMgr.h"
 #include "ConfigMgr.h"
 #include "UserMgr.h"
 
+using namespace std;
+
 CServer::CServer(boost::asio::io_context& io_context, short port):_io_context(io_context), _port(port),
 	_acceptor(io_context, tcp::endpoint(tcp::v4(),port)), _timer(_io_context, std::chrono::seconds(60))
 {
-	cout << "【 Server start success, listen on port : " << _port << " 】" << endl;
+	LOG_INFO("Server start success, listen on port: " << _port);
 	StartAccept();
 }
 
 CServer::~CServer() {
-	cout << "【 Server destruct listen on port : " << _port << " 】" << endl;
+	LOG_INFO("Server destruct, listen on port: " << _port);
 }
 
 void CServer::HandleAccept(shared_ptr<CSession> new_session, const boost::system::error_code& error){
@@ -24,7 +25,7 @@ void CServer::HandleAccept(shared_ptr<CSession> new_session, const boost::system
 		_sessions.insert(make_pair(new_session->GetSessionId(), new_session));
 	}
 	else {
-		cout << "session accept failed, error is " << error.what() << endl;
+		LOG_ERROR("Session accept failed, error: " << error.what());
 	}
 
 	StartAccept();
@@ -36,7 +37,7 @@ void CServer::StartAccept() {
 	_acceptor.async_accept(new_session->GetSocket(), std::bind(&CServer::HandleAccept, this, new_session, placeholders::_1));
 }
 
-//根据session 的id删除session，并移除用户和session的关联
+//根据session 的id删除session，并且移除用户和session的关联
 void CServer::ClearSession(std::string session_id) {
 	
 	std::lock_guard<mutex> lock(_mutex);

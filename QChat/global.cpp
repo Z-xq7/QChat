@@ -31,6 +31,25 @@ QString generateUniqueIconName(){
     return uuid + ".png";
 }
 
+QString calculateFileHash(const QString& filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return QString();
+
+    QCryptographicHash hash(QCryptographicHash::Md5);
+
+    // 分块计算哈希，避免大文件占用过多内存
+    const qint64 chunkSize = 1024 * 1024; // 1MB
+    while (!file.atEnd())
+    {
+        hash.addData(file.read(chunkSize));
+    }
+    file.close();
+
+    return hash.result().toHex();
+}
+
 // 全局测试数据
 std::vector<QString> strs = {"hello world !",
                              "nice to meet u",

@@ -1,5 +1,6 @@
 #include "FileWorker.h"
 #include "CSession.h"
+#include "Logger.h"
 #include <json/json.h>
 #include <json/value.h>
 #include <json/reader.h>
@@ -58,11 +59,10 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 
 	auto file_path_str = task->_path;
 	auto last = task->_last;
-	//std::cout << "file_path_str is " << file_path_str << std::endl;
 
 	boost::filesystem::path file_path(file_path_str);
 	boost::filesystem::path dir_path = file_path.parent_path();
-	// 获取完整文件名（包含扩展名）
+	// 获取纯粹文件名（不含扩展名）
 	std::string filename = file_path.filename().string();
 	Json::Value result;
 	result["error"] = ErrorCodes::Success;
@@ -70,7 +70,7 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 	// Check if directory exists, if not, create it
 	if (!boost::filesystem::exists(dir_path)) {
 		if (!boost::filesystem::create_directories(dir_path)) {
-			std::cerr << "Failed to create directory: " << dir_path.string() << std::endl;
+			LOG_ERROR("Failed to create directory: " << dir_path.string());
 			result["error"] = ErrorCodes::FileNotExists;
 			task->_callback(result);
 			return;
@@ -80,16 +80,16 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 	std::ofstream outfile;
 	//第一个包
 	if (task->_seq == 1) {
-		// 打开文件，如果存在则清空，不存在则创建
+		// 如果文件存在，则清空，否则创建
 		outfile.open(file_path_str, std::ios::binary | std::ios::trunc);
 	}
 	else {
-		// 保存为文件
+		// 追加到文件
 		outfile.open(file_path_str, std::ios::binary | std::ios::app);
 	}
 
 	if (!outfile) {
-		std::cerr << "无法打开文件进行写入。" << std::endl;
+		LOG_ERROR("Cannot open file for writing: " << file_path_str);
 		result["error"] = ErrorCodes::FileWritePermissionFailed;
 		task->_callback(result);
 		return;
@@ -97,7 +97,7 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 
 	outfile.write(decoded.data(), decoded.size());
 	if (!outfile) {
-		std::cerr << "写入文件失败。" << std::endl;
+		LOG_ERROR("Write file failed: " << file_path_str);
 		result["error"] = ErrorCodes::FileWritePermissionFailed;
 		task->_callback(result);
 		return;
@@ -105,7 +105,7 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 
 	outfile.close();
 	if (last) {
-		std::cout << "文件已成功保存为: " << task->_name << std::endl;
+		LOG_INFO("File saved successfully: " << task->_name);
 		//更新头像
 		MysqlMgr::GetInstance()->UpdateUserIcon(task->_uid, filename);
 		//获取用户信息
@@ -114,7 +114,7 @@ void FileWorker::task_callback(std::shared_ptr<FileTask> task)
 			return;
 		}
 
-		//将数据库内容写入redis缓存
+		//将数据库数据写入redis缓存
 		Json::Value redis_root;
 		redis_root["uid"] = task->_uid;
 		redis_root["pwd"] = user_info->pwd;
