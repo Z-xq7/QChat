@@ -288,28 +288,52 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			}
 		}
 		{
-			// 3. 准备第一个SQL语句, 插入认证方好友数据
-			std::unique_ptr<sql::PreparedStatement> pstmt(con->_con->prepareStatement("INSERT IGNORE INTO friend(self_id, friend_id, back) "
-				"VALUES (?, ?, ?) "
+			// 3. 插入好友关系 - 关键改进：按照固定顺序插入避免死锁
+			// 确定插入顺序：始终按照 uid 大小顺序
+			int smaller_uid = std::min(from, to);
+			int larger_uid = std::max(from, to);
+
+			// 第一次插入：较小的 uid 作为 self_id
+			std::unique_ptr<sql::PreparedStatement> pstmt(con->_con->prepareStatement(
+				"INSERT IGNORE INTO friend(self_id, friend_id, back) "
+				"VALUES (?, ?, ?)"
 			));
-			//反过来的申请时from，验证时to
-			pstmt->setInt(1, from); // from id
-			pstmt->setInt(2, to);
-			pstmt->setString(3, back_name);
+
+			if (from == smaller_uid) {
+				pstmt->setInt(1, from);
+				pstmt->setInt(2, to);
+				pstmt->setString(3, back_name);
+			}
+			else {
+				pstmt->setInt(1, to);
+				pstmt->setInt(2, from);
+				pstmt->setString(3, reverse_back);
+			}
+
 			// 执行更新
 			int rowAffected = pstmt->executeUpdate();
 			if (rowAffected < 0) {
 				con->_con->rollback();
 				return false;
 			}
-			//准备第二个SQL语句，插入申请方好友数据
-			std::unique_ptr<sql::PreparedStatement> pstmt2(con->_con->prepareStatement("INSERT IGNORE INTO friend(self_id, friend_id, back) "
-				"VALUES (?, ?, ?) "
+
+			// 第二次插入：较大的 uid 作为 self_id
+			std::unique_ptr<sql::PreparedStatement> pstmt2(con->_con->prepareStatement(
+				"INSERT IGNORE INTO friend(self_id, friend_id, back) "
+				"VALUES (?, ?, ?)"
 			));
-			//反过来的申请时from，验证时to
-			pstmt2->setInt(1, to); // from id
-			pstmt2->setInt(2, from);
-			pstmt2->setString(3, reverse_back);
+
+			if (from == larger_uid) {
+				pstmt2->setInt(1, from);
+				pstmt2->setInt(2, to);
+				pstmt2->setString(3, back_name);
+			}
+			else {
+				pstmt2->setInt(1, to);
+				pstmt2->setInt(2, from);
+				pstmt2->setString(3, reverse_back);
+			}
+
 			// 执行更新
 			int rowAffected2 = pstmt2->executeUpdate();
 			if (rowAffected2 < 0) {
@@ -317,11 +341,12 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 				return false;
 			}
 		}
+
 		// 4. 创建 chat_thread
 		long long threadId = 0;
 		{
 			std::unique_ptr<sql::PreparedStatement> threadStmt(con->_con->prepareStatement(
-				"INSERT INTO chat_thread (type, created_at) VALUES ('private', NOW());"
+				"INSERT INTO chat_thread (type, created_at) VALUES ('private', NOW())"
 			));
 			threadStmt->executeUpdate();
 			std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
@@ -332,9 +357,11 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 				threadId = rs->getInt64(1);
 			}
 			else {
+				con->_con->rollback();
 				return false;
 			}
 		}
+
 		// 5. 插入 private_chat
 		{
 			std::unique_ptr<sql::PreparedStatement> pcStmt(con->_con->prepareStatement(
@@ -343,13 +370,18 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			pcStmt->setInt64(1, threadId);
 			pcStmt->setInt(2, from);
 			pcStmt->setInt(3, to);
-			if (pcStmt->executeUpdate() < 0) return false;
+			if (pcStmt->executeUpdate() < 0) {
+				con->_con->rollback();
+				return false;
+			}
 		}
-		// 6. 可选：插入初始消息到 chat_message
-		if (apply_desc.empty() == false)
+
+		// 6. 插入初始消息（申请描述）
+		if (!apply_desc.empty())
 		{
 			std::unique_ptr<sql::PreparedStatement> msgStmt(con->_con->prepareStatement(
-				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content,created_at, updated_at, status) VALUES (?, ?, ?, ?,NOW(),NOW(),?)"
+				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status) "
+				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?)"
 			));
 			msgStmt->setInt64(1, threadId);
 			msgStmt->setInt(2, to);
@@ -357,11 +389,16 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			msgStmt->setString(4, apply_desc);
 			//这里先直接设置为已读，后续可以改成未读
 			msgStmt->setInt(5, 2);
-			if (msgStmt->executeUpdate() < 0) { return false; }
+			if (msgStmt->executeUpdate() < 0) {
+				con->_con->rollback();
+				return false;
+			}
+
 			std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
 			std::unique_ptr<sql::ResultSet> rs(
 				stmt->executeQuery("SELECT LAST_INSERT_ID()")
 			);
+
 			if (rs->next()) {
 				auto messageId = rs->getInt64(1);
 				auto tx_data = std::make_shared<AddFriendMsg>();
@@ -374,12 +411,16 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 				chat_datas.push_back(tx_data);
 			}
 			else {
+				con->_con->rollback();
 				return false;
 			}
 		}
+
+		// 7. 插入成为好友的消息
 		{
 			std::unique_ptr<sql::PreparedStatement> msgStmt(con->_con->prepareStatement(
-				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status) VALUES (?, ?, ?, ?,NOW(),NOW(),?)"
+				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status) "
+				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?)"
 			));
 			msgStmt->setInt64(1, threadId);
 			msgStmt->setInt(2, from);
@@ -387,11 +428,16 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			msgStmt->setString(4, "We are friends now!");
 			//这里先直接设置为已读，后续可以改成未读
 			msgStmt->setInt(5, 2);
-			if (msgStmt->executeUpdate() < 0) { return false; }
+			if (msgStmt->executeUpdate() < 0) {
+				con->_con->rollback();
+				return false;
+			}
+
 			std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
 			std::unique_ptr<sql::ResultSet> rs(
 				stmt->executeQuery("SELECT LAST_INSERT_ID()")
 			);
+
 			if (rs->next()) {
 				auto messageId = rs->getInt64(1);
 				auto tx_data = std::make_shared<AddFriendMsg>();
@@ -403,6 +449,7 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 				chat_datas.push_back(tx_data);
 			}
 			else {
+				con->_con->rollback();
 				return false;
 			}
 		}
@@ -418,6 +465,12 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 		}
 		LOG_ERROR("AddFriend SQLException - error: " << e.what() 
 			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+
+		// 如果是死锁错误（1213），可以考虑重试
+		if (e.getErrorCode() == 1213) {
+			LOG_ERROR("Deadlock detected, consider retry");
+		}
+
 		return false;
 	}
 	return true;

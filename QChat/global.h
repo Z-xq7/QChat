@@ -22,6 +22,21 @@
 #include <QDir>
 #include <QSettings>
 #include <QUuid>
+#include <set>
+#include <queue>
+
+//TCP文件上传包头长度
+#define FILE_UPLOAD_HEAD_LEN 6
+//TCP ID长度
+#define FILE_UPLOAD_ID_LEN 2
+//TCP 长度字段的长度
+#define FILE_UPLOAD_LEN_LEN 4
+//最大文件长度
+//#define MAX_FILE_LEN 2048
+//最大文件长度
+#define MAX_FILE_LEN 1024*12
+//定义最大拥塞窗口的大小
+#define MAX_CWND_SIZE 5
 
 //刷新
 extern std::function<void(QWidget*)> repolish;
@@ -167,12 +182,30 @@ enum MsgStatus{
     UN_UPLOAD = 3       //未上传完成
 };
 
+enum class TransferType {
+    None,
+    Download,  //下载
+    Upload     //上传
+};
+
+enum class TransferState {
+    None,           // 无传输
+    Downloading,    // 下载中
+    Uploading,      // 上传中
+    Paused,         // 暂停
+    Completed,      // 完成
+    Failed          // 失败
+};
+
 //聊天信息
 struct MsgInfo{
+    MsgInfo() = default;
     MsgInfo(MsgType msgtype, QString text_or_url, QPixmap pixmap, QString unique_name, qint64 total_size, QString md5)
-    :_msg_type(msgtype), _text_or_url(text_or_url), _preview_pix(pixmap),_unique_name(unique_name),_total_size(total_size),
-        _current_size(0),_seq(1),_md5(md5)
-    {}
+        :_msg_type(msgtype), _text_or_url(text_or_url), _preview_pix(pixmap),_unique_name(unique_name),_total_size(total_size)
+        , _current_size(0), _seq(1),_md5(md5), _last_confirmed_seq(0)
+    {
+        _max_seq = (total_size + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
+    }
 
     MsgType _msg_type;      //消息类型, 文本，图片，视频，文件
     QString _text_or_url;   //表示文件和图像的url,文本信息
@@ -182,7 +215,19 @@ struct MsgInfo{
     qint64 _current_size;   //传输大小
     qint64 _seq;            //传输序号
     QString _md5;           //文件md5
+    std::set<qint64> _rsp_seqs;         //已经接受的回传序列集合
+    std::set<qint64> _flighting_seqs;   //正在发送，但是未收到服务器回复，将来用来做超时重传
+    qint64 _last_confirmed_seq;         //最后确认序列
+    qint64 _max_seq;                    //最大序列号
+    qint64 _msg_id;                     //关联的消息id
+    qint64 _rsp_size;                   //服务器返回实际上传或者下载的大小
+    qint64 _thread_id;                  // 会话id
+    TransferState _transfer_state;      //上传或者下载, 暂停，传输完成
+    TransferType  _transfer_type;       //文件类型, 上传或者下载
 };
+//声明为元对象类型
+Q_DECLARE_METATYPE(MsgInfo)
+Q_DECLARE_METATYPE(std::shared_ptr<MsgInfo>)
 
 //聊天形式，私聊和群聊
 enum class ChatFormType {
@@ -217,15 +262,6 @@ extern QString generateUniqueFileName(const QString& originalName);
 extern QString generateUniqueIconName();
 
 extern QString calculateFileHash(const QString& filePath);
-
-//TCP文件上传包头长度
-#define FILE_UPLOAD_HEAD_LEN 6
-//TCP ID长度
-#define FILE_UPLOAD_ID_LEN 2
-//TCP 长度字段的长度
-#define FILE_UPLOAD_LEN_LEN 4
-//最大文件长度
-#define MAX_FILE_LEN 2048
 
 //申请好友标签输入框最低长度
 const int MIN_APPLY_LABEL_ED_LEN = 40;

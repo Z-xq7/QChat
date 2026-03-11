@@ -192,6 +192,8 @@ public:
         ChatDataBase(msg_id, unique_id, thread_id, form_type, msg_type, content, send_uid, status, chat_time){}
 
     TextChatData() = default;
+
+    ~TextChatData() override{}
 };
 Q_DECLARE_METATYPE(std::vector<std::shared_ptr<TextChatData>>)
 
@@ -201,9 +203,9 @@ public:
                 int thread_id, ChatFormType form_type, ChatMsgType msg_type,
                 int send_uid, int status, QString chat_time = ""):
         ChatDataBase(unique_id,thread_id, form_type, msg_type, msg_info->_text_or_url,
-                     send_uid, status, chat_time), _msg_info(msg_info){
+                     send_uid, status, chat_time), _msg_info(msg_info){}
 
-    }
+    ~ImgChatData() override {}
 
     std::shared_ptr<MsgInfo> _msg_info;
 };
@@ -234,6 +236,8 @@ public:
     void AddMsg(std::shared_ptr<ChatDataBase> msg);
     //将在未回复map中的消息转到缓存消息map中
     void MoveMsg(std::shared_ptr<ChatDataBase> msg);
+    //更新文件上传进度条
+    void UpdateProgress(std::shared_ptr<MsgInfo> msg);
     void SetLastMsgId(int msg_id);
     int GetLastMsgId();
     void SetOtherId(int other_id);
@@ -246,6 +250,7 @@ public:
     QString GetLastMsg();
     QMap<QString, std::shared_ptr<ChatDataBase>>& GetMsgUnRspRef();
     void AppendUnRspMsg(QString unique_id, std::shared_ptr<ChatDataBase> base_msg);
+    std::shared_ptr<ChatDataBase> GetChatDataBase(int msg_id);
 
 private:
     //如果是私聊，则为对方的id；如果是群聊，则为0

@@ -48,6 +48,7 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     ui->title_lb->setText(friend_info->_name);
     ui->chat_data_list->removeAllItem();
     _unrsp_item_map.clear();
+    _base_item_map.clear();
     
     // （已修改）加载缓存的聊天信息 - 先将消息按 msg_id 排序
     auto msg_map = chat_data->GetMsgMapRef();
@@ -154,9 +155,7 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
         auto status = msg->GetStatus();
         pChatItem->setStatus(status);
         ui->chat_data_list->appendChatItem(pChatItem);
-        if(status == 0){
-            _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
-        }
+        _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
     }
     else {
         role = ChatRole::Other;
@@ -177,26 +176,56 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
         auto status = msg->GetStatus();
         pChatItem->setStatus(status);
         ui->chat_data_list->appendChatItem(pChatItem);
-        if(status == 0){
-            _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
-        }
+        _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
     }
 }
 
 void ChatPage::clearItems()
 {
     ui->chat_data_list->removeAllItem();
+    _unrsp_item_map.clear();
+    _base_item_map.clear();
 }
 
-void ChatPage::UpdateChatStatus(QString unique_id, int status)
+void ChatPage::UpdateChatStatus(std::shared_ptr<ChatDataBase> msg)
 {
-    auto iter = _unrsp_item_map.find(unique_id);
-    if(iter != _unrsp_item_map.end()){
-        iter.value()->setStatus(status);
-        //只有状态变为已读或发送成功时才从未回复map中移除
-        if(status != 0){
-            _unrsp_item_map.erase(iter);
-        }
+    auto iter = _unrsp_item_map.find(msg->GetUniqueId());
+    //没找到则直接返回
+    if (iter == _unrsp_item_map.end()) {
+        return;
+    }
+
+    iter.value()->setStatus(msg->GetStatus());
+    _base_item_map[msg->GetMsgId()] = iter.value();
+    _unrsp_item_map.erase(iter);
+}
+
+void ChatPage::UpdateImgChatStatus(std::shared_ptr<ImgChatData> msg) {
+    auto iter = _unrsp_item_map.find(msg->GetUniqueId());
+    //没找到则直接返回
+    if (iter == _unrsp_item_map.end()) {
+        return;
+    }
+
+    iter.value()->setStatus(msg->GetStatus());
+    _base_item_map[msg->GetMsgId()] = iter.value();
+    _unrsp_item_map.erase(iter);
+
+    auto bubble = _base_item_map[msg->GetMsgId()]->getBubble();
+    PictureBubble* pic_bubble = dynamic_cast<PictureBubble*>(bubble);
+    pic_bubble->setMsgInfo(msg->_msg_info);
+}
+
+void ChatPage::UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info) {
+    auto iter = _base_item_map.find(msg_info->_msg_id);
+    if (iter == _base_item_map.end()) {
+        return;
+    }
+
+    if (msg_info->_msg_type == MsgType::IMG_MSG) {
+        auto bubble = iter.value()->getBubble();
+        PictureBubble*  pic_bubble = dynamic_cast<PictureBubble*>(bubble);
+        pic_bubble->setProgress(msg_info->_rsp_size);
     }
 }
 
@@ -312,7 +341,7 @@ void ChatPage::on_send_btn_clicked()
                 emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_TEXT_CHAT_MSG_REQ, jsonData);
             }
 
-            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url), role);
+            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url), role, msgList[i]->_total_size);
             //需要组织成文件发送，具体参考头像上传
             auto img_msg = std::make_shared<ImgChatData>(msgList[i],uuidString, thread_id, ChatFormType::PRIVATE,
                     ChatMsgType::PIC, user_info->_uid, 0);
@@ -332,6 +361,13 @@ void ChatPage::on_send_btn_clicked()
             QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
             //发送tcp请求给chat server
             emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_IMG_CHAT_MSG_REQ, jsonData);
+
+            //链接暂停信号
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            //链接恢复信号
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
         }
         else if(type == MsgType::FILE_MSG)
         {
@@ -392,7 +428,7 @@ void ChatPage::on_receive_btn_clicked()
         }
         else if(type == MsgType::IMG_MSG)
         {
-            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url) , role);
+            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url) , role, msgList[i]->_total_size);
         }
         else if(type == MsgType::FILE_MSG)
         {
@@ -403,6 +439,25 @@ void ChatPage::on_receive_btn_clicked()
             pChatItem->setWidget(pBubble);
             ui->chat_data_list->appendChatItem(pChatItem);
         }
+    }
+}
+
+void ChatPage::on_clicked_paused(QString unique_name, TransferType transfer_type)
+{
+    UserMgr::GetInstance()->PauseTransFileByName(unique_name);
+}
+
+void ChatPage::on_clicked_resume(QString unique_name, TransferType transfer_type)
+{
+    UserMgr::GetInstance()->ResumeTransFileByName(unique_name);
+    //继续发送或者下载
+    if (transfer_type == TransferType::Upload) {
+        FileTcpMgr::GetInstance()->ContinueUploadFile(unique_name);
+        return;
+    }
+
+    if (transfer_type == TransferType::Download) {
+        return;
     }
 }
 

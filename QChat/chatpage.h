@@ -27,8 +27,12 @@ public:
     void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
     //清空聊天信息
     void clearItems();
-    //更新聊天信息状态
-    void UpdateChatStatus(QString unique_id, int status);
+    //更新聊天文本信息状态
+    void UpdateChatStatus(std::shared_ptr<ChatDataBase> msg);
+    //更新聊天图片信息状态
+    void UpdateImgChatStatus(std::shared_ptr<ImgChatData> img_msg);
+    //更新文件上传状态
+    void UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -38,15 +42,21 @@ protected:
 
 private slots:
     void on_send_btn_clicked();
-
     void on_receive_btn_clicked();
+    //接收PictureBubble传回来的暂停信号
+    void on_clicked_paused(QString unique_name, TransferType transfer_type);
+    //接收PictureBubble传回来的继续信号
+    void on_clicked_resume(QString unique_name, TransferType transfer_type);
 
 private:
     Ui::ChatPage *ui;
+    QMap<QString, QWidget*>  _bubble_map;
 
     std::shared_ptr<ChatThreadData> _chat_data;
-    //未读消息item(unique_id,与发送的一条条消息ChatItemBase关联)
+    //管理未回复聊天信息，未读消息item(unique_id,与发送的一条条消息ChatItemBase关联)
     QMap<QString, ChatItemBase*> _unrsp_item_map;
+    //管理已经回复的消息
+    QHash<qint64, ChatItemBase*> _base_item_map;
 
 // signals:
 //     void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);

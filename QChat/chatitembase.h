@@ -18,6 +18,7 @@ public:
     void setWidget(QWidget* w);
     void setStatus(int status);
     QLabel* getIconLabel();
+    QWidget* getBubble();
 
 private:
     ChatRole m_role;

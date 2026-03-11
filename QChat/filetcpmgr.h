@@ -11,6 +11,7 @@
 #include <memory>
 #include <QThread>
 #include <QQueue>
+#include <memory>
 
 //文件tcp传输线程
 class FileTcpThread: public std::enable_shared_from_this<FileTcpThread>{
@@ -34,6 +35,10 @@ public:
     void SendData(ReqId reqId, QByteArray data);
     void CloseConnection();
     void SendDownloadInfo(std::shared_ptr<DownloadInfo> download);
+    //拥塞窗口上传数据
+    void BatchSend(std::shared_ptr<MsgInfo> msg_info);
+    //暂停后继续上传图片文件
+    void ContinueUploadFile(QString unique_name);
 
 private:
     explicit FileTcpMgr(QObject *parent = nullptr);
@@ -57,6 +62,8 @@ private:
     qint64        _bytes_sent;
     //是否正在发送
     bool _pending;
+    //发送的拥塞窗口，控制发送数量
+    int _cwnd_size;
 
 signals:
     void sig_close();
@@ -65,11 +72,14 @@ signals:
     void sig_connection_closed();
     //重新加载label头像
     void sig_reset_label_icon(QString path);
+    void sig_update_upload_progress(std::shared_ptr<MsgInfo>);
+    void sig_continue_upload_file(QString unique_name);
 
 public slots:
     void slot_send_data(ReqId reqId, QByteArray data);
     void slot_tcp_connect(std::shared_ptr<ServerInfo> si);
     void slot_tcp_close();
+    void slot_continue_upload_file(QString unique_name);
 };
 
 #endif // FILETCPMGR_H

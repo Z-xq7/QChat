@@ -24,6 +24,7 @@ SOURCES += \
     chatuserlist.cpp \
     chatuserwid.cpp \
     chatview.cpp \
+    clickablelabel.cpp \
     clickedbtn.cpp \
     clickedlabel.cpp \
     clickedoncelabel.cpp \
@@ -71,6 +72,7 @@ HEADERS += \
     chatuserlist.h \
     chatuserwid.h \
     chatview.h \
+    clickablelabel.h \
     clickedbtn.h \
     clickedlabel.h \
     clickedoncelabel.h \

@@ -116,6 +116,8 @@ public slots:
     void slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> img_msg);
     //重新加载头像
     void slot_reset_icon(QString path);
+    //更新图片上传进度
+    void slot_update_upload_progress(std::shared_ptr<MsgInfo> msg_info);
 };
 
 #endif // CHATDIALOG_H

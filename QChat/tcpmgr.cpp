@@ -40,9 +40,6 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
         // 读取所有数据并追加到缓冲区
         _buffer.append(_socket.readAll());
 
-        QDataStream stream(&_buffer, QIODevice::ReadOnly);
-        stream.setVersion(QDataStream::Qt_5_0);
-
         forever {
             //先解析头部
             if(!_b_recv_pending){
@@ -51,11 +48,16 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
                     return; // 数据不够，等待更多数据
                 }
 
+                // ✅ 每次都重新创建stream
+                QDataStream stream(_buffer);
+                stream.setVersion(QDataStream::Qt_5_0);
+
                 // 预读取消息ID和消息长度，但不从缓冲区中移除
                 stream >> _message_id >> _message_len;
 
                 //将buffer 中的前四个字节移除
-                _buffer = _buffer.mid(sizeof(quint16) * 2);
+                //_buffer = _buffer.mid(sizeof(quint16) * 2);
+                _buffer.remove(0, sizeof(quint16) * 2);  // 使用remove代替mid赋值
 
                 // 输出读取的数据
                 qDebug() << "[TcpMgr]: Message ID:" << _message_id << ", Length:" << _message_len;
@@ -701,17 +703,17 @@ void TcpMgr::initHandlers()
 
         if (!jsonObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "[TcpMgr]: parse create private chat json parse failed " << err;
+            qDebug() << "[TcpMgr]: parse IMG_CHAT_MSG_RSP json parse failed " << err;
             return;
         }
 
         int err = jsonObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "[TcpMgr]: get create private chat failed, error is " << err;
+            qDebug() << "[TcpMgr]: get IMG_CHAT_MSG_RSP failed, error is " << err;
             return;
         }
 
-        qDebug() << "[TcpMgr]: Receive create private chat rsp Success";
+        qDebug() << "[TcpMgr]: Receive IMG_CHAT_MSG_RSP Success";
 
         //收到消息后转发给页面
         auto thread_id = jsonObj["thread_id"].toInt();
@@ -726,12 +728,31 @@ void TcpMgr::initHandlers()
 
         auto file_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
 
+        //如果未找到文件对应的信息则返回
+        if (!file_info) {
+            return;
+        }
+        //设置消息id和会话id
+        file_info->_msg_id = msg_id;
+        file_info->_thread_id = thread_id;
+        //设置文件传输的类型
+        file_info->_transfer_type = TransferType::Upload;
+        //设置文件传输状态
+        file_info->_transfer_state = TransferState::Uploading;
+
         auto chat_data = std::make_shared<ImgChatData>(file_info, unique_id, thread_id, ChatFormType::PRIVATE,
                                                        ChatMsgType::TEXT, sender, status, chat_time);
+
+        //更新msg_id,因为最开始构造的chat_data中ImgChatData的msg_id为空
+        chat_data->SetMsgId(msg_id);
+
         //发送信号通知聊天界面
         emit sig_chat_img_rsp(thread_id, chat_data);
 
-        //创建QFileInfo 对象 todo 留作以后收到服务器返回消息后再发送
+        //管理消息，添加序列号到正在发送集合
+        file_info->_flighting_seqs.insert(file_info->_seq);
+
+        //发送消息
         QFile file(file_info->_text_or_url);
         if (!file.open(QIODevice::ReadOnly)) {
             qWarning() << "[TcpMgr]: Could not open file:" << file.errorString();
@@ -767,7 +788,7 @@ void TcpMgr::initHandlers()
         QByteArray fileData = doc_file.toJson(QJsonDocument::Compact);
 
         //发送消息给ResourceServer
-        FileTcpMgr::GetInstance()->SendData(ReqId::ID_IMG_CHAT_UPLOAD_REQ, fileData);
+        FileTcpMgr::GetInstance()->SendData(ReqId::ID_FILE_INFO_SYNC_REQ, fileData);
     });
 
     //注册有消息的通知显示，接收对方发来的消息

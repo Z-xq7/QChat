@@ -1,4 +1,5 @@
 #include "userdata.h"
+#include <memory>
 
 ChatDataBase::ChatDataBase(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
         QString content, int _send_uid, int status, QString chat_time):
@@ -73,9 +74,22 @@ void ChatThreadData::MoveMsg(std::shared_ptr<ChatDataBase> msg)
     }
 
     iter.value()->SetMsgId(msg->GetMsgId());
-    iter.value()->SetStatus(2);
+    iter.value()->SetStatus(msg->GetStatus());
     AddMsg(iter.value());
     _msg_unrsp_map.erase(iter);
+}
+
+void ChatThreadData::UpdateProgress(std::shared_ptr<MsgInfo> msg) {
+    auto iter = _msg_map.find(msg->_msg_id);
+    if (iter == _msg_map.end()) {
+        return;
+    }
+
+    //更新进度信息,根据消息类型转化为具体类型
+    if (msg->_msg_type == MsgType::IMG_MSG) {
+        auto img_chat_data = std::dynamic_pointer_cast<ImgChatData>(iter.value());
+        img_chat_data->_msg_info->_rsp_size = msg->_rsp_size;
+    }
 }
 
 void ChatThreadData::SetLastMsgId(int msg_id)
@@ -135,5 +149,14 @@ QMap<QString, std::shared_ptr<ChatDataBase> > &ChatThreadData::GetMsgUnRspRef()
 void ChatThreadData::AppendUnRspMsg(QString unique_id, std::shared_ptr<ChatDataBase> base_msg)
 {
     _msg_unrsp_map.insert(unique_id,base_msg);
+}
+
+std::shared_ptr<ChatDataBase> ChatThreadData::GetChatDataBase(int msg_id) {
+    auto iter = _msg_map.find(msg_id);
+    if (iter == _msg_map.end()) {
+        return nullptr;
+    }
+
+    return iter.value();
 }
 

@@ -15,7 +15,8 @@ FileTcpThread::~FileTcpThread()
 }
 
 FileTcpMgr::FileTcpMgr(QObject *parent) : QObject(parent),
-    _host(""), _port(0), _b_recv_pending(false), _message_id(0), _message_len(0), _bytes_sent(0), _pending(false)
+    _host(""), _port(0), _b_recv_pending(false), _message_id(0), _message_len(0),
+    _bytes_sent(0), _pending(false), _cwnd_size(0)
 {
     registerMetaType();
     QObject::connect(&_socket, &QTcpSocket::connected, this, [&]() {
@@ -29,9 +30,6 @@ FileTcpMgr::FileTcpMgr(QObject *parent) : QObject(parent),
         // 读取所有数据并追加到缓冲区
         _buffer.append(_socket.readAll());
 
-        QDataStream stream(&_buffer, QIODevice::ReadOnly);
-        stream.setVersion(QDataStream::Qt_5_0);
-
         forever {
             //先解析头部
             if(!_b_recv_pending){
@@ -40,11 +38,16 @@ FileTcpMgr::FileTcpMgr(QObject *parent) : QObject(parent),
                     return; // 数据不够，等待更多数据
                 }
 
+                // ✅ 每次都重新创建stream
+                QDataStream stream(_buffer);
+                stream.setVersion(QDataStream::Qt_5_0);
+
                 // 预读取消息ID和消息长度，但不从缓冲区中移除
                 stream >> _message_id >> _message_len;
 
                 //将buffer 中的前六个字节移除
-                _buffer = _buffer.mid(FILE_UPLOAD_HEAD_LEN);
+                //_buffer = _buffer.mid(FILE_UPLOAD_HEAD_LEN);
+                _buffer.remove(0, FILE_UPLOAD_HEAD_LEN);  // 使用remove代替mid赋值
 
                 // 输出读取的数据
                 qDebug() << "[FileTcpMgr]: Message ID:" << _message_id << ", Length:" << _message_len;
@@ -115,8 +118,12 @@ FileTcpMgr::FileTcpMgr(QObject *parent) : QObject(parent),
         qDebug() << "[FileTcpMgr]: Dequeued and write() returned" << w2;
     });
 
-    //连接
+    //连接关闭
     QObject::connect(this, &FileTcpMgr::sig_close, this, &FileTcpMgr::slot_tcp_close);
+
+    //链接续传信号
+    QObject::connect(this, &FileTcpMgr::sig_continue_upload_file, this, &FileTcpMgr::slot_continue_upload_file);
+
     //注册消息
     initHandlers();
 }
@@ -132,25 +139,19 @@ void FileTcpMgr::registerMetaType()
     qRegisterMetaType<std::shared_ptr<ServerInfo>>("std::shared_ptr<ServerInfo>");
     qRegisterMetaType<SearchInfo>("SearchInfo");
     qRegisterMetaType<std::shared_ptr<SearchInfo>>("std::shared_ptr<SearchInfo>");
-
     qRegisterMetaType<AddFriendApply>("AddFriendApply");
     qRegisterMetaType<std::shared_ptr<AddFriendApply>>("std::shared_ptr<AddFriendApply>");
-
     qRegisterMetaType<ApplyInfo>("ApplyInfo");
-
     qRegisterMetaType<std::shared_ptr<AuthInfo>>("std::shared_ptr<AuthInfo>");
-
     qRegisterMetaType<AuthRsp>("AuthRsp");
     qRegisterMetaType<std::shared_ptr<AuthRsp>>("std::shared_ptr<AuthRsp>");
-
     qRegisterMetaType<UserInfo>("UserInfo");
-
     qRegisterMetaType<std::vector<std::shared_ptr<TextChatData>>>("std::vector<std::shared_ptr<TextChatData>>");
-
     qRegisterMetaType<std::vector<std::shared_ptr<ChatThreadInfo>>>("std::vector<std::shared_ptr<ChatThreadInfo>>");
-
     qRegisterMetaType<std::shared_ptr<ChatThreadData>>("std::shared_ptr<ChatThreadData>");
     qRegisterMetaType<ReqId>("ReqId");
+    qRegisterMetaType<MsgInfo>("MsgInfo");
+    qRegisterMetaType<std::shared_ptr<MsgInfo>>("std::shared_ptr<MsgInfo>");
 }
 
 void FileTcpMgr::handleMsg(ReqId id, int len, QByteArray data)
@@ -187,6 +188,81 @@ void FileTcpMgr::SendDownloadInfo(std::shared_ptr<DownloadInfo> download) {
     auto send_data = doc.toJson();
 
     SendData(ID_DOWN_LOAD_FILE_REQ, send_data);
+}
+
+void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info)
+{
+    if (msg_info == nullptr) {
+        return;
+    }
+
+    if ((msg_info->_seq) * MAX_FILE_LEN >= msg_info->_total_size) {
+        qDebug() << "[FileTcpMgr]: file has sent finished";
+        return;
+    }
+
+    if (MAX_CWND_SIZE - _cwnd_size == 0) {
+        return;
+    }
+
+    //打开
+    QFile file(msg_info->_text_or_url);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "[FileTcpMgr]: Could not open file: " << file.errorString();
+        return;
+    }
+
+    //文件偏移到已经发送的位置，继续读取发送
+    file.seek(msg_info->_seq * MAX_FILE_LEN);
+
+    bool b_last = false;
+    //再次组织数据发送
+    for (; MAX_CWND_SIZE - _cwnd_size > 0; ) {
+
+        QByteArray buffer;
+        msg_info->_seq++;
+        //放入发送未回包集合
+        msg_info->_flighting_seqs.insert(msg_info->_seq);
+        //每次读取MAX_FILE_LEN字节发送
+        buffer = file.read(MAX_FILE_LEN);
+        QJsonObject sendObj;
+        //将文件内容转换为base64编码
+        QString base64Data = buffer.toBase64();
+        sendObj["md5"] = msg_info->_md5;
+        sendObj["name"] = msg_info->_unique_name;
+        sendObj["seq"] = msg_info->_seq;
+        msg_info->_current_size = buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN;
+        sendObj["trans_size"] = msg_info->_current_size;
+        sendObj["total_size"] = msg_info->_total_size;
+
+        b_last = false;
+        if (buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN >= msg_info->_total_size) {
+            sendObj["last"] = 1;
+            b_last = true;
+        }
+        else {
+            sendObj["last"] = 0;
+        }
+
+        sendObj["data"] = base64Data;
+        sendObj["last_seq"] = msg_info->_max_seq;
+        sendObj["uid"] = UserMgr::GetInstance()->GetUid();
+        QJsonDocument doc(sendObj);
+        auto send_data = doc.toJson();
+        //直接发送，其实是放入filetcpmgr发送队列
+        SendData(ID_IMG_CHAT_UPLOAD_REQ, send_data);
+        _cwnd_size++;
+        //如果
+        if (b_last) {
+            break;
+        }
+    }
+    file.close();
+}
+
+void FileTcpMgr::ContinueUploadFile(QString unique_name)
+{
+    emit sig_continue_upload_file(unique_name);
 }
 
 void FileTcpMgr::initHandlers()
@@ -376,9 +452,8 @@ void FileTcpMgr::initHandlers()
         }
     });
 
-
-    //接收从向资源服务器服务器上传图片的回复
-    _handlers.insert(ID_IMG_CHAT_UPLOAD_RSP, [this](ReqId id, int len, QByteArray data) {
+    //向资源服务器上传文件时，tcpmgr先向服务器发送文件信息确认请求，服务器返回来的确认回包
+    _handlers.insert(ID_FILE_INFO_SYNC_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
         qDebug() << "[FileTcpMgr]: handle id is " << id;
         // 将QByteArray转换为QJsonDocument
@@ -395,7 +470,89 @@ void FileTcpMgr::initHandlers()
 
         if (!recvObj.contains("error")) {
             int err = ErrorCodes::ERR_JSON;
-            qDebug() << "[FileTcpMgr]: icon upload_failed, err is Json Parse Err" << err;
+            qDebug() << "[FileTcpMgr]: FILE_INFO_SYNC_RSP_failed, err is Json Parse Err" << err;
+            //todo ... 提示上传失败,将来可能断点重传等
+            //emit upload_failed();
+            return;
+        }
+
+        int err = recvObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) {
+            qDebug() << "[FileTcpMgr]: FILE_INFO_SYNC_RSP Failed, err is " << err;
+            //emit upload_failed();
+            return;
+        }
+
+        //为了简单起见，先处理网络正常情况
+        auto seq = recvObj["seq"].toInt();
+        auto name = recvObj["name"].toString();
+        auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
+        if (!file_info) {
+            return;
+        }
+
+        //根据seq从未接收集合移动到已接收集合中
+        file_info->_flighting_seqs.erase(seq);
+        //将seq放入已收到集合中
+        file_info->_rsp_seqs.insert(seq);
+
+        //计算当前最后确认的序列号
+        while (file_info->_rsp_seqs.count(file_info->_last_confirmed_seq + 1)) {
+            ++file_info->_last_confirmed_seq;
+        }
+
+        qDebug() << "[FileTcpMgr]: recv : " << name << "file seq is " << seq;
+        //判断最大序列和最后确认序列号相等，说明收全了
+        if (file_info->_last_confirmed_seq == file_info->_max_seq) {
+            //更新已经传输的文件大小
+            file_info->_rsp_size = file_info->_total_size;
+            //通知界面显示
+            emit sig_update_upload_progress(file_info);
+            //将该文件移除发送map
+            UserMgr::GetInstance()->RmvTransFileByName(name);
+
+            //todo 此处添加发送其他待发送的文件
+            auto free_file = UserMgr::GetInstance()->GetFreeUploadFile();
+            if (free_file == nullptr) {
+                return;
+            }
+            //继续发送待发送文件
+            BatchSend(free_file);
+            return;
+        }
+
+        //更新已经传输的文件大小
+        file_info->_rsp_size = (file_info->_last_confirmed_seq) * MAX_FILE_LEN;
+        //通知界面显示
+        emit sig_update_upload_progress(file_info);
+        //如果传输状态不为上传，则直接返回。
+        if (!UserMgr::GetInstance()->TransFileIsUploading(name)) {
+            return;
+        }
+        //继续发送
+        BatchSend(file_info);
+    });
+
+
+    //接收从向资源服务器服务器上传图片的回复
+    _handlers.insert(ID_IMG_CHAT_UPLOAD_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[FileTcpMgr]: handle id is " << id;
+        // 将QByteArray转换为QJsonDocument
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        _cwnd_size--;
+        // 检查转换是否成功
+        if (jsonDoc.isNull()) {
+            qDebug() << "[FileTcpMgr]: Failed to create QJsonDocument.";
+            return;
+        }
+
+        QJsonObject recvObj = jsonDoc.object();
+        qDebug() << "[FileTcpMgr]: data jsonobj is " << recvObj;
+
+        if (!recvObj.contains("error")) {
+            int err = ErrorCodes::ERR_JSON;
+            qDebug() << "[FileTcpMgr]: IMG_CHAT_UPLOAD_RSP_failed, err is Json Parse Err" << err;
             //todo ... 提示上传失败
             //emit upload_failed();
             return;
@@ -403,68 +560,136 @@ void FileTcpMgr::initHandlers()
 
         int err = recvObj["error"].toInt();
         if (err != ErrorCodes::SUCCESS) {
-            qDebug() << "[FileTcpMgr]: Login Failed, err is " << err;
+            qDebug() << "[FileTcpMgr]: IMG_CHAT_UPLOAD_RSP Failed, err is " << err;
             //emit upload_failed();
             return;
         }
 
-        auto md5 = recvObj["md5"].toString();
-        auto seq = recvObj["seq"].toInt();
-        auto trans_size = recvObj["trans_size"].toInt();
-        auto uid = recvObj["uid"].toInt();
-        auto total_size = recvObj["total_size"].toInt();
         auto name = recvObj["name"].toString();
+        auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
+        if (!file_info) {
+            return;
+        }
+        auto md5 = file_info->_md5;
+        auto seq = recvObj["seq"].toInt();
+        //根据seq从未接收集合移动到已接收集合中
+        file_info->_flighting_seqs.erase(seq);
+        //将seq放入已收到集合中
+        file_info->_rsp_seqs.insert(seq);
+        //计算当前最后确认的序列号
+        while (file_info->_rsp_seqs.count(file_info->_last_confirmed_seq + 1)) {
+            ++file_info->_last_confirmed_seq;
+        }
 
-        qDebug() << "[FileTcpMgr]: recv : " << name << "file trans_size is " << trans_size;
-        //判断trans_size和total_size相等
-        if (total_size == trans_size) {
-            //图片上传完毕，将其从传输文件map中移除
+        qDebug() << "[FileTcpMgr]: recv : " << name << "file seq is " << seq;
+        //判断最大序列和最后确认序列号相等，说明收全了
+        if (file_info->_last_confirmed_seq == file_info->_max_seq) {
+            //更新已经传输的文件大小
+            file_info->_rsp_size = file_info->_total_size;
+            //通知界面显示
+            emit sig_update_upload_progress(file_info);
+            //将该文件移除发送map
             UserMgr::GetInstance()->RmvTransFileByName(name);
+
+            //todo 此处添加发送其他待发送的文件
+            auto free_file = UserMgr::GetInstance()->GetFreeUploadFile();
+            if (free_file == nullptr) {
+                return;
+            }
+            BatchSend(free_file);
             return;
         }
 
+        //更新已经传输的文件大小
+        file_info->_rsp_size = (file_info->_last_confirmed_seq) * MAX_FILE_LEN;
+        //发送信号，更新图片上传进度
+        emit sig_update_upload_progress(file_info);
+        //如果传输状态不为上传，则直接返回。
+        if (!UserMgr::GetInstance()->TransFileIsUploading(name)) {
+            return;
+        }
+        //继续发送
+        BatchSend(file_info);
+    });
+
+    //由暂停状态继续上传图片文件
+    _handlers.insert(ID_IMG_CHAT_CONTINUE_UPLOAD_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[FileTcpMgr]: handle id is " << id;
+        // 将QByteArray转换为QJsonDocument
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        _cwnd_size--;
+        // 检查转换是否成功
+        if (jsonDoc.isNull()) {
+            qDebug() << "[FileTcpMgr]: Failed to create QJsonDocument.";
+            return;
+        }
+
+        QJsonObject recvObj = jsonDoc.object();
+        qDebug() << "[FileTcpMgr]: data jsonobj is " << recvObj;
+
+        if (!recvObj.contains("error")) {
+            int err = ErrorCodes::ERR_JSON;
+            qDebug() << "[FileTcpMgr]: IMG_CHAT_CONTINUE_UPLOAD_RSP_failed, err is Json Parse Err" << err;
+            //todo ... 提示上传失败
+            //emit upload_failed();
+            return;
+        }
+
+        int err = recvObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) {
+            qDebug() << "[FileTcpMgr]: IMG_CHAT_CONTINUE_UPLOAD_RSP Failed, err is " << err;
+            //emit upload_failed();
+            return;
+        }
+
+        auto name = recvObj["name"].toString();
         auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
         if (!file_info) {
             return;
         }
 
-        //再次组织数据发送
-        QFile file(file_info->_text_or_url);
-        if (!file.open(QIODevice::ReadOnly)) {
-            qWarning() << "[FileTcpMgr]: Could not open file: " << file.errorString();
+        auto md5 = file_info->_md5;
+        auto seq = recvObj["seq"].toInt();
+        //根据seq从未接收集合移动到已接收集合中
+        file_info->_flighting_seqs.erase(seq);
+        //将seq放入已收到集合中
+        file_info->_rsp_seqs.insert(seq);
+        //计算当前最后确认的序列号
+        while (file_info->_rsp_seqs.count(file_info->_last_confirmed_seq + 1)) {
+            ++file_info->_last_confirmed_seq;
+        }
+
+        qDebug() << "[FileTcpMgr]: recv : " << name << "file seq is " << seq;
+        //判断最大序列和最后确认序列号相等，说明收全了
+        if (file_info->_last_confirmed_seq == file_info->_max_seq) {
+            //更新已经传输的文件大小
+            file_info->_rsp_size = file_info->_total_size;
+            //通知界面显示
+            emit sig_update_upload_progress(file_info);
+            //移除发送map
+            UserMgr::GetInstance()->RmvTransFileByName(name);
+
+            //todo 此处添加发送其他待发送的文件
+            auto free_file = UserMgr::GetInstance()->GetFreeUploadFile();
+            if (free_file == nullptr) {
+                return;
+            }
+            BatchSend(free_file);
             return;
         }
 
-        //文件偏移到已经发送的位置，继续读取发送
-        file.seek(trans_size);
-        QByteArray buffer;
-        seq++;
-        //每次读取MAX_FILE_LEN字节发送
-        buffer = file.read(MAX_FILE_LEN);
-        QJsonObject sendObj;
-        //将文件内容转换为base64编码
-        QString base64Data = buffer.toBase64();
-        sendObj["md5"] = md5;
-        sendObj["name"] = name;
-        sendObj["seq"] = seq;
-        sendObj["trans_size"] = buffer.size() + (seq - 1) * MAX_FILE_LEN;
-        sendObj["total_size"] = total_size;
-
-        if (buffer.size() + (seq - 1) * MAX_FILE_LEN >= total_size) {
-            sendObj["last"] = 1;
-        }
-        else {
-            sendObj["last"] = 0;
+        //更新已经传输的文件大小
+        file_info->_rsp_size = (file_info->_last_confirmed_seq) * MAX_FILE_LEN;
+        //发送信号，更新图片上传进度
+        emit sig_update_upload_progress(file_info);
+        //如果传输状态不为上传，则直接返回。
+        if (!UserMgr::GetInstance()->TransFileIsUploading(name)) {
+            return;
         }
 
-        sendObj["data"] = base64Data;
-        sendObj["last_seq"] = recvObj["last_seq"].toInt();
-        sendObj["uid"] = uid;
-        QJsonDocument doc(sendObj);
-        auto send_data = doc.toJson();
-        SendData(ID_IMG_CHAT_UPLOAD_REQ, send_data);
-
-        file.close();
+        //继续读取发送
+        BatchSend(file_info);
     });
 }
 
@@ -517,6 +742,79 @@ void FileTcpMgr::slot_tcp_connect(std::shared_ptr<ServerInfo> si)
 
 void FileTcpMgr::slot_tcp_close() {
     _socket.close();
+}
+
+void FileTcpMgr::slot_continue_upload_file(QString unique_name)
+{
+    auto msg_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
+    if (msg_info == nullptr) {
+        return;
+    }
+    //将待发送序列号更新为已经确认接收的序列号，然后基于此序列号再递增。
+    msg_info->_seq = msg_info->_last_confirmed_seq;
+
+    if ((msg_info->_seq) * MAX_FILE_LEN >= msg_info->_total_size) {
+        qDebug() << "[FileTcpMgr]: file has sent finished";
+        return;
+    }
+
+    if (MAX_CWND_SIZE - _cwnd_size == 0) {
+        return;
+    }
+
+    //打开
+    QFile file(msg_info->_text_or_url);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "[FileTcpMgr]: Could not open file: " << file.errorString();
+        return;
+    }
+
+    //文件偏移到已经发送的位置，继续读取发送
+    file.seek(msg_info->_seq * MAX_FILE_LEN);
+
+    bool b_last = false;
+    //再次组织数据发送
+    for (; MAX_CWND_SIZE - _cwnd_size > 0; ) {
+        QByteArray buffer;
+        msg_info->_seq++;
+        //放入发送未回包集合
+        msg_info->_flighting_seqs.insert(msg_info->_seq);
+        //每次读取MAX_FILE_LEN字节发送
+        buffer = file.read(MAX_FILE_LEN);
+        QJsonObject sendObj;
+        //将文件内容转换为base64编码
+        QString base64Data = buffer.toBase64();
+        sendObj["md5"] = msg_info->_md5;
+        sendObj["name"] = msg_info->_unique_name;
+        sendObj["seq"] = msg_info->_seq;
+        msg_info->_current_size = buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN;
+        sendObj["trans_size"] = msg_info->_current_size;
+        sendObj["total_size"] = msg_info->_total_size;
+
+        b_last = false;
+        if (buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN >= msg_info->_total_size) {
+            sendObj["last"] = 1;
+            b_last = true;
+        }
+        else {
+            sendObj["last"] = 0;
+        }
+
+        sendObj["data"] = base64Data;
+        sendObj["last_seq"] = msg_info->_max_seq;
+        sendObj["uid"] = UserMgr::GetInstance()->GetUid();
+        QJsonDocument doc(sendObj);
+        auto send_data = doc.toJson();
+        //直接发送，其实是放入filetcpmgr发送队列
+        SendData(ID_IMG_CHAT_CONTINUE_UPLOAD_REQ, send_data);
+        _cwnd_size++;
+        //如果
+        if (b_last) {
+            break;
+        }
+    }
+
+    file.close();
 }
 
 

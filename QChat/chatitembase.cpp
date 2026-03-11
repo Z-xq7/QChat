@@ -113,3 +113,8 @@ QLabel *ChatItemBase::getIconLabel()
 {
     return m_pIconLabel;
 }
+
+QWidget *ChatItemBase::getBubble()
+{
+    return m_pBubble;
+}

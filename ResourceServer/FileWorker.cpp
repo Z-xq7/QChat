@@ -274,5 +274,133 @@ void FileWorker::RegisterHandlers()
 		if (task->_callback) {
 			task->_callback(result);
 		}
+		};
+
+	//处理文件信息同步请求
+	_handlers[ID_FILE_INFO_SYNC_REQ] = [this](std::shared_ptr<FileTask> task) {
+		// 解码
+		std::string decoded = base64_decode(task->_file_data);
+
+		auto file_path_str = task->_path;
+		auto last = task->_last;
+		//std::cout << "file_path_str is " << file_path_str << std::endl;
+
+		boost::filesystem::path file_path(file_path_str);
+		boost::filesystem::path dir_path = file_path.parent_path();
+		// 获取完整文件名（包含扩展名）
+		std::string filename = file_path.filename().string();
+		Json::Value result;
+		result["error"] = ErrorCodes::Success;
+
+		// Check if directory exists, if not, create it
+		if (!boost::filesystem::exists(dir_path)) {
+			if (!boost::filesystem::create_directories(dir_path)) {
+				LOG_ERROR("Failed to create directory: " << dir_path.string());
+				result["error"] = ErrorCodes::FileNotExists;
+				task->_callback(result);
+				return;
+			}
+		}
+
+		std::ofstream outfile;
+		//第一个包
+		if (task->_seq == 1) {
+			// 打开文件，如果存在则清空，不存在则创建
+			outfile.open(file_path_str, std::ios::binary | std::ios::trunc);
+		}
+		else {
+			// 保存为文件
+			outfile.open(file_path_str, std::ios::binary | std::ios::app);
+		}
+
+		if (!outfile) {
+			LOG_ERROR("无法打开文件进行写入：" << file_path_str);
+			result["error"] = ErrorCodes::FileWritePermissionFailed;
+			task->_callback(result);
+			return;
+		}
+
+		outfile.write(decoded.data(), decoded.size());
+		if (!outfile) {
+			LOG_ERROR("写入文件失败：" << file_path_str);
+			result["error"] = ErrorCodes::FileWritePermissionFailed;
+			task->_callback(result);
+			return;
+		}
+
+		outfile.close();
+		if (last) {
+			LOG_INFO("文件已成功保存为: " << task->_name);
+			//todo...更新数据库聊天图像上传状态
+			//todo...通过grpc通知ChatServer
+		}
+
+		if (task->_callback) {
+			task->_callback(result);
+		}
+		};
+
+	//处理续传图片请求
+	_handlers[ID_IMG_CHAT_CONTINUE_UPLOAD_REQ] = [this](std::shared_ptr<FileTask> task) {
+		// 解码
+		std::string decoded = base64_decode(task->_file_data);
+
+		auto file_path_str = task->_path;
+		auto last = task->_last;
+		//std::cout << "file_path_str is " << file_path_str << std::endl;
+
+		boost::filesystem::path file_path(file_path_str);
+		boost::filesystem::path dir_path = file_path.parent_path();
+		// 获取完整文件名（包含扩展名）
+		std::string filename = file_path.filename().string();
+		Json::Value result;
+		result["error"] = ErrorCodes::Success;
+
+		// Check if directory exists, if not, create it
+		if (!boost::filesystem::exists(dir_path)) {
+			if (!boost::filesystem::create_directories(dir_path)) {
+				LOG_ERROR("Failed to create directory: " << dir_path.string());
+				result["error"] = ErrorCodes::FileNotExists;
+				task->_callback(result);
+				return;
+			}
+		}
+
+		std::ofstream outfile;
+		//第一个包
+		if (task->_seq == 1) {
+			// 打开文件，如果存在则清空，不存在则创建
+			outfile.open(file_path_str, std::ios::binary | std::ios::trunc);
+		}
+		else {
+			// 保存为文件
+			outfile.open(file_path_str, std::ios::binary | std::ios::app);
+		}
+
+		if (!outfile) {
+			LOG_ERROR("无法打开文件进行写入：" << file_path_str);
+			result["error"] = ErrorCodes::FileWritePermissionFailed;
+			task->_callback(result);
+			return;
+		}
+
+		outfile.write(decoded.data(), decoded.size());
+		if (!outfile) {
+			LOG_ERROR("写入文件失败：" << file_path_str);
+			result["error"] = ErrorCodes::FileWritePermissionFailed;
+			task->_callback(result);
+			return;
+		}
+
+		outfile.close();
+		if (last) {
+			LOG_INFO("文件已成功保存为: " << task->_name);
+			//todo...更新数据库聊天图像上传状态
+			//todo...通过grpc通知ChatServer
+		}
+
+		if (task->_callback) {
+			task->_callback(result);
+		}
 	};
 }

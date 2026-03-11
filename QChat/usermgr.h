@@ -104,6 +104,16 @@ public:
     std::shared_ptr<MsgInfo> GetTransFileByName(QString name);
     //通过名字删除传输的文件
     void RmvTransFileByName(QString name);
+    //获取要传输的文件
+    std::shared_ptr<MsgInfo> GetFreeUploadFile();
+    //获取要下载的文件
+    std::shared_ptr<MsgInfo> GetFreeDownloadFile();
+    //暂停正在传输的文件
+    void PauseTransFileByName(QString name);
+    //暂停后继续上传或下载文件
+    void ResumeTransFileByName(QString name);
+    //判断文件是否正在上传
+    bool TransFileIsUploading(QString name);
 
 private:
     UserMgr();

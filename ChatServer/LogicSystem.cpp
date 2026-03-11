@@ -759,7 +759,8 @@ void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,
 	rtvalue["unique_name"] = unique_name;
 	rtvalue["unique_id"] = unique_id;
 	rtvalue["chat_time"] = chat_time;
-	rtvalue["status"] = status;
+	//设置图片文件状态为未上传，等文件上传成功后再更新状态并通知对方
+	rtvalue["status"] = MsgStatus::UN_UPLOAD;
 
 	auto timestamp = getCurrentTimestamp();
 	auto chat_msg = std::make_shared<ChatMessage>();
