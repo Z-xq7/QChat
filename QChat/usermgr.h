@@ -22,9 +22,11 @@ public:
     int GetUid();
     QString GetName();
     QString GetNick();
+    void SetNick(QString nick);
     QString GetIcon();
     void SetIcon(QString name);
     QString GetDesc();
+    void SetDesc(QString desc);
 
     //获取申请列表
     std::vector<std::shared_ptr<ApplyInfo>> GetApplyList();

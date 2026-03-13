@@ -34,13 +34,31 @@ PictureBubble::PictureBubble(const QPixmap &picture, ChatRole role, int total, Q
     // 创建进度条
     m_progressBar = new QProgressBar();
     m_progressBar->setFixedWidth(pix.width());
-    m_progressBar->setFixedHeight(10);
+    m_progressBar->setFixedHeight(8);  // 稍微薄一些
     m_progressBar->setRange(0, 100);
     m_progressBar->setValue(0);
-    m_progressBar->setTextVisible(true);
+    m_progressBar->setTextVisible(false);  // 隐藏文字，让界面更简洁
     setState(TransferState::None);
 
-    // 样式美化
+    // 新的精美样式 - 连续的浅蓝到浅粉色渐变
+    m_progressBar->setStyleSheet(
+        "QProgressBar {"
+        "   border: 1px solid #e0e0e0;"
+        "   background-color: #f8f8f8;"
+        "   border-radius: 6px;"
+        "   text-align: center;"
+        "   height: 12px;"
+        "}"
+        "QProgressBar::chunk {"
+        "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+        "       stop:0 #addbee, stop:0.5 #d1c4e9, stop:1 #f8bbd0);"
+        "   border-radius: 5px;"
+        "   margin: 0px;"
+        "}"
+        );
+
+    /*
+    // 旧的进度条样式（保留供参考）
     m_progressBar->setStyleSheet(
         "QProgressBar {"
         "   border: 1px solid #ccc;"
@@ -55,6 +73,7 @@ PictureBubble::PictureBubble(const QPixmap &picture, ChatRole role, int total, Q
         "   border-radius: 2px;"
         "}"
         );
+    */
 
     m_vLayout->addWidget(m_picLabel);
     m_vLayout->addWidget(m_progressBar);
@@ -89,7 +108,13 @@ void PictureBubble::setProgress(int value)
 
 void PictureBubble::showProgress(bool show)
 {
-    m_progressBar->show();
+    if (show) {
+        m_progressBar->show();
+    }
+    else {
+        m_progressBar->hide();
+    }
+
     adjustSize();
 }
 
@@ -99,8 +124,6 @@ void PictureBubble::setState(TransferState state)
     if (_msg_info) {
         _msg_info->_transfer_state = state;
     }
-
-    updateIconOverlay();
 
     // 根据状态显示/隐藏进度条
     switch (state) {
@@ -120,18 +143,22 @@ void PictureBubble::setState(TransferState state)
         showProgress(false);
         break;
     }
+
+    updateIconOverlay();
 }
 
 void PictureBubble::resumeState() {
     if (_msg_info->_transfer_type == TransferType::Download) {
         _msg_info->_transfer_state = TransferState::Downloading;
         m_state = TransferState::Downloading;
+        updateIconOverlay();
         return;
     }
 
     if (_msg_info->_transfer_type == TransferType::Upload) {
         _msg_info->_transfer_state = TransferState::Uploading;
         m_state = TransferState::Uploading;
+        updateIconOverlay();
         return;
     }
 }
@@ -140,14 +167,28 @@ void PictureBubble::setMsgInfo(std::shared_ptr<MsgInfo> msg)
 {
     _msg_info = msg;
     if (_msg_info->_transfer_state == TransferState::Uploading) {
-        m_state = TransferState::Uploading;
+        setState(TransferState::Uploading);
         return;
     }
 
     if (_msg_info->_transfer_state == TransferState::Downloading) {
-        m_state = TransferState::Downloading;
+        setState(TransferState::Downloading);
         return;
     }
+}
+
+void PictureBubble::setDownloadFinish(std::shared_ptr<MsgInfo> msg, QString file_path)
+{
+    m_progressBar->setValue(100);
+    setState(TransferState::Completed);
+    auto picture = QPixmap(file_path);
+    QPixmap pix = picture.scaled(QSize(PIC_MAX_WIDTH, PIC_MAX_HEIGHT),
+                                 Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_pixmapSize = pix.size();
+    m_picLabel->setPixmap(pix);
+    m_picLabel->setFixedSize(pix.size());
+    adjustSize();
+    updateIconOverlay();
 }
 
 void PictureBubble::onPictureClicked()

@@ -85,3 +85,8 @@ bool MysqlMgr::AddChatMsg(std::shared_ptr<ChatMessage>& chat_datas)
 	return _dao.AddChatMsg(chat_datas);
 }
 
+std::shared_ptr<ChatMessage> MysqlMgr::GetChatMsg(int message_id)
+{
+	return _dao.GetChatMsg(message_id);
+}
+

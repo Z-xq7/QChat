@@ -24,6 +24,7 @@ using message::TextChatMsgRsp;
 using message::TextChatData;
 using message::KickUserReq;
 using message::KickUserRsp;
+using message::NotifyChatImgReq;
 
 class ChatServiceImpl final : public ChatService::Service
 {
@@ -41,6 +42,10 @@ public:
 	// 处理踢人请求
 	Status NotifyKickUser(grpc::ServerContext* context,
 		const message::KickUserReq* request, message::KickUserRsp* response) override;
+
+	//接收客户端发送的图片聊天通知
+	Status NotifyChatImgMsg(::grpc::ServerContext* context, 
+		const ::message::NotifyChatImgReq* request, ::message::NotifyChatImgRsp* response) override;
 
 	void RegisterServer(std::shared_ptr<CServer> pServer);
 

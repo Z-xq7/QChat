@@ -34,11 +34,15 @@ public:
 
     void SendData(ReqId reqId, QByteArray data);
     void CloseConnection();
-    void SendDownloadInfo(std::shared_ptr<DownloadInfo> download);
+    void SendDownloadInfo(std::shared_ptr<DownloadInfo> download,QString req_type);
     //拥塞窗口上传数据
-    void BatchSend(std::shared_ptr<MsgInfo> msg_info);
+    void BatchSend(std::shared_ptr<MsgInfo> msg_info, int sender, int receiver);
     //暂停后继续上传图片文件
     void ContinueUploadFile(QString unique_name);
+    //暂停后继续下载图片文件
+    void ContinueDownloadFile(QString unique_name);
+    //拷贝上传的文件
+    void CopyFile(QString src_path, QString dst_path, QString dst_dir);
 
 private:
     explicit FileTcpMgr(QObject *parent = nullptr);
@@ -74,12 +78,16 @@ signals:
     void sig_reset_label_icon(QString path);
     void sig_update_upload_progress(std::shared_ptr<MsgInfo>);
     void sig_continue_upload_file(QString unique_name);
+    void sig_continue_download_file(QString unique_name);
+    void sig_update_download_progress(std::shared_ptr<MsgInfo>);
+    void sig_download_finish(std::shared_ptr<MsgInfo>,QString file_path);
 
 public slots:
     void slot_send_data(ReqId reqId, QByteArray data);
     void slot_tcp_connect(std::shared_ptr<ServerInfo> si);
     void slot_tcp_close();
     void slot_continue_upload_file(QString unique_name);
+    void slot_continue_download_file(QString unique_name);
 };
 
 #endif // FILETCPMGR_H

@@ -61,8 +61,6 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 
 	boost::filesystem::path file_path(file_path_str);
 
-	// 获取纯粹文件名（不含扩展名）
-	std::string filename = file_path.filename().string();
 	Json::Value result;
 	result["error"] = ErrorCodes::Success;
 
@@ -91,21 +89,21 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 		//如果为空，则创建FileInfo 对象存储
 		file_info = std::make_shared<FileInfo>();
 		file_info->_file_path_str = file_path_str;
-		file_info->_name = filename;
+		file_info->_name = task->_name;
 		file_info->_seq = 1;
 
 		file_info->_total_size = file_size;
 		file_info->_trans_size = 0;
 		// 将信息保存到 Redis（这是经常数据，用过即销毁）
-		RedisMgr::GetInstance()->SetDownLoadInfo(filename, file_info);
-		LOG_INFO("Download started - File: " << filename << ", Size: " << file_size << " bytes");
+		RedisMgr::GetInstance()->SetDownLoadInfo(task->_name, file_info);
+		LOG_INFO("Download started - File: " << task->_name << ", Size: " << file_size << " bytes");
 	}
 	else {
 		//续传则尝试从 Redis 获取历史信息
-		file_info = RedisMgr::GetInstance()->GetDownloadInfo(filename);
+		file_info = RedisMgr::GetInstance()->GetDownloadInfo(task->_name);
 		if (file_info == nullptr) {
 			// Redis 里没有信息，可能过期了
-			LOG_ERROR("Download failed - Redis info not found: " << filename);
+			LOG_ERROR("Download failed - Redis info not found: " << task->_name);
 			result["error"] = ErrorCodes::RedisReadErr;
 			task->_callback(result);
 			infile.close();
@@ -121,7 +119,7 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 			return;
 		}
 
-		LOG_DEBUG("Download continue - File: " << filename << ", Seq: " << task->_seq 
+		LOG_DEBUG("Download continue - File: " << task->_name << ", Seq: " << task->_seq
 			<< ", Progress: " << file_info->_trans_size << "/" << file_info->_total_size);
 	}
 
@@ -171,14 +169,14 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 
 	if (is_last) {
 		LOG_INFO("File download completed: " << file_path_str);
-		RedisMgr::GetInstance()->DelDownLoadInfo(filename);
+		RedisMgr::GetInstance()->DelDownLoadInfo(task->_name);
 	}
 	else {
 		//更新信息
 		file_info->_seq++;
 		file_info->_trans_size = offset + bytes_read;
 		//写入redis
-		RedisMgr::GetInstance()->SetDownLoadInfo(filename, file_info);
+		RedisMgr::GetInstance()->SetDownLoadInfo(task->_name, file_info);
 	}
 
 	if (task->_callback) {

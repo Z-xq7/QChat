@@ -2,6 +2,7 @@
 #define USERINFOPAGE_H
 
 #include <QWidget>
+#include <QLabel>
 
 namespace Ui {
 class UserInfoPage;
@@ -14,6 +15,7 @@ class UserInfoPage : public QWidget
 public:
     explicit UserInfoPage(QWidget *parent = nullptr);
     ~UserInfoPage();
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private slots:
     //void on_up_btn_clicked();
@@ -21,6 +23,9 @@ private slots:
 
 private:
     Ui::UserInfoPage *ui;
+
+signals:
+    void sig_reset_head();
 };
 
 #endif // USERINFOPAGE_H

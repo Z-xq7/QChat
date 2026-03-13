@@ -29,6 +29,7 @@ public:
 	bool AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
 	//注意这里用的引用
 	bool AddChatMsg(std::shared_ptr<ChatMessage>& chat_datas);
+	std::shared_ptr<ChatMessage> GetChatMsg(int message_id);
 private:
 	MysqlMgr();
 	MysqlDao  _dao;

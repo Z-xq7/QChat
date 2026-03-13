@@ -4,6 +4,7 @@
 #include <QWidget>
 #include "listitembase.h"
 #include "usermgr.h"
+#include <QLabel>
 
 namespace Ui {
 class ChatUserWid;
@@ -33,6 +34,8 @@ public:
     // std::shared_ptr<UserInfo> GetUserInfo();
     //更新聊天列表显示的最后一条聊天消息
     void updateLastMsg(std::vector<std::shared_ptr<TextChatData>> msgs);
+    //加载头像
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private:
     Ui::ChatUserWid *ui;

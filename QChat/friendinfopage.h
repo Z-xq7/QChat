@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "userdata.h"
+#include <QLabel>
 
 namespace Ui {
 class FriendInfoPage;
@@ -16,6 +17,7 @@ public:
     explicit FriendInfoPage(QWidget *parent = nullptr);
     ~FriendInfoPage();
     void SetInfo(std::shared_ptr<UserInfo> ui);
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private slots:
     void on_msg_chat_clicked();

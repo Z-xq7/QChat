@@ -8,6 +8,7 @@
 #include "ConfigMgr.h"
 #include "MysqlMgr.h"
 #include "RedisMgr.h"
+#include "ChatServerGrpcClient.h"
 
 FileWorker::FileWorker() :_b_stop(false)
 {
@@ -267,14 +268,35 @@ void FileWorker::RegisterHandlers()
 		outfile.close();
 		if (last) {
 			LOG_INFO("文件已成功保存为: " << task->_name);
-			//todo...更新数据库聊天图像上传状态
-			//todo...通过grpc通知ChatServer
+			//更新数据库聊天图像上传状态
+			MysqlMgr::GetInstance()->UpdateUploadStatus(task->_chat_msg_id);
+
+			std::string uid_ip_value = "";
+			auto receiver_str = std::to_string(task->_receiver);
+			auto uid_ip_key = USERIPPREFIX + receiver_str;
+			bool b_ip = RedisMgr::GetInstance()->Get(uid_ip_key, uid_ip_value);
+			//如果接收者未登录，则直接返回
+			if (!b_ip) {
+				if (task->_callback) {
+					task->_callback(result);
+				}
+
+				return;
+			}
+
+			if (task->_callback) {
+				task->_callback(result);
+			}
+
+			//通过grpc通知ChatServer
+			ChatServerGrpcClient::GetInstance()->NotifyChatImgMsg(task->_chat_msg_id, uid_ip_value);
+			return;
 		}
 
 		if (task->_callback) {
 			task->_callback(result);
 		}
-		};
+	};
 
 	//处理文件信息同步请求
 	_handlers[ID_FILE_INFO_SYNC_REQ] = [this](std::shared_ptr<FileTask> task) {
@@ -331,8 +353,28 @@ void FileWorker::RegisterHandlers()
 		outfile.close();
 		if (last) {
 			LOG_INFO("文件已成功保存为: " << task->_name);
-			//todo...更新数据库聊天图像上传状态
-			//todo...通过grpc通知ChatServer
+			//更新数据库聊天图像上传状态
+			MysqlMgr::GetInstance()->UpdateUploadStatus(task->_chat_msg_id);
+			std::string uid_ip_value = "";
+			auto receiver_str = std::to_string(task->_receiver);
+			auto uid_ip_key = USERIPPREFIX + receiver_str;
+			bool b_ip = RedisMgr::GetInstance()->Get(uid_ip_key, uid_ip_value);
+			//如果接收者未登录，则直接返回
+			if (!b_ip) {
+				if (task->_callback) {
+					task->_callback(result);
+				}
+
+				return;
+			}
+
+			if (task->_callback) {
+				task->_callback(result);
+			}
+
+			//通过grpc通知ChatServer
+			ChatServerGrpcClient::GetInstance()->NotifyChatImgMsg(task->_chat_msg_id, uid_ip_value);
+			return;
 		}
 
 		if (task->_callback) {
@@ -395,8 +437,29 @@ void FileWorker::RegisterHandlers()
 		outfile.close();
 		if (last) {
 			LOG_INFO("文件已成功保存为: " << task->_name);
-			//todo...更新数据库聊天图像上传状态
-			//todo...通过grpc通知ChatServer
+			//更新数据库聊天图像上传状态
+			MysqlMgr::GetInstance()->UpdateUploadStatus(task->_chat_msg_id);
+
+			std::string uid_ip_value = "";
+			auto receiver_str = std::to_string(task->_receiver);
+			auto uid_ip_key = USERIPPREFIX + receiver_str;
+			bool b_ip = RedisMgr::GetInstance()->Get(uid_ip_key, uid_ip_value);
+			//如果接收者未登录，则直接返回
+			if (!b_ip) {
+				if (task->_callback) {
+					task->_callback(result);
+				}
+
+				return;
+			}
+
+			//通过grpc通知ChatServer
+			ChatServerGrpcClient::GetInstance()->NotifyChatImgMsg(task->_chat_msg_id, uid_ip_value);
+			if (task->_callback) {
+				task->_callback(result);
+			}
+
+			return;
 		}
 
 		if (task->_callback) {

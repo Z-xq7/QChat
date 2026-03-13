@@ -21,10 +21,14 @@ public:
 
     //设置当前聊天用户信息
     void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
+    //下载头像
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
     //设置聊天中头像
-    void SetChatIcon(ChatItemBase* pChatItem, QString icon);
-    //添加消息
+    void SetChatIcon(ChatItemBase* pChatItem, int uid, QString icon,  QString req_type);
+    //添加自己发送的消息
     void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
+    //追加他人发来的消息
+    void AppendOtherMsg(std::shared_ptr<ChatDataBase> msg);
     //清空聊天信息
     void clearItems();
     //更新聊天文本信息状态
@@ -33,6 +37,8 @@ public:
     void UpdateImgChatStatus(std::shared_ptr<ImgChatData> img_msg);
     //更新文件上传状态
     void UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info);
+    //文件图片下载完成
+    void DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString file_path);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。

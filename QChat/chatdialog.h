@@ -43,6 +43,8 @@ public:
     void UpdateChatMsg(std::vector<std::shared_ptr<TextChatData>> msgdata);
     //显示加载对话框
     void showLoadingDlg(bool show);
+    //加载头像
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -83,6 +85,8 @@ private slots:
     void slot_side_contact();
     void slot_side_settings();
     void slot_text_changed(const QString& str);
+    //重置头像
+    void slot_reset_head();
 
 public slots:
     void slot_apply_friend(std::shared_ptr<AddFriendApply> apply);
@@ -102,8 +106,10 @@ public slots:
     void slot_item_clicked(QListWidgetItem* item);
     // //（已废弃）将聊天消息缓存在本地
     // void slot_append_send_chat_msg(std::shared_ptr<TextChatData> msgdata);
-    //对方发来消息通知
+    //对方发来文本消息通知
     void slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msglists);
+    //对方发来图片文本消息通知
+    void slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat);
     //加载聊天列表
     void slot_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
     //从friendinfopage新创建聊天item
@@ -118,6 +124,11 @@ public slots:
     void slot_reset_icon(QString path);
     //更新图片上传进度
     void slot_update_upload_progress(std::shared_ptr<MsgInfo> msg_info);
+    //更新图片下载进度
+    void slot_update_download_progress(std::shared_ptr<MsgInfo> msg_info);
+    //下载完成
+    void slot_download_finish(std::shared_ptr<MsgInfo> msg_info, QString file_path);
+
 };
 
 #endif // CHATDIALOG_H

@@ -39,6 +39,13 @@ struct ChatThreadInfo
 	int _user2_id;
 };
 
+enum class ChatMsgType {
+	TEXT = 0,
+	PIC = 1,
+	VIDEO = 2,
+	FILE = 3
+};
+
 //聊天消息信息
 struct ChatMessage
 {
@@ -50,6 +57,7 @@ struct ChatMessage
 	std::string content;
 	std::string chat_time;
 	int status;
+	int msg_type;
 };
 
 //聊天消息查询结果结果

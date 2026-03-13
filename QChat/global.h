@@ -34,7 +34,7 @@
 //最大文件长度
 //#define MAX_FILE_LEN 2048
 //最大文件长度
-#define MAX_FILE_LEN 1024*12
+#define MAX_FILE_LEN (1024*12)
 //定义最大拥塞窗口的大小
 #define MAX_CWND_SIZE 5
 
@@ -88,8 +88,8 @@ enum ReqId{
     ID_IMG_CHAT_CONTINUE_UPLOAD_RSP = 1044,  //续传聊天图片资源回复
     ID_IMG_CHAT_DOWN_INFO_SYNC_REQ  = 1045,  //获取图片下载信息同步请求
     ID_IMG_CHAT_DOWN_INFO_SYNC_RSP  = 1046,  //获取图片下载信息同步回复
-    ID_IMG_CHAT_DOWN_REQ          =  1047,    //聊天图片下载请求
-    ID_IMG_CHAT_DOWN_RSP          =  1048     //聊天图片下载回复
+    ID_IMG_CHAT_DOWN_REQ   =  1047,    //聊天图片下载请求
+    ID_IMG_CHAT_DOWN_RSP   =  1048     //聊天图片下载回复
 };
 Q_DECLARE_METATYPE(ReqId)
 
@@ -224,6 +224,8 @@ struct MsgInfo{
     qint64 _thread_id;                  // 会话id
     TransferState _transfer_state;      //上传或者下载, 暂停，传输完成
     TransferType  _transfer_type;       //文件类型, 上传或者下载
+    int _sender;            //发送者
+    int _receiver;          //接收者
 };
 //声明为元对象类型
 Q_DECLARE_METATYPE(MsgInfo)
@@ -262,6 +264,8 @@ extern QString generateUniqueFileName(const QString& originalName);
 extern QString generateUniqueIconName();
 
 extern QString calculateFileHash(const QString& filePath);
+
+extern QPixmap CreateLoadingPlaceholder(int width = 200, int height = 200);
 
 //申请好友标签输入框最低长度
 const int MIN_APPLY_LABEL_ED_LEN = 40;

@@ -99,8 +99,10 @@ signals:
     void sig_chat_msg_rsp(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
     //发送图片消息后服务器回传接收到消息的信号后的通知
     void sig_chat_img_rsp(int thread_id, std::shared_ptr<ImgChatData>chat_data);
-    //聊天文本变化->接收对方发来消息
+    //聊天文本变化->接收对方发来的文本消息
     void sig_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
+    //聊天图片变化->接收对方发来的图片消息
+    void sig_img_chat_msg(std::shared_ptr<ImgChatData> msg_list);
 };
 
 #endif // TCPMGR_H

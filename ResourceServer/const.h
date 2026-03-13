@@ -1,45 +1,6 @@
 #pragma once
 #include <functional>
 
-enum ErrorCodes {
-	Success = 0,
-	Error_Json = 1001,  //Json解析错误
-	RPCFailed = 1002,  //RPC请求错误
-	VarifyExpired = 1003, //验证码过期
-	VarifyCodeErr = 1004, //验证码错误
-	UserExist = 1005,       //用户已经存在
-	PasswdErr = 1006,    //密码错误
-	EmailNotMatch = 1007,  //邮箱不匹配
-	PasswdUpFailed = 1008,  //更新密码失败
-	PasswdInvalid = 1009,   //密码更新失败
-	TokenInvalid = 1010,   //Token失效
-	UidInvalid = 1011,  //uid无效
-	FileNotExists = 1012, //文件不存在
-	FileSaveRedisFailed = 1013, //文件存储redis失败
-	CreateFilePathFailed = 1014, //文件路径创建失败
-	FileWritePermissionFailed = 1015,  //文件写权限不足
-	FileReadPermissionFailed = 1016,  //文件读权限不足
-	FileSeqInvalid = 1017,     //文件序列有误
-	FileOffsetInvalid = 1018,   //文件偏移量有误
-	FileReadFailed = 1019,      //文件读取失败
-	RedisReadErr = 1020,        //redis读取失败
-};
-
-// Defer类
-class Defer {
-public:
-	// 接受一个lambda表达式或者函数指针
-	Defer(std::function<void()> func) : func_(func) {}
-
-	// 析构函数中执行传入的函数
-	~Defer() {
-		func_();
-	}
-
-private:
-	std::function<void()> func_;
-};
-
 //最大消息长度
 #define MAX_LENGTH  1024*24
 //头部总长度
@@ -83,7 +44,58 @@ enum MSG_IDS {
 	ID_FILE_INFO_SYNC_REQ = 1041,      //文件信息同步请求
 	ID_FILE_INFO_SYNC_RSP = 1042,       //文件信息同步回复
 	ID_IMG_CHAT_CONTINUE_UPLOAD_REQ = 1043,  //续传聊天图片资源请求
-	ID_IMG_CHAT_CONTINUE_UPLOAD_RSP = 1044  //续传聊天图片资源回复
+	ID_IMG_CHAT_CONTINUE_UPLOAD_RSP = 1044,  //续传聊天图片资源回复
+	ID_IMG_CHAT_DOWN_SYNC_REQ = 1045,   //获取聊天图片下载的同步信息
+	ID_IMG_CHAT_DOWN_SYNC_RSP = 1046,    //获取聊天图片下载的同步信息回包
+	ID_IMG_CHAT_DOWN_REQ = 1047,    //聊天图片下载请求
+	ID_IMG_CHAT_DOWN_RSP = 1048     //聊天图片下载回复
+};
+
+enum ErrorCodes {
+	Success = 0,
+	Error_Json = 1001,  //Json解析错误
+	RPCFailed = 1002,  //RPC请求错误
+	VarifyExpired = 1003, //验证码过期
+	VarifyCodeErr = 1004, //验证码错误
+	UserExist = 1005,       //用户已经存在
+	PasswdErr = 1006,    //密码错误
+	EmailNotMatch = 1007,  //邮箱不匹配
+	PasswdUpFailed = 1008,  //更新密码失败
+	PasswdInvalid = 1009,   //密码更新失败
+	TokenInvalid = 1010,   //Token失效
+	UidInvalid = 1011,  //uid无效
+	FileNotExists = 1012, //文件不存在
+	FileSaveRedisFailed = 1013, //文件存储redis失败
+	CreateFilePathFailed = 1014, //文件路径创建失败
+	FileWritePermissionFailed = 1015,  //文件写权限不足
+	FileReadPermissionFailed = 1016,  //文件读权限不足
+	FileSeqInvalid = 1017,     //文件序列有误
+	FileOffsetInvalid = 1018,   //文件偏移量有误
+	FileReadFailed = 1019,      //文件读取失败
+	RedisReadErr = 1020,        //redis读取失败
+	ServerIpErr = 1021,          //server ip错误
+};
+
+enum MsgStatus {
+	UN_READ = 0,  //对方未读
+	SEND_FAILED = 1,  //发送失败
+	READED = 2,  //对方已读
+	UN_UPLOAD = 3 //未上传完成
+};
+
+// Defer类
+class Defer {
+public:
+	// 接受一个lambda表达式或者函数指针
+	Defer(std::function<void()> func) : func_(func) {}
+
+	// 析构函数中执行传入的函数
+	~Defer() {
+		func_();
+	}
+
+private:
+	std::function<void()> func_;
 };
 
 #define USERIPPREFIX  "uip_"
@@ -92,7 +104,6 @@ enum MSG_IDS {
 #define USER_BASE_INFO "ubaseinfo_"
 #define LOGIN_COUNT  "logincount"
 #define NAME_INFO  "nameinfo_"
-
 #define LOCK_PREFIX "lock_"
 #define USER_SESSION_PREFIX "usession_"
 #define LOCK_COUNT "lockcount"

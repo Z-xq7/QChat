@@ -230,8 +230,6 @@ private:
 	std::atomic<int> _fail_count;
 };
 
-
-
 class MysqlDao
 {
 public:
@@ -255,6 +253,7 @@ public:
 	std::shared_ptr<PageResult> LoadChatMsg(int threadId, int lastId, int pageSize);
 	bool AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
 	bool AddChatMsg(std::shared_ptr<ChatMessage>& chat_data);
+	std::shared_ptr<ChatMessage> GetChatMsg(int message_id);
 
 private:
 	std::unique_ptr<MySqlPool> pool_;

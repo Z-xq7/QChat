@@ -1,4 +1,5 @@
 #include "global.h"
+#include <QPainter>
 
 QString gate_url_prefix = "";
 
@@ -50,6 +51,35 @@ QString calculateFileHash(const QString& filePath)
     return hash.result().toHex();
 }
 
+QPixmap CreateLoadingPlaceholder(int width, int height)
+{
+    QPixmap placeholder(width, height);
+    placeholder.fill(QColor(240, 240, 240)); // 浅灰色背景
+
+    QPainter painter(&placeholder);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 绘制边框
+    painter.setPen(QPen(QColor(200, 200, 200), 2));
+    painter.drawRect(1, 1, width - 2, height - 2);
+
+    // 绘制加载图标（简单的旋转圆圈或文字）
+    QFont font;
+    font.setPointSize(12);
+    painter.setFont(font);
+    painter.setPen(QColor(150, 150, 150));
+    painter.drawText(placeholder.rect(), Qt::AlignCenter, "加载中...");
+
+    // 可选：添加图片图标
+    painter.setPen(QColor(180, 180, 180));
+    QRect iconRect(width / 2 - 20, height / 2 - 40, 40, 30);
+    painter.drawRect(iconRect);
+    painter.drawLine(iconRect.topLeft(), iconRect.bottomRight());
+    painter.drawLine(iconRect.topRight(), iconRect.bottomLeft());
+
+    return placeholder;
+}
+
 // 全局测试数据
 std::vector<QString> strs = {"hello world !",
                              "nice to meet u",
@@ -75,3 +105,5 @@ std::vector<QString> names = {
     "python",
     "rust"
 };
+
+

@@ -1,5 +1,7 @@
 #include "filetcpmgr.h"
 #include "usermgr.h"
+#include <QPainter>
+#include <QStandardPaths>
 
 FileTcpThread::FileTcpThread()
 {
@@ -123,6 +125,7 @@ FileTcpMgr::FileTcpMgr(QObject *parent) : QObject(parent),
 
     //链接续传信号
     QObject::connect(this, &FileTcpMgr::sig_continue_upload_file, this, &FileTcpMgr::slot_continue_upload_file);
+    QObject::connect(this, &FileTcpMgr::sig_continue_download_file, this, &FileTcpMgr::slot_continue_download_file);
 
     //注册消息
     initHandlers();
@@ -174,7 +177,7 @@ void FileTcpMgr::CloseConnection(){
     emit sig_close();
 }
 
-void FileTcpMgr::SendDownloadInfo(std::shared_ptr<DownloadInfo> download) {
+void FileTcpMgr::SendDownloadInfo(std::shared_ptr<DownloadInfo> download, QString req_type) {
     QJsonObject jsonObj;
     jsonObj["name"] = download->_name;
     jsonObj["seq"] = download->_seq;
@@ -183,6 +186,7 @@ void FileTcpMgr::SendDownloadInfo(std::shared_ptr<DownloadInfo> download) {
     jsonObj["token"] = UserMgr::GetInstance()->GetToken();
     jsonObj["uid"] = UserMgr::GetInstance()->GetUid();
     jsonObj["client_path"] = download->_client_path;
+    jsonObj["req_type"] = req_type;
 
     QJsonDocument doc(jsonObj);
     auto send_data = doc.toJson();
@@ -190,7 +194,7 @@ void FileTcpMgr::SendDownloadInfo(std::shared_ptr<DownloadInfo> download) {
     SendData(ID_DOWN_LOAD_FILE_REQ, send_data);
 }
 
-void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info)
+void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info, int sender, int receiver)
 {
     if (msg_info == nullptr) {
         return;
@@ -232,8 +236,8 @@ void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info)
         sendObj["name"] = msg_info->_unique_name;
         sendObj["seq"] = msg_info->_seq;
         msg_info->_current_size = buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN;
-        sendObj["trans_size"] = msg_info->_current_size;
-        sendObj["total_size"] = msg_info->_total_size;
+        sendObj["trans_size"] = QString::number(msg_info->_current_size);
+        sendObj["total_size"] = QString::number(msg_info->_total_size);
 
         b_last = false;
         if (buffer.size() + (msg_info->_seq - 1) * MAX_FILE_LEN >= msg_info->_total_size) {
@@ -247,6 +251,10 @@ void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info)
         sendObj["data"] = base64Data;
         sendObj["last_seq"] = msg_info->_max_seq;
         sendObj["uid"] = UserMgr::GetInstance()->GetUid();
+        sendObj["message_id"] = msg_info->_msg_id;
+        sendObj["sender"] = sender;
+        sendObj["receiver"] = receiver;
+
         QJsonDocument doc(sendObj);
         auto send_data = doc.toJson();
         //直接发送，其实是放入filetcpmgr发送队列
@@ -263,6 +271,31 @@ void FileTcpMgr::BatchSend(std::shared_ptr<MsgInfo> msg_info)
 void FileTcpMgr::ContinueUploadFile(QString unique_name)
 {
     emit sig_continue_upload_file(unique_name);
+}
+
+void FileTcpMgr::ContinueDownloadFile(QString unique_name)
+{
+    emit sig_continue_download_file(unique_name);
+}
+
+void FileTcpMgr::CopyFile(QString src_path, QString dst_path, QString dst_dir)
+{
+    //将文件移动到用户自己的资源目录
+    //客户端存储聊天记录，按照如下格式存储C:\Users\hp\AppData\Roaming\qchat\chatimg\uid, uid为对方uid
+
+    QDir chatimgDir(dst_dir);
+    if (!chatimgDir.exists()) {
+        chatimgDir.mkpath(".");  // 创建当前路径
+    }
+
+    if (QFile::copy(src_path, dst_path)) {
+        qDebug() << "[FileTcpMgr]: 文件拷贝成功";
+
+    }
+    else {
+        qDebug() << "[FileTcpMgr]: 文件拷贝失败";
+
+    }
 }
 
 void FileTcpMgr::initHandlers()
@@ -395,6 +428,7 @@ void FileTcpMgr::initHandlers()
         QString current_size_str = jsonObj["current_size"].toString();
         qint64  current_size = current_size_str.toLongLong(nullptr);
         QString name = jsonObj["name"].toString();
+        QString req_type = jsonObj["req_type"].toString();
 
         auto file_info = UserMgr::GetInstance()->GetDownloadInfo(name);
         if (file_info == nullptr) {
@@ -443,16 +477,23 @@ void FileTcpMgr::initHandlers()
             qDebug() << "[FileTcpMgr]: File download completed:" << clientPath;
             UserMgr::GetInstance()->RmvDownloadFile(name);
             //发送信号通知主界面重新加载label
-            emit sig_reset_label_icon(clientPath);
+            if (req_type == "self_icon") {
+                //发送信号通知主界面重新加载label
+                emit sig_reset_label_icon(clientPath);
+            }
+            else if (req_type == "other_icon") {
+                //发送信号通知主界面刷新其他人头像，此处先不做，后期可以添加，目前不添加不影响使用，只是别人换头像，自己看到为空，但是会后台请求。
+                //考虑这种建议是先使用该人之前的头像，点击切换界面后自动刷新加载为新的。
+            }
         }
         else {
             //继续请求
             file_info->_seq = seq+1;
-            FileTcpMgr::GetInstance()->SendDownloadInfo(file_info);
+            FileTcpMgr::GetInstance()->SendDownloadInfo(file_info, req_type);
         }
     });
 
-    //向资源服务器上传文件时，tcpmgr先向服务器发送文件信息确认请求，服务器返回来的确认回包
+    //向资源服务器上传文件时，tcpmgr先向服务器发送文件信息同步请求，服务器返回来的确认回包
     _handlers.insert(ID_FILE_INFO_SYNC_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
         qDebug() << "[FileTcpMgr]: handle id is " << id;
@@ -486,6 +527,9 @@ void FileTcpMgr::initHandlers()
         //为了简单起见，先处理网络正常情况
         auto seq = recvObj["seq"].toInt();
         auto name = recvObj["name"].toString();
+        auto receiver = recvObj["receiver"].toInt();
+        auto sender = recvObj["sender"].toInt();
+
         auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
         if (!file_info) {
             return;
@@ -506,6 +550,16 @@ void FileTcpMgr::initHandlers()
         if (file_info->_last_confirmed_seq == file_info->_max_seq) {
             //更新已经传输的文件大小
             file_info->_rsp_size = file_info->_total_size;
+
+            //将文件移动到用户自己的资源目录
+            //客户端存储聊天记录，按照如下格式存储C:\Users\secon\AppData\Roaming\llfcchat\chatimg\uid, uid为对方uid
+            auto uid = UserMgr::GetInstance()->GetUid();
+            QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QString img_path_str = storageDir + "/user/" + QString::number(uid) + "/chatimg/" + QString::number(file_info->_sender);
+            auto destPath = img_path_str + '/' + file_info->_unique_name;
+
+            CopyFile(file_info->_text_or_url,destPath, img_path_str);
+
             //通知界面显示
             emit sig_update_upload_progress(file_info);
             //将该文件移除发送map
@@ -517,7 +571,7 @@ void FileTcpMgr::initHandlers()
                 return;
             }
             //继续发送待发送文件
-            BatchSend(free_file);
+            BatchSend(free_file,sender,receiver);
             return;
         }
 
@@ -530,7 +584,7 @@ void FileTcpMgr::initHandlers()
             return;
         }
         //继续发送
-        BatchSend(file_info);
+        BatchSend(file_info, sender, receiver);
     });
 
 
@@ -572,6 +626,9 @@ void FileTcpMgr::initHandlers()
         }
         auto md5 = file_info->_md5;
         auto seq = recvObj["seq"].toInt();
+        auto receiver = recvObj["receiver"].toInt();
+        auto sender = recvObj["sender"].toInt();
+
         //根据seq从未接收集合移动到已接收集合中
         file_info->_flighting_seqs.erase(seq);
         //将seq放入已收到集合中
@@ -586,6 +643,16 @@ void FileTcpMgr::initHandlers()
         if (file_info->_last_confirmed_seq == file_info->_max_seq) {
             //更新已经传输的文件大小
             file_info->_rsp_size = file_info->_total_size;
+
+            //将文件移动到用户自己的资源目录
+            //客户端存储聊天记录，按照如下格式存储C:\Users\secon\AppData\Roaming\llfcchat\chatimg\uid, uid为对方uid
+            auto uid = UserMgr::GetInstance()->GetUid();
+            QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QString img_path_str = storageDir + "/user/" + QString::number(uid) + "/chatimg/" + QString::number(file_info->_sender);
+            auto destPath = img_path_str + '/' + file_info->_unique_name;
+
+            CopyFile(file_info->_text_or_url, destPath, img_path_str);
+
             //通知界面显示
             emit sig_update_upload_progress(file_info);
             //将该文件移除发送map
@@ -596,7 +663,7 @@ void FileTcpMgr::initHandlers()
             if (free_file == nullptr) {
                 return;
             }
-            BatchSend(free_file);
+            BatchSend(free_file,sender,receiver);
             return;
         }
 
@@ -609,7 +676,7 @@ void FileTcpMgr::initHandlers()
             return;
         }
         //继续发送
-        BatchSend(file_info);
+            BatchSend(file_info,sender,receiver);
     });
 
     //由暂停状态继续上传图片文件
@@ -665,6 +732,16 @@ void FileTcpMgr::initHandlers()
         if (file_info->_last_confirmed_seq == file_info->_max_seq) {
             //更新已经传输的文件大小
             file_info->_rsp_size = file_info->_total_size;
+
+            //将文件移动到用户自己的资源目录
+            //客户端存储聊天记录，按照如下格式存储C:\Users\secon\AppData\Roaming\llfcchat\chatimg\uid, uid为对方uid
+            auto uid = UserMgr::GetInstance()->GetUid();
+            QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QString img_path_str = storageDir + "/user/" + QString::number(uid) + "/chatimg/" + QString::number(file_info->_sender);
+            auto destPath = img_path_str + '/' + file_info->_unique_name;
+
+            CopyFile(file_info->_text_or_url, destPath, img_path_str);
+
             //通知界面显示
             emit sig_update_upload_progress(file_info);
             //移除发送map
@@ -675,7 +752,7 @@ void FileTcpMgr::initHandlers()
             if (free_file == nullptr) {
                 return;
             }
-            BatchSend(free_file);
+            BatchSend(free_file, file_info->_sender, file_info->_receiver);
             return;
         }
 
@@ -689,7 +766,125 @@ void FileTcpMgr::initHandlers()
         }
 
         //继续读取发送
-        BatchSend(file_info);
+        BatchSend(file_info, file_info->_sender, file_info->_receiver);
+    });
+
+    //向资源服务器发送下载图片文件的请求后，接收服务器的回报
+    _handlers.insert(ID_IMG_CHAT_DOWN_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[FileTcpMgr]: handle id is " << id << " data is " << data;
+        // 将QByteArray转换为QJsonDocument
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+
+        // 检查转换是否成功
+        if (jsonDoc.isNull()) {
+            qDebug() << "[FileTcpMgr]: Failed to create QJsonDocument.";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+
+        if (!jsonObj.contains("error")) {
+            int err = ErrorCodes::ERR_JSON;
+            qDebug() << "[FileTcpMgr]: parse IMG_CHAT_DOWN_RSP json parse failed " << err;
+            return;
+        }
+
+        int err = jsonObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) {
+            qDebug() << "[FileTcpMgr]: get IMG_CHAT_DOWN_RSP failed, error is " << err;
+            return;
+        }
+
+        qDebug() << "[FileTcpMgr]: Receive IMG_CHAT_DOWN_RSP success";
+
+        QString base64Data = jsonObj["data"].toString();
+        int seq = jsonObj["seq"].toInt();
+        bool is_last = jsonObj["is_last"].toBool();
+        QString total_size_str = jsonObj["total_size"].toString();
+        qint64  total_size = total_size_str.toLongLong(nullptr);
+        QString current_size_str = jsonObj["current_size"].toString();
+        qint64  current_size = current_size_str.toLongLong(nullptr);
+        QString name = jsonObj["name"].toString();
+
+        auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
+        if (file_info == nullptr) {
+            qDebug() << "[FileTcpMgr]: file: " << name << " not found";
+            return;
+        }
+
+        file_info->_current_size = current_size;
+        file_info->_rsp_size = current_size;
+        file_info->_total_size = total_size;
+        auto clientPath = file_info->_text_or_url;
+
+        //Base64解码
+        QByteArray decodedData = QByteArray::fromBase64(base64Data.toUtf8());
+        auto file_path = clientPath + "/" + name;
+        QFile file(file_path);
+
+        // 根据 seq 决定打开模式
+        QIODevice::OpenMode mode;
+        if (seq == 1) {
+            // 第一个包，覆盖写入
+            mode = QIODevice::WriteOnly;
+        }
+        else {
+            // 后续包，追加写入
+            mode = QIODevice::WriteOnly | QIODevice::Append;
+        }
+
+        if (!file.open(mode)) {
+            qDebug() << "[FileTcpMgr]: Failed to open file for writing:" << clientPath;
+            qDebug() << "[FileTcpMgr]: Error:" << file.errorString();
+            return;
+        }
+
+
+        qint64 bytesWritten = file.write(decodedData);
+        if (bytesWritten != decodedData.size()) {
+            qDebug() << "[FileTcpMgr]: Failed to write all data. Written:" << bytesWritten
+                     << "Expected:" << decodedData.size();
+        }
+
+        file.close();
+
+        qDebug() << "[FileTcpMgr]: Successfully wrote" << bytesWritten << "bytes to file";
+        qDebug() << "[FileTcpMgr]: Progress:" << current_size << "/" << total_size
+                 << "(" << (current_size * 100 / total_size) << "%)";
+
+        if (is_last) {
+            qDebug() << "[FileTcpMgr]: File download completed:" << clientPath;
+            UserMgr::GetInstance()->RmvTransFileByName(name);
+            //通知界面下载完成
+            emit sig_download_finish(file_info, file_path);
+        }
+        else {
+            //继续请求
+            file_info->_seq = seq + 1;
+            file_info->_last_confirmed_seq = seq;
+            if (file_info->_transfer_state == TransferState::Paused) {
+                //暂停状态，则直接返回
+                return;
+            }
+            //组织请求，准备下载
+            QJsonObject jsonObj_send;
+            jsonObj_send["name"] = name;
+            jsonObj_send["seq"] = file_info->_seq;
+            jsonObj_send["trans_size"] = QString::number(file_info->_current_size);
+            jsonObj_send["total_size"] = QString::number(file_info->_total_size);
+            jsonObj_send["token"] = UserMgr::GetInstance()->GetToken();
+            jsonObj_send["sender_id"] = file_info->_sender;
+            jsonObj_send["receiver_id"] = file_info->_receiver;
+            jsonObj_send["message_id"] = file_info->_msg_id;
+            auto uid = UserMgr::GetInstance()->GetUid();
+            jsonObj_send["uid"] = uid;
+            QJsonDocument doc(jsonObj_send);
+            auto send_data = doc.toJson();
+            FileTcpMgr::GetInstance()->SendData(ID_IMG_CHAT_DOWN_REQ, send_data);
+            //todo...通知界面更新进度
+            emit sig_update_download_progress(file_info);
+        }
     });
 }
 
@@ -803,6 +998,10 @@ void FileTcpMgr::slot_continue_upload_file(QString unique_name)
         sendObj["data"] = base64Data;
         sendObj["last_seq"] = msg_info->_max_seq;
         sendObj["uid"] = UserMgr::GetInstance()->GetUid();
+        sendObj["sender"] = msg_info->_sender;
+        sendObj["receiver"] = msg_info->_receiver;
+        sendObj["message_id"] = msg_info->_msg_id;
+
         QJsonDocument doc(sendObj);
         auto send_data = doc.toJson();
         //直接发送，其实是放入filetcpmgr发送队列
@@ -815,6 +1014,36 @@ void FileTcpMgr::slot_continue_upload_file(QString unique_name)
     }
 
     file.close();
+}
+
+void FileTcpMgr::slot_continue_download_file(QString unique_name)
+{
+    auto file_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
+    if (file_info == nullptr) {
+        return;
+    }
+
+    if (file_info->_current_size >= file_info->_total_size) {
+        qDebug() << "[FileTcpMgr]: file has received finished";
+        return;
+    }
+
+    //组织请求，准备下载
+    QJsonObject jsonObj_send;
+    jsonObj_send["name"] = unique_name;
+    jsonObj_send["seq"] = file_info->_seq;
+    jsonObj_send["trans_size"] = QString::number(file_info->_current_size);
+    jsonObj_send["total_size"] = QString::number(file_info->_total_size);
+    jsonObj_send["token"] = UserMgr::GetInstance()->GetToken();
+    jsonObj_send["sender_id"] = file_info->_sender;
+    jsonObj_send["receiver_id"] = file_info->_receiver;
+    jsonObj_send["message_id"] = file_info->_msg_id;
+    auto uid = UserMgr::GetInstance()->GetUid();
+    jsonObj_send["uid"] = uid;
+
+    QJsonDocument doc(jsonObj_send);
+    auto send_data = doc.toJson();
+    FileTcpMgr::GetInstance()->SendData(ID_IMG_CHAT_DOWN_REQ, send_data);
 }
 
 

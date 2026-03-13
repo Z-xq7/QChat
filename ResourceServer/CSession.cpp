@@ -106,12 +106,12 @@ void CSession::AsyncReadBody(int total_len)
 			memcpy(_recv_msg_node->_data, _data, bytes_transfered);
 			_recv_msg_node->_cur_len += bytes_transfered;
 			_recv_msg_node->_data[_recv_msg_node->_total_len] = '\0';
-			LOG_DEBUG("Receive data: " << _recv_msg_node->_data);
+			//LOG_DEBUG("Receive data: " << _recv_msg_node->_data);
 			// 使用 std::hash 对字符串进行哈希
 			std::hash<std::string> hash_fn;
 			size_t hash_value = hash_fn(_session_id); // 生成哈希值
 			int index = hash_value % LOGIC_WORKER_COUNT;
-			LOG_DEBUG("Session [" << _session_id << "] hash value: " << hash_value << ", worker index: " << index);
+			//LOG_DEBUG("Session [" << _session_id << "] hash value: " << hash_value << ", worker index: " << index);
 			//此处将消息投递到逻辑工作线程
 			LogicSystem::GetInstance()->PostMsgToQue(make_shared<LogicNode>(shared_from_this(), _recv_msg_node), index);
 			//再继续监听头部读取事件

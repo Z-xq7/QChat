@@ -959,3 +959,159 @@ background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
 #voice_chat[state='press'] {
  border-image: url(:/images/voice_chat_press.png);
 }
+
+/* 用户信息页面样式 */
+#user_info_page {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(173,216,230, 220),  /* 浅蓝色 */
+               stop:1 rgba(255,182,193, 220)); /* 浅粉色 */
+}
+
+UserInfoPage #head_lb {
+    border: 2px dashed rgba(173,216,230, 200);
+    border-radius: 15px;
+    background-color: rgba(255,255,255, 180);
+    min-width: 160px;
+    min-height: 160px;
+    max-width: 160px;
+    max-height: 160px;
+    /* 添加阴影效果 */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+UserInfoPage QLineEdit {
+    border: 1px solid rgba(173,216,230, 200);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(250,255,255, 220),  /* 更浅的蓝 */
+               stop:1 rgba(255,252,250, 220)); /* 更浅的粉 */
+    font-family: "Microsoft YaHei";
+    font-size: 13px;
+    padding: 0px 0px 0px 10px;
+    border-radius: 10px;
+    min-height: 15px;
+    selection-background-color: rgba(173,216,230, 180);
+    /* 添加阴影效果 */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+UserInfoPage QLineEdit:focus {
+    border: 2px solid rgba(100,149,237, 220);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(252,255,255, 240),  /* 浅蓝 */
+               stop:1 rgba(255,253,252, 240)); /* 浅粉 */
+    box-shadow: 0 0 8px rgba(100, 149, 237, 0.4), inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+UserInfoPage #label {
+    color: #2e2f30;
+    font-size: 14px;
+    font-family: "Microsoft YaHei";
+    font-weight: bold;
+    background: transparent;
+    padding: 8px 2px;
+    min-height: 15px;
+    min-width: 40px;
+}
+
+UserInfoPage #label_2 {
+    color: #2e2f30;
+    font-size: 14px;
+    font-family: "Microsoft YaHei";
+    font-weight: bold;
+    background: transparent;
+    padding: 8px 2px;
+    min-height: 15px;
+    min-width: 40px;
+}
+
+UserInfoPage #label_3 {
+    color: #2e2f30;
+    font-size: 14px;
+    font-family: "Microsoft YaHei";
+    font-weight: bold;
+    background: transparent;
+    padding: 8px 2px;
+    min-height: 15px;
+    width: 40px;
+}
+
+UserInfoPage #label_4 {  /* "基本信息" 标签 */
+    color: #161616;
+    font-size: 23px;
+    font-weight: bold;
+    background: transparent;
+    padding: 15px 5px 10px 5px;
+    min-height: 25px;
+    border-bottom: 1px solid rgba(173,216,230, 150);
+}
+
+UserInfoPage #up_btn {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+               stop:0 rgba(173,216,230, 220),  /* 浅蓝 */
+               stop:1 rgba(255,182,193, 220)); /* 浅粉 */
+    color: #000000;
+    font-size: 15px;
+    font-family: "Microsoft YaHei";
+    font-weight: bold;
+    border-radius: 12px;
+    border: 1px solid rgba(173,216,230, 150);
+    min-height: 16px;
+    padding: 7px 15px;
+    min-width: 80px;
+    box-shadow: 0 2px 5px rgba(173, 216, 230, 0.3);
+}
+
+UserInfoPage #up_btn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+               stop:0 rgba(135,206,235, 230),  /* 天蓝 */
+               stop:1 rgba(255,192,203, 240)); /* 粉色 */
+    color: #000000;
+    border: 1px solid rgba(135,206,235, 180);
+    box-shadow: 0 4px 8px rgba(135, 206, 235, 0.4);
+}
+
+UserInfoPage #up_btn:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+               stop:0 rgba(100,149,237, 220),  /* 酞蓝 */
+               stop:1 rgba(238,130,152, 220)); /* 深粉色 */
+    color: #000000;
+    border: 1px solid rgba(100,149,237, 180);
+    box-shadow: 0 1px 3px rgba(100, 149, 237, 0.2);
+    transform: translateY(1px);
+}
+
+UserInfoPage #submit_btn {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(173,216,230, 220),  /* 浅蓝色 */
+               stop:1 rgba(255,182,193, 220)); /* 浅粉色 */
+    color: #000000;
+    font-size: 16px;
+    font-family: "Microsoft YaHei";
+    font-weight: bold;
+    border-radius: 14px;
+    border: 1px solid rgba(173,216,230, 150);
+    min-height: 17px;
+    padding: 10px 20px;
+    min-width: 80px;
+    /* 添加阴影效果 */
+    box-shadow: 0 3px 6px rgba(173, 216, 230, 0.3);
+}
+
+UserInfoPage #submit_btn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(135,206,235, 230),  /* 天蓝 */
+               stop:1 rgba(255,192,203, 240)); /* 粉色 */
+    color: #000000;
+    border: 1px solid rgba(135,206,235, 180);
+    box-shadow: 0 5px 10px rgba(135, 206, 235, 0.4);
+}
+
+UserInfoPage #submit_btn:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+           stop:0 rgba(100,149,237, 220),  /* 酞蓝 */
+           stop:1 rgba(238,130,152, 220)); /* 深粉色 */
+    color: #000000;
+    border: 1px solid rgba(100,149,237, 180);
+    box-shadow: 0 1px 3px rgba(100, 149, 237, 0.2);
+    transform: translateY(1px);
+}

@@ -534,6 +534,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 		chat_msg->thread_id = thread_id;
 		chat_msg->content = content;
 		chat_msg->status = 2;
+		chat_msg->msg_type = int(ChatMsgType::TEXT);
 		chat_datas.push_back(chat_msg);
 	}
 
@@ -726,6 +727,8 @@ void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& ms
 		chat_data["msg_content"] = msg.content;
 		chat_data["chat_time"] = msg.chat_time;
 		chat_data["status"] = msg.status;
+		chat_data["msg_type"] = msg.msg_type;
+
 		rtvalue["chat_datas"].append(chat_data);
 	}
 	LOG_DEBUG("Load chat messages success - message_count: " << res->messages.size());
@@ -771,10 +774,12 @@ void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,
 	chat_msg->thread_id = thread_id;
 	chat_msg->content = unique_name;
 	chat_msg->status = MsgStatus::UN_UPLOAD;
+	chat_msg->msg_type = int(ChatMsgType::PIC);
 
 	//存入数据库
 	MysqlMgr::GetInstance()->AddChatMsg(chat_msg);
 
+	rtvalue["message_id"] = chat_msg->message_id;
 	//这里可以不用defer机制，因为后续没有需要处理的逻辑了，直接发送响应即可
 	Defer defer([this, &rtvalue, session]() {
 		std::string return_str = rtvalue.toStyledString();

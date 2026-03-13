@@ -10,12 +10,15 @@
 #include <memory>
 #include "const.h"
 #include "MsgNode.h"
-using namespace std;
+#include "message.grpc.pb.h"
+#include "message.pb.h"
+#include <grpcpp/grpcpp.h>
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+using message::NotifyChatImgReq;
 
 class CServer;
 class LogicSystem;
@@ -38,6 +41,8 @@ public:
 	void AsyncReadHead(int total_len);
 	//通知用户掉线
 	void NotifyOffline(int uid);
+	//通知用户接收对方发来的图片信息
+	void NotifyChatImgRecv(const ::message::NotifyChatImgReq* request);
 	//判断心跳是否过期
 	bool IsHeartbeatExpired(std::time_t& now);
 	//更新心跳

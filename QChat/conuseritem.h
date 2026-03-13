@@ -4,6 +4,7 @@
 #include <QWidget>
 #include "listitembase.h"
 #include "userdata.h"
+#include <QLabel>
 
 namespace Ui {
 class ConUserItem;
@@ -23,6 +24,8 @@ public:
     void SetInfo(int uid, QString name, QString icon);
     void ShowRedPoint(bool show = false);
     std::shared_ptr<UserInfo> GetInfo();
+
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private:
     Ui::ConUserItem *ui;

@@ -51,6 +51,12 @@ QString UserMgr::GetNick()
     return _user_info->_nick;
 }
 
+void UserMgr::SetNick(QString nick)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    _user_info->_nick = nick;
+}
+
 QString UserMgr::GetIcon()
 {
     std::lock_guard<std::mutex> lock(_mtx);
@@ -67,6 +73,12 @@ QString UserMgr::GetDesc()
 {
     std::lock_guard<std::mutex> lock(_mtx);
     return _user_info->_desc;
+}
+
+void UserMgr::SetDesc(QString desc)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    _user_info->_desc = desc;
 }
 
 std::vector<std::shared_ptr<ApplyInfo> > UserMgr::GetApplyList()
