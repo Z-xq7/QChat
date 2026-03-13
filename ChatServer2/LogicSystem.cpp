@@ -728,6 +728,7 @@ void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& ms
 		chat_data["chat_time"] = msg.chat_time;
 		chat_data["status"] = msg.status;
 		chat_data["msg_type"] = msg.msg_type;
+		chat_data["receiver"] = msg.recv_id;
 
 		rtvalue["chat_datas"].append(chat_data);
 	}

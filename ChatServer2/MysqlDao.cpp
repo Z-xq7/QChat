@@ -380,8 +380,8 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 		if (!apply_desc.empty())
 		{
 			std::unique_ptr<sql::PreparedStatement> msgStmt(con->_con->prepareStatement(
-				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status) "
-				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?)"
+				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status, msg_type) "
+				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?, ?)"
 			));
 			msgStmt->setInt64(1, threadId);
 			msgStmt->setInt(2, to);
@@ -389,6 +389,7 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			msgStmt->setString(4, apply_desc);
 			//这里先直接设置为已读，后续可以改成未读
 			msgStmt->setInt(5, 2);
+			msgStmt->setInt(6, 0);
 			if (msgStmt->executeUpdate() < 0) {
 				con->_con->rollback();
 				return false;
@@ -419,8 +420,8 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 		// 7. 插入成为好友的消息
 		{
 			std::unique_ptr<sql::PreparedStatement> msgStmt(con->_con->prepareStatement(
-				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status) "
-				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?)"
+				"INSERT INTO chat_message(thread_id, sender_id, recv_id, content, created_at, updated_at, status, msg_type) "
+				"VALUES (?, ?, ?, ?, NOW(), NOW(), ?, ?)"
 			));
 			msgStmt->setInt64(1, threadId);
 			msgStmt->setInt(2, from);
@@ -428,6 +429,7 @@ bool MysqlDao::AddFriend(const int& from, const int& to, std::string back_name,
 			msgStmt->setString(4, "We are friends now!");
 			//这里先直接设置为已读，后续可以改成未读
 			msgStmt->setInt(5, 2);
+			msgStmt->setInt(6, 0);
 			if (msgStmt->executeUpdate() < 0) {
 				con->_con->rollback();
 				return false;
@@ -830,7 +832,7 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 	try {
 		auto page_res = std::make_shared<PageResult>();
 		page_res->load_more = false;
-		page_res->next_cursor = last_message_id;
+
 		// SQL：多取一条，用于判断是否还有更多
 		const std::string sql = R"(
         SELECT message_id, thread_id, sender_id, recv_id, content,
@@ -862,6 +864,12 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 			msg.msg_type = rs->getInt("msg_type");
 			page_res->messages.push_back(std::move(msg));
 		}
+		if (page_res->messages.size() > page_size) {
+			page_res->messages.pop_back();
+			page_res->load_more = true;
+		}
+		page_res->next_cursor = page_res->messages.back().message_id;
+
 		return page_res;
 	}
 	catch (sql::SQLException& e) {
@@ -1008,7 +1016,7 @@ std::shared_ptr<ChatMessage> MysqlDao::GetChatMsg(int message_id)
 		auto pstmt = std::unique_ptr<sql::PreparedStatement>(
 			conn->prepareStatement(
 				"SELECT message_id, thread_id, sender_id, recv_id, "
-				"content, created_at, updated_at, status, msg_type"
+				"content, created_at, updated_at, status, msg_type "
 				"FROM chat_message WHERE message_id = ?"
 			)
 		);

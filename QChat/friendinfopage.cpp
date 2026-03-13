@@ -39,10 +39,10 @@ void FriendInfoPage::SetInfo(std::shared_ptr<UserInfo> user_info)
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
         QDir avatarsDir(storageDir + "/user/" + QString::number(_user_info->_uid) + "/avatars");
+        auto file_name = QFileInfo(_user_info->_icon).fileName();
 
         // 确保目录存在
         if (avatarsDir.exists()) {
-            auto file_name = QFileInfo(_user_info->_icon).fileName();
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
@@ -74,7 +74,7 @@ void FriendInfoPage::SetInfo(std::shared_ptr<UserInfo> user_info)
             qWarning() << "[FriendInfoPage]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(_user_info->_icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->icon_lb, _user_info->_icon, "other_icon");
+            LoadHeadIcon(avatarPath, ui->icon_lb, file_name, "other_icon");
         }
     }
 

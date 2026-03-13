@@ -5,7 +5,7 @@
 #include <listitembase.h>
 #include "userdata.h"
 #include <memory>
-
+#include <QLabel>
 
 namespace Ui {
 class ApplyFriendItem;
@@ -24,6 +24,8 @@ public:
         return QSize(250, 80); // 返回自定义的尺寸
     }
     int GetUid();
+    //加载头像
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private:
     Ui::ApplyFriendItem *ui;

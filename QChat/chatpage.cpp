@@ -68,12 +68,12 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     
     // 按排序后的顺序添加消息
     for(auto& msg : sorted_msgs) {
-        AppendChatMsg(msg);
+        AppendChatMsg(msg, true);
     }
 
     // 添加未响应的消息（这些通常是用户自己发送的未确认消息）
     for(auto& msg : chat_data->GetMsgUnRspRef()){
-        AppendChatMsg(msg);
+        AppendChatMsg(msg, false);
     }
 }
 
@@ -147,7 +147,7 @@ void ChatPage::SetChatIcon(ChatItemBase *pChatItem, int uid, QString icon, QStri
     }
 }
 
-void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
+void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp)
 {
     auto self_info = UserMgr::GetInstance()->GetUserInfo();
     ChatRole role;
@@ -164,12 +164,29 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
         if (msg->GetMsgType() == ChatMsgType::TEXT) {
             pBubble = new TextBubble(role, msg->GetMsgContent());
         }
+        else if (msg->GetMsgType() == ChatMsgType::PIC) {
+            auto img_msg = std::dynamic_pointer_cast<ImgChatData>(msg);
+            auto pic_bubble =  new PictureBubble(img_msg->_msg_info->_preview_pix, role, img_msg->_msg_info->_total_size);
+            pic_bubble->setMsgInfo(img_msg->_msg_info);
+            pBubble = pic_bubble;
+
+            //连接暂停和恢复信号
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
+        }
 
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
         pChatItem->setStatus(status);
         ui->chat_data_list->appendChatItem(pChatItem);
-        _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
+        if (rsp) {
+            _base_item_map[msg->GetMsgId()] = pChatItem;
+        }
+        else {
+            _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
+        }
     }
     else {
         role = ChatRole::Other;
@@ -178,6 +195,7 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
         if (friend_info == nullptr) {
             return;
         }
+
         pChatItem->setUserName(friend_info->_name);
 
         SetChatIcon(pChatItem, friend_info->_uid, friend_info->_icon, "other_icon");
@@ -188,14 +206,27 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg)
         }
         else if(msg->GetMsgType() == ChatMsgType::PIC) {
             auto img_msg = std::dynamic_pointer_cast<ImgChatData>(msg);
-            pBubble = new PictureBubble(img_msg->_msg_info->_preview_pix, role, img_msg->_msg_info->_total_size);
+            auto pic_bubble = new PictureBubble(img_msg->_msg_info->_preview_pix, role, img_msg->_msg_info->_total_size);
+            pic_bubble->setMsgInfo(img_msg->_msg_info);
+            pBubble = pic_bubble;
+
+            //连接暂停和恢复信号
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
         }
 
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
         pChatItem->setStatus(status);
         ui->chat_data_list->appendChatItem(pChatItem);
-        _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
+        if (rsp) {
+            _base_item_map[msg->GetMsgId()] = pChatItem;
+        }
+        else {
+            _unrsp_item_map[msg->GetUniqueId()] = pChatItem;
+        }
     }
 }
 
@@ -312,7 +343,7 @@ void ChatPage::UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info) {
     if (msg_info->_msg_type == MsgType::IMG_MSG) {
         auto bubble = iter.value()->getBubble();
         PictureBubble*  pic_bubble = dynamic_cast<PictureBubble*>(bubble);
-        pic_bubble->setProgress(msg_info->_rsp_size);
+        pic_bubble->setProgress(msg_info->_rsp_size, msg_info->_total_size);
     }
 }
 
@@ -327,6 +358,15 @@ void ChatPage::DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString f
         auto bubble = iter.value()->getBubble();
         PictureBubble* pic_bubble = dynamic_cast<PictureBubble*>(bubble);
         pic_bubble->setDownloadFinish(msg_info, file_path);
+
+        auto chat_data_base = _chat_data->GetChatDataBase(msg_info->_msg_id);
+        if (chat_data_base == nullptr) {
+            return;
+        }
+        auto img_data = std::dynamic_pointer_cast<ImgChatData>(chat_data_base);
+        img_data->_msg_info->_preview_pix =  QPixmap(file_path);
+        img_data->_msg_info->_transfer_state = TransferState::Completed;
+        img_data->_msg_info->_current_size = img_data->_msg_info->_total_size;
     }
 }
 

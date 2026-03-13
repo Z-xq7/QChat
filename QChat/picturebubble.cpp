@@ -97,8 +97,12 @@ void PictureBubble::adjustSize()
     setFixedSize(width, height);
 }
 
-void PictureBubble::setProgress(int value)
+void PictureBubble::setProgress(int value, int total_value)
 {
+    if (m_total_size != total_value) {
+        m_total_size = total_value;
+    }
+
     float percent = (value / (m_total_size*1.0))*100;
     m_progressBar->setValue(percent);
     if (percent >= 100) {
@@ -166,6 +170,8 @@ void PictureBubble::resumeState() {
 void PictureBubble::setMsgInfo(std::shared_ptr<MsgInfo> msg)
 {
     _msg_info = msg;
+    setProgress(_msg_info->_current_size, _msg_info->_total_size);
+
     if (_msg_info->_transfer_state == TransferState::Uploading) {
         setState(TransferState::Uploading);
         return;
@@ -173,6 +179,17 @@ void PictureBubble::setMsgInfo(std::shared_ptr<MsgInfo> msg)
 
     if (_msg_info->_transfer_state == TransferState::Downloading) {
         setState(TransferState::Downloading);
+        return;
+    }
+
+    //解决切换bug
+    if (_msg_info->_transfer_state == TransferState::Completed) {
+        setState(TransferState::Completed);
+        return;
+    }
+
+    if (_msg_info->_transfer_state == TransferState::Paused) {
+        setState(TransferState::Paused);
         return;
     }
 }
@@ -193,8 +210,12 @@ void PictureBubble::setDownloadFinish(std::shared_ptr<MsgInfo> msg, QString file
 
 void PictureBubble::onPictureClicked()
 {
+    if (_msg_info == nullptr) {
+        return;
+    }
+
     switch (m_state) {
-    case TransferState::Downloading: //todo... 接收方下载暂停
+    case TransferState::Downloading:
     case TransferState::Uploading:
         // 暂停
         setState(TransferState::Paused);

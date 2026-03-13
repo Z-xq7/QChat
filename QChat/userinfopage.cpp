@@ -272,8 +272,6 @@ void UserInfoPage::slot_up_load()
     //发送消息
     FileTcpMgr::GetInstance()->SendData(ID_UPLOAD_HEAD_ICON_REQ, send_data);
     file.close();
-
-    emit sig_reset_head();
 }
 
 

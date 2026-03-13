@@ -55,14 +55,14 @@ void ChatUserWid::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
             }
             else {
                 qWarning() << "[ChatUserWid]: 无法加载上传的头像：" << avatarPath;
-                LoadHeadIcon(avatarPath, ui->icon_lb, other_info->_icon,"other_icon");
+                LoadHeadIcon(avatarPath, ui->icon_lb, file_name,"other_icon");
             }
         }
         else {
             qWarning() << "[ChatUserWid]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(other_info->_icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->icon_lb, other_info->_icon, "other_icon");
+            LoadHeadIcon(avatarPath, ui->icon_lb, file_name, "other_icon");
         }
     }
 

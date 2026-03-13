@@ -39,6 +39,10 @@ private:
     void initHandlers();
     //接收请求后遍历注册的处理逻辑，进行处理
     void handleMsg(ReqId id,int len,QByteArray data);
+    //创建图片加载
+    void CreatePlaceholderImgMsgL(QString img_path_str, QString msg_content,
+                                  int msg_id, int thread_id, int send_uid, int recv_id, int status, QString chat_time,
+                                  std::vector<std::shared_ptr<ChatDataBase>>& chat_datas);
 
     QTcpSocket _socket;
     QString _host;
@@ -94,7 +98,7 @@ signals:
     //通知界面添加聊天item
     void sig_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天界面chatpage的聊天对话消息
-    void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
+    void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
     //发送文本消息后服务器回传接收到消息的信号后的通知
     void sig_chat_msg_rsp(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
     //发送图片消息后服务器回传接收到消息的信号后的通知

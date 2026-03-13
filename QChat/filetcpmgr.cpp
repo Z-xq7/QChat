@@ -2,6 +2,7 @@
 #include "usermgr.h"
 #include <QPainter>
 #include <QStandardPaths>
+#include "userinfopage.h"
 
 FileTcpThread::FileTcpThread()
 {
@@ -342,8 +343,11 @@ void FileTcpMgr::initHandlers()
         //判断trans_size和total_size相等
         if(total_size == trans_size){
             //上传完毕则从上传map中移除
-            UserMgr::GetInstance()->SetIcon(name);
             UserMgr::GetInstance()->RmvUploadFile(name);
+            //设置头像
+            UserMgr::GetInstance()->SetIcon(name);
+            //重置侧边栏头像
+            emit sig_reset_head();
             return;
         }
 
@@ -767,6 +771,91 @@ void FileTcpMgr::initHandlers()
 
         //继续读取发送
         BatchSend(file_info, file_info->_sender, file_info->_receiver);
+    });
+
+    //向资源服务器下载图片文件时先同步信息，服务器的回包
+    _handlers.insert(ID_IMG_CHAT_DOWN_INFO_SYNC_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[FileTcpMgr]: handle id is " << id << " data is " << data;
+        // 将QByteArray转换为QJsonDocument
+
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+
+        // 检查转换是否成功
+        if (jsonDoc.isNull()) {
+            qDebug() << "[FileTcpMgr]: Failed to create QJsonDocument.";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+
+        if (!jsonObj.contains("error")) {
+            int err = ErrorCodes::ERR_JSON;
+            qDebug() << "[FileTcpMgr]: parse IMG_CHAT_DOWN_INFO_SYNC_RSP json parse failed " << err;
+            return;
+        }
+
+        int err = jsonObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) {
+            qDebug() << "[FileTcpMgr]: get IMG_CHAT_DOWN_INFO_SYNC_RSP failed, error is " << err;
+            return;
+        }
+
+        qDebug() << "[FileTcpMgr]: Receive IMG_CHAT_DOWN_INFO_SYNC_RSP success";
+
+        int message_id = jsonObj["message_id"].toInt();
+        int thread_id = jsonObj["thread_id"].toInt();
+        int sender_id = jsonObj["sender_id"].toInt();
+        int recv_id = jsonObj["recv_id"].toInt();
+        QString name = jsonObj["name"].toString();
+        int msg_type = jsonObj["msg_type"].toInt();
+        int status = jsonObj["status"].toInt();
+        QString total_size_str = jsonObj["total_size"].toString();
+        int64_t total_size = total_size_str.toLongLong();  // 64位整数
+
+        auto uid = UserMgr::GetInstance()->GetUid();
+        //客户端存储聊天记录，按照如下格式存储C:\Users\secon\AppData\Roaming\llfcchat\chatimg\uid, uid为对方uid
+        QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QString img_path_str = storageDir + "/user/" + QString::number(uid) + "/chatimg/" + QString::number(sender_id);
+
+        auto file_info = UserMgr::GetInstance()->GetTransFileByName(name);
+        //如果未找到则初始化一下
+        if (!file_info) {
+            //预览图先默认空白，md5为空
+            file_info = std::make_shared<MsgInfo>(MsgType::IMG_MSG, img_path_str, CreateLoadingPlaceholder(200, 200), name, total_size, "");
+            file_info->_msg_id = message_id;
+            file_info->_sender = sender_id;
+            file_info->_receiver = recv_id;
+            file_info->_thread_id = thread_id;
+            //设置文件传输的类型
+            file_info->_transfer_type = TransferType::Download;
+            //设置文件传输状态
+            file_info->_transfer_state = TransferState::Downloading;
+            UserMgr::GetInstance()->AddTransFile(name, file_info);
+        }
+
+        //组织请求，准备下载
+        QJsonObject jsonObj_send;
+        jsonObj_send["name"] = name;
+        jsonObj_send["seq"] = file_info->_seq;
+        jsonObj_send["trans_size"] = "0";
+        jsonObj_send["total_size"] = QString::number(file_info->_total_size);
+        jsonObj_send["token"] = UserMgr::GetInstance()->GetToken();
+        jsonObj_send["sender_id"] = sender_id;
+        jsonObj_send["receiver_id"] = recv_id;
+        jsonObj_send["message_id"] = message_id;
+        jsonObj_send["uid"] = uid;
+        //客户端存储聊天记录，按照如下格式存储C:\Users\secon\AppData\Roaming\llfcchat\chatimg\uid, uid为对方uid
+        QDir chatimgDir(img_path_str);
+        jsonObj["client_path"] = img_path_str;
+        if (!chatimgDir.exists()) {
+            chatimgDir.mkpath(".");  // 创建当前路径
+        }
+        //通知界面更新进度
+        emit sig_update_download_progress(file_info);
+        QJsonDocument doc(jsonObj_send);
+        auto send_data = doc.toJson();
+        FileTcpMgr::GetInstance()->SendData(ID_IMG_CHAT_DOWN_REQ, send_data);
     });
 
     //向资源服务器发送下载图片文件的请求后，接收服务器的回报

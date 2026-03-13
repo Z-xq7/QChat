@@ -72,8 +72,8 @@ ChatDialog::ChatDialog(QWidget *parent)
     // 设置头像
     slot_reset_head();
 
-    //刷新头像信号和槽函数
-    connect(ui->user_info_page, &UserInfoPage::sig_reset_head, this, &ChatDialog::slot_reset_head);
+    //刷新侧边栏头像信号和槽函数
+    connect(FileTcpMgr::GetInstance().get(), &FileTcpMgr::sig_reset_head, this, &ChatDialog::slot_reset_head);
 
     //加载侧边栏
     ui->side_chat_lb->setProperty("state","normal");
@@ -699,10 +699,10 @@ void ChatDialog::slot_reset_head()
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         auto uid = UserMgr::GetInstance()->GetUid();
         QDir avatarsDir(storageDir + "/user/" + QString::number(uid) + "/avatars");
+        auto file_name = QFileInfo(head_icon).fileName();
 
         // 确保目录存在
         if (avatarsDir.exists()) {
-            auto file_name = QFileInfo(head_icon).fileName();
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
@@ -712,14 +712,14 @@ void ChatDialog::slot_reset_head()
             }
             else {
                 qWarning() << "[ChatDialog]: 无法加载上传的头像：" << avatarPath;
-                LoadHeadIcon(avatarPath, ui->side_head_lb, file_name,"self_icon");
+                LoadHeadIcon(avatarPath, ui->side_head_lb, file_name, "self_icon");
             }
         }
         else {
             qWarning() << "[ChatDialog]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(head_icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->side_head_lb, head_icon,"self_icon");
+            LoadHeadIcon(avatarPath, ui->side_head_lb, file_name, "self_icon");
         }
     }
 }
@@ -1134,7 +1134,8 @@ void ChatDialog::slot_create_private_chat(int uid, int other_id, int thread_id)
     // return;
 }
 
-void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData> > chat_datas)
+void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more,
+                std::vector<std::shared_ptr<ChatDataBase> > chat_datas)
 {
     //设置最后的msg_id到内存，后续会加到本地数据库
     _cur_load_chat->SetLastMsgId(last_msg_id);

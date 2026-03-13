@@ -47,10 +47,10 @@ void ConUserItem::SetInfo(std::shared_ptr<AuthInfo> auth_info)
         // 如果是用户上传的头像，获取存储目录
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         QDir avatarsDir(storageDir + "/user/" + QString::number(_info->_uid) + "/avatars");
+        auto file_name = QFileInfo(_info->_icon).fileName();
 
         // 确保目录存在
         if (avatarsDir.exists()) {
-            auto file_name = QFileInfo(_info->_icon).fileName();
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
@@ -82,7 +82,7 @@ void ConUserItem::SetInfo(std::shared_ptr<AuthInfo> auth_info)
             qWarning() << "[ConUserItem]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(_info->_icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->icon_lb, _info->_icon, "other_icon");
+            LoadHeadIcon(avatarPath, ui->icon_lb, file_name, "other_icon");
         }
     }
 
@@ -109,10 +109,10 @@ void ConUserItem::SetInfo(int uid, QString name, QString icon)
         // 如果是用户上传的头像，获取存储目录
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         QDir avatarsDir(storageDir + "/user/" + QString::number(uid) + "/avatars");
+        auto file_name = QFileInfo(icon).fileName();
 
         // 确保目录存在
         if (avatarsDir.exists()) {
-            auto file_name = QFileInfo(icon).fileName();
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
@@ -144,7 +144,7 @@ void ConUserItem::SetInfo(int uid, QString name, QString icon)
             qWarning() << "[ConUserItem]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->icon_lb, icon, "other_icon");
+            LoadHeadIcon(avatarPath, ui->icon_lb, file_name, "other_icon");
         }
     }
 
@@ -178,10 +178,10 @@ void ConUserItem::SetInfo(std::shared_ptr<AuthRsp> auth_rsp){
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
         QDir avatarsDir(storageDir + "/user/" + QString::number(_info->_uid) + "/avatars");
+        auto file_name = QFileInfo(_info->_icon).fileName();
 
         // 确保目录存在
         if (avatarsDir.exists()) {
-            auto file_name = QFileInfo(_info->_icon).fileName();
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
@@ -213,7 +213,7 @@ void ConUserItem::SetInfo(std::shared_ptr<AuthRsp> auth_rsp){
             qWarning() << "[ConUserItem]: 头像存储目录不存在：" << avatarsDir.path();
             QString avatarPath = avatarsDir.filePath(QFileInfo(_info->_icon).fileName());
             avatarsDir.mkpath(".");
-            LoadHeadIcon(avatarPath, ui->icon_lb, _info->_icon, "other_icon");
+            LoadHeadIcon(avatarPath, ui->icon_lb, file_name, "other_icon");
         }
     }
 

@@ -636,38 +636,39 @@ void LogicWorker::RegisterCallBacks()
 		};
 
 	//聊天图片下载同步,客户端请求下载，服务器查询相关信息返回给客户端，客户端根据返回的信息进行下载
-	_fun_callbacks[ID_IMG_CHAT_DOWN_SYNC_REQ] = [this](std::shared_ptr<CSession> session, const short& msg_id,
+	_fun_callbacks[ID_IMG_CHAT_DOWN_INFO_SYNC_REQ] = [this](std::shared_ptr<CSession> session, const short& msg_id,
 		const string& msg_data) {
-			//查询mysql，返回消息的发送方，接收方，以及图片的连接，名字，大小等
-			std::shared_ptr<ChatImgInfo> down_load_info = MysqlMgr::GetInstance()->GetImgInfoByMsgId(msg_id);
+			Json::Reader reader;
+			Json::Value root;
+			reader.parse(msg_data, root);
+			auto message_id = root["message_id"].asInt();
+			auto chat_msg = MysqlMgr::GetInstance()->GetChatMsgById(message_id);
+			if (chat_msg == nullptr) {
+				Json::Value rtvalue;
+				rtvalue["error"] = ErrorCodes::MsgIdErr;
+				return;
+			}
+
 			// 资源文件路径
 			auto file_dir = ConfigMgr::Inst().GetFileOutPath();
 			//该消息是接收方客户端发送过来的,服务器将资源存储在发送方的文件夹中
-			auto uid_str = std::to_string(down_load_info->_sender_id);
-			auto file_path = (file_dir / uid_str / down_load_info->_img_name);
+			auto uid_str = std::to_string(chat_msg->sender_id);
+			auto file_path = (file_dir / uid_str / chat_msg->content);
 			boost::uintmax_t file_size = boost::filesystem::file_size(file_path);
-
-			//写入redis
-			auto file_info = std::make_shared<FileInfo>();
-			file_info->_file_path_str = file_path.string();
-			file_info->_name = down_load_info->_img_name;
-			file_info->_seq = 0;
-
-			file_info->_total_size = file_size;
-			file_info->_trans_size = 0;
-			// 立即保存到 Redis，覆盖旧数据，设置过期时间
-			RedisMgr::GetInstance()->SetDownLoadInfo(file_info->_name, file_info);
 
 			// 在异步任务完成后调用
 			Json::Value rtvalue;
 			rtvalue["error"] = ErrorCodes::Success;
-			rtvalue["total_size"] = (double)(file_size);
-			rtvalue["message_id"] = msg_id;
-			rtvalue["sender"] = down_load_info->_sender_id;
-			rtvalue["receiver"] = down_load_info->_receiver_id;
-			rtvalue["img_name"] = down_load_info->_img_name;
+			rtvalue["message_id"] = chat_msg->message_id;
+			rtvalue["thread_id"] = chat_msg->thread_id;
+			rtvalue["sender_id"] = chat_msg->sender_id;
+			rtvalue["recv_id"] = chat_msg->recv_id;
+			rtvalue["name"] = chat_msg->content;
+			rtvalue["msg_type"] = chat_msg->msg_type;
+			rtvalue["status"] = chat_msg->status;
+			rtvalue["total_size"] = std::to_string(file_size);
 			std::string return_str = rtvalue.toStyledString();
-			session->Send(return_str, ID_IMG_CHAT_DOWN_SYNC_RSP);
+			session->Send(return_str, ID_IMG_CHAT_DOWN_INFO_SYNC_RSP);
 		};
 
 	//客户端请求下载图片，服务器根据消息id查询相关信息后将文件投递到文件下载系统进行下载，下载完成后服务器通知客户端进行下一步操作

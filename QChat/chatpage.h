@@ -26,7 +26,7 @@ public:
     //设置聊天中头像
     void SetChatIcon(ChatItemBase* pChatItem, int uid, QString icon,  QString req_type);
     //添加自己发送的消息
-    void AppendChatMsg(std::shared_ptr<ChatDataBase> msg);
+    void AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp=true);
     //追加他人发来的消息
     void AppendOtherMsg(std::shared_ptr<ChatDataBase> msg);
     //清空聊天信息

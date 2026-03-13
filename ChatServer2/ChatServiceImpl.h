@@ -43,7 +43,7 @@ public:
 	Status NotifyKickUser(grpc::ServerContext* context,
 		const message::KickUserReq* request, message::KickUserRsp* response) override;
 
-	//接收客户端发送的图片聊天通知
+	//接收Resource服务器发送的图片聊天通知
 	Status NotifyChatImgMsg(::grpc::ServerContext* context, 
 		const ::message::NotifyChatImgReq* request, ::message::NotifyChatImgRsp* response) override;
 

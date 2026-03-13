@@ -14,7 +14,7 @@ class PictureBubble : public BubbleFrame
 public:
     PictureBubble(const QPixmap& picture, ChatRole role,int total, QWidget* parent = nullptr);
 
-    void setProgress(int value);
+    void setProgress(int value, int total_value);
     void showProgress(bool show);
     void setState(TransferState state);
     void resumeState();

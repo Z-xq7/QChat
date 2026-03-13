@@ -5,6 +5,7 @@
 #include <memory>
 #include "userdata.h"
 #include "applyfriend.h"
+#include <QLabel>
 
 namespace Ui {
 class FindSuccessDialog;
@@ -18,6 +19,8 @@ public:
     explicit FindSuccessDialog(QWidget *parent = nullptr);
     ~FindSuccessDialog();
     void SetSearchInfo(std::shared_ptr<SearchInfo> si);
+    //加载头像
+    void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
 private slots:
     void on_add_friend_btn_clicked();

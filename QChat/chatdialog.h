@@ -115,7 +115,7 @@ public slots:
     //从friendinfopage新创建聊天item
     void slot_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天页面chatpage聊天对话消息
-    void slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<TextChatData>> chat_datas);
+    void slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
     //发送消息后服务器回传接收到消息的信号后的通知
     void slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData>> msglists);
     //发送图片消息后服务器回传接收到图片消息的信号后的通知

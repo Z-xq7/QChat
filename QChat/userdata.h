@@ -134,6 +134,8 @@ Q_DECLARE_METATYPE(std::shared_ptr<UserInfo>)
 
 class ChatDataBase {
 public:
+    ChatDataBase() = default;
+
     ChatDataBase(int msg_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
                  QString content,int _send_uid,int status, QString chat_time);
     ChatDataBase(QString unique_id, int thread_id, ChatFormType form_type, ChatMsgType msg_type,
@@ -176,6 +178,7 @@ protected:
     //发送时间
     QString _chat_time;
 };
+Q_DECLARE_METATYPE(std::vector<std::shared_ptr<ChatDataBase>>)
 
 class TextChatData : public ChatDataBase {
 public:
