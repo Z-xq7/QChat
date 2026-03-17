@@ -6,20 +6,33 @@
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 #include <QTimer>
+#include <QVBoxLayout>
+#include <QMouseEvent>
+#include <QFocusEvent>
 #include "tcpmgr.h"
 #include "httpmgr.h"
 #include "filetcpmgr.h"
+#include "cute_pet_widget.h"
 
 LoginDialog::LoginDialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::LoginDialog)
     , _ani_timer(nullptr)
     , _ani_offset(0)
+    , _petWidget(nullptr)
 {
     ui->setupUi(this);
 
     // 设置窗口标志，保持透明背景
     setAttribute(Qt::WA_TranslucentBackground, true);
+    setMouseTracking(true); // 启用鼠标追踪，使鼠标未按下时也能触发mouseMoveEvent
+
+    // 创建Q版小宠物控件
+    _petWidget = new CutePetWidget(this);
+    // 调整宠物控件尺寸，覆盖整个对话框区域，这样鼠标在任何位置都能触发宠物跟随
+    _petWidget->resize(width(), height());
+    _petWidget->move(0, 0);
+    _petWidget->lower(); // 将宠物控件置于底层，让UI控件在上层
 
     // 创建动画定时器
     _ani_timer = new QTimer(this);
@@ -75,6 +88,80 @@ LoginDialog::LoginDialog(QWidget *parent)
         qDebug() << "[LoginDialog]: Label was clicked!";
     });
 
+    // 安装事件过滤器到输入框，监听焦点事件
+    ui->email_edit->installEventFilter(this);
+    ui->pass_edit->installEventFilter(this);
+    
+    // 为UI中的其他控件也安装事件过滤器以捕获鼠标移动事件
+    ui->head_widget->installEventFilter(this);
+    ui->head_widget->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置头像容器为鼠标事件透明
+    ui->email_label->installEventFilter(this);
+    ui->pass_label->installEventFilter(this);
+    ui->pass_visible->installEventFilter(this);
+    ui->forget_label->installEventFilter(this);
+    ui->login_btn->installEventFilter(this);
+    ui->reg_btn->installEventFilter(this);
+    ui->head_label->installEventFilter(this);
+    ui->head_label->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置头像标签为鼠标事件透明
+    ui->err_tip->installEventFilter(this);
+    ui->err_tip->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置提示标签为鼠标事件透明
+    
+    // 为布局中的widget安装事件过滤器
+    QWidgetList widgets = this->findChildren<QWidget*>();
+    for (QWidget* widget : widgets) {
+        if (widget != _petWidget) {  // 不为宠物控件安装过滤器，避免冲突
+            widget->installEventFilter(this);
+        }
+    }
+
+    // 设置整体样式
+    setStyleSheet(
+        "QDialog {"
+        "    background: transparent;"
+        "}"
+        "QLineEdit {"
+        "    border: 2px solid #d0d0d0;"
+        "    border-radius: 10px;"
+        "    padding: 0px 5px 0px 5px;"
+        "    background: rgba(255, 255, 255, 0.8);"
+        "    font-size: 12px;"
+        "}"
+        "QLineEdit:focus {"
+        "    border: 2px solid #ff69b4;"
+        "    background: rgba(255, 255, 255, 0.9);"
+        "}"
+        "QLabel {"
+        "    color: #333;"
+        "    font-weight: bold;"
+        "    font-size: 13px;"
+        "    background: transparent;"
+        "}"
+        "#err_tip[state='normal']{"
+        "color: green;"
+        "}"
+        "#err_tip[state='err']{"
+        "color: red;"
+        "}"
+        "QPushButton {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff69b4, stop:1 #d74177);"
+        "    border: none;"
+        "    border-radius: 10px;"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    font-size: 14px;"
+        "    padding: 5px;"
+        "}"
+        "QPushButton:hover {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff7eb3, stop:1 #ff4f8b);"
+        "}"
+        "QPushButton:pressed {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #d74177, stop:1 #ff69b4);"
+        "}"
+        "QPushButton:disabled {"
+        "    background: #cccccc;"
+        "}"
+    );
+
     // 初始化背景
     updateBackground();
 }
@@ -105,6 +192,98 @@ void LoginDialog::paintEvent(QPaintEvent *event)
     QDialog::paintEvent(event);
 }
 
+void LoginDialog::enterEvent(QEnterEvent *event)
+{
+    // 鼠标进入登录窗口时，激活宠物的鼠标跟随
+    if (_petWidget) {
+        _petWidget->setMousePosition(QCursor::pos());
+    }
+    QDialog::enterEvent(event);
+}
+
+void LoginDialog::leaveEvent(QEvent *event)
+{
+    // 鼠标离开登录窗口时，重置宠物到原始状态
+    if (_petWidget) {
+        _petWidget->resetToOriginalState();
+    }
+    QDialog::leaveEvent(event);
+}
+
+void LoginDialog::mouseMoveEvent(QMouseEvent *event)
+{
+    // 将鼠标位置传递给宠物控件，以实现跟随效果
+    if (_petWidget) {
+        _petWidget->setMousePosition(event->globalPos());
+    }
+    
+    // 调用父类的鼠标移动事件
+    QDialog::mouseMoveEvent(event);
+}
+
+bool LoginDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    // 捕获所有控件上的鼠标移动事件
+    if (event->type() == QEvent::MouseMove) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (_petWidget) {
+            _petWidget->setMousePosition(mouseEvent->globalPos());
+        }
+        // 重要：不要返回true，让事件继续传递到控件
+    }
+    
+    // 处理其他特定事件
+    if (obj == ui->email_edit || obj == ui->pass_edit) {
+        if (event->type() == QEvent::FocusIn) {
+            // 当输入框获得焦点时，触发宠物偷看动画
+            if (_petWidget) {
+                _petWidget->startPeek();
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonPress) {
+            // 当点击输入框时，也触发宠物偷看动画
+            if (_petWidget) {
+                _petWidget->startPeek();
+            }
+        }
+    }
+    else if (obj == ui->login_btn) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            // 当点击登录按钮时，触发宠物兴奋动画
+            if (_petWidget) {
+                // 暂时使用偷看动画，实际项目中可以添加更丰富的动画
+                _petWidget->startPeek();
+            }
+        }
+    }
+    else if (obj == ui->reg_btn) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            // 当点击注册按钮时，触发宠物友好动画
+            if (_petWidget) {
+                _petWidget->startPeek();
+            }
+        }
+    }
+    // 重要：总是返回基类的eventFilter结果，确保事件正常传递
+    return QDialog::eventFilter(obj, event);
+}
+
+void LoginDialog::on_email_edit_focusIn()
+{
+    // 当邮箱输入框获得焦点时，触发宠物偷看动画
+    if (_petWidget) {
+        _petWidget->startPeek();
+    }
+}
+
+void LoginDialog::on_pass_edit_focusIn()
+{
+    // 当密码输入框获得焦点时，触发宠物偷看动画
+    if (_petWidget) {
+        _petWidget->startPeek();
+    }
+}
+
 void LoginDialog::updateBackground()
 {
     // 创建与窗口大小相同的背景图片
@@ -119,47 +298,41 @@ void LoginDialog::updateBackground()
     int width = rect.width();
     int height = rect.height();
 
-    // 绘制渐变色背景
+    // 绘制更美观的渐变色背景 - 粉紫色系
     QLinearGradient gradient(0, 0, width, height);
-    gradient.setColorAt(0, QColor(173, 216, 230, 180));  // 淡蓝色
-    gradient.setColorAt(0.5, QColor(135, 206, 250, 180)); // 天蓝色
-    gradient.setColorAt(1, QColor(70, 130, 180, 180));    // 钢蓝色
+    gradient.setColorAt(0, QColor(255, 182, 193, 200));  // 浅粉色
+    gradient.setColorAt(0.5, QColor(221, 160, 221, 200)); // 萝兰紫
+    gradient.setColorAt(1, QColor(176, 196, 222, 200));   // 钢蓝色
     painter.fillRect(rect, gradient);
 
-    // 绘制动态波浪效果
-    QPainterPath wavePath;
-    wavePath.moveTo(0, static_cast<int>(height * 0.6 + qSin(_ani_offset * 0.1) * 20));
-
-    for (int x = 0; x <= width; x += 20) {
-        wavePath.lineTo(x, static_cast<int>(height * 0.6 + qSin((_ani_offset + x) * 0.05) * 20));
+    // 绘制动态装饰效果 - 细线网格
+    painter.setPen(QColor(255, 255, 255, 40));
+    // 垂直线
+    for (int x = 0; x < width; x += 30) {
+        int offset = static_cast<int>(qSin(_ani_offset * 0.05 + x * 0.1) * 10);
+        painter.drawLine(x, 0, x + offset, height);
+    }
+    // 水平线
+    for (int y = 0; y < height; y += 30) {
+        int offset = static_cast<int>(qCos(_ani_offset * 0.05 + y * 0.1) * 10);
+        painter.drawLine(0, y, width, y + offset);
     }
 
-    wavePath.lineTo(width, height);
-    wavePath.lineTo(0, height);
-    wavePath.closeSubpath();
-
-    painter.setBrush(QColor(255, 255, 255, 30)); // 半透明白色
-    painter.setPen(Qt::NoPen);
-    painter.drawPath(wavePath);
-
-    // 绘制漂浮圆点
-    painter.setPen(QColor(255, 255, 255, 80));
-    painter.setBrush(QColor(255, 255, 255, 80));
-
-    // 圆点1
-    int x1 = static_cast<int>(qSin(_ani_offset * 0.02) * 50 + width / 3) % width;
-    int y1 = static_cast<int>(qCos(_ani_offset * 0.02) * 30 + height / 4) % height;
-    painter.drawEllipse(x1, y1, 15, 15);
-
-    // 圆点2
-    int x2 = static_cast<int>(qCos(_ani_offset * 0.03) * 70 + 2 * width / 3) % width;
-    int y2 = static_cast<int>(qSin(_ani_offset * 0.03) * 40 + 2 * height / 3) % height;
-    painter.drawEllipse(x2, y2, 20, 20);
-
-    // 圆点3
-    int x3 = static_cast<int>(qSin(_ani_offset * 0.015) * 60 + width / 2) % width;
-    int y3 = static_cast<int>(qCos(_ani_offset * 0.015) * 50 + height / 2) % height;
-    painter.drawEllipse(x3, y3, 12, 12);
+    // 绘制漂浮粒子效果
+    for (int i = 0; i < 5; ++i) {
+        int size = 8 + (i % 3); // 不同大小
+        int speed = 1 + (i % 3); // 不同速度
+        int x = static_cast<int>(qSin(_ani_offset * 0.02 * speed + i) * (width / 4) + width / 2);
+        int y = static_cast<int>(qCos(_ani_offset * 0.02 * speed + i) * (height / 4) + height / 2);
+        
+        QRadialGradient particleGradient(x, y, size);
+        particleGradient.setColorAt(0, QColor(255, 255, 255, 100));
+        particleGradient.setColorAt(1, QColor(255, 255, 255, 0));
+        
+        painter.setBrush(particleGradient);
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(x - size/2, y - size/2, size, size);
+    }
 
     // 刷新显示
     update();

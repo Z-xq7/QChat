@@ -11,30 +11,6 @@ QLineEdit {
     /*padding: 3px;*/
 }
 
-#email_label,#pass_label,#user_label,#confirm_label,#varify_label{
-    color: white; /* 白色文字与透明背景更协调 */
-}
-
-#err_tip[state='normal']{
-    color: green;
-}
-
-#err_tip[state='err']{
-    color: red;
-}
-
-#login_btn{
-    border-radius: 9px; /* 设置圆角 */
-    background-color: rgba(255,220,230, 200); /* 浅粉色 */
-    border: none;
-}
-
-#reg_btn{
-    border-radius: 9px; /* 设置圆角 */
-    background-color: rgba(255,220,240, 200); /* 浅粉色 */
-    border: none;
-}
-
 #pass_visible[state='unvisible']{
    border-image: url(:/images/unvisible_black.png);
 }
@@ -78,11 +54,11 @@ QLineEdit {
 /* 主界面样式 */
 #side_bar{
    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-               stop:0 rgba(176,224,230, 220),  /* 浅蓝色 */
-               stop:0.5 rgba(200,230,240, 220), /* 中等浅蓝 */
-               stop:1 rgba(255,228,225, 220)); /* 浅粉色 */
-   border-top-left-radius: 10px;
-   border-bottom-left-radius: 10px;
+               stop:0 rgba(220,255,255, 220),  /* 浅蓝色 */
+               stop:0.5 rgba(235,248,255, 220), /* 中等浅蓝 */
+               stop:1 rgba(255,235,255, 220)); /* 浅粉色 */
+   border-top-left-radius: 0px;
+   border-bottom-left-radius: 0px;
 }
 
 #add_btn[state='normal']{
@@ -963,8 +939,8 @@ background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
 /* 用户信息页面样式 */
 #user_info_page {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-               stop:0 rgba(173,216,230, 220),  /* 浅蓝色 */
-               stop:1 rgba(255,182,193, 220)); /* 浅粉色 */
+               stop:0 rgba(220,255,255, 220),  /* 现代浅蓝色 */
+               stop:1 rgba(255,225,255, 220)); /* 现代浅粉色 */
 }
 
 UserInfoPage #head_lb {
@@ -1114,4 +1090,318 @@ UserInfoPage #submit_btn:pressed {
     border: 1px solid rgba(100,149,237, 180);
     box-shadow: 0 1px 3px rgba(100, 149, 237, 0.2);
     transform: translateY(1px);
+}
+
+#chat_page {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(220,255,255, 180), 
+               stop:1 rgba(255,225,255, 180));
+}
+
+#friend_info_page {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(220,255,255, 180),  /* 现代浅蓝 */
+               stop:1 rgba(255,225,255, 180)); /* 现代浅粉 */
+}
+
+#friend_apply_page {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(220,255,255, 180),  /*  ִ ǳ   */
+               stop:1 rgba(255,225,255, 180)); /*  ִ ǳ   */
+}
+
+#text_bubble {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(240,252,255, 200), 
+               stop:1 rgba(250,245,255, 200));
+    border: 1px solid rgba(190,220,240, 100);
+    border-radius: 10px;
+}
+
+#text_bubble_other {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(250,245,255, 200), 
+               stop:1 rgba(240,252,255, 200)); 
+    border: 1px solid rgba(220,210,240, 100);
+    border-radius: 10px;
+}
+
+#chat_area {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+               stop:0 rgba(225,250,255, 150), 
+               stop:1 rgba(250,230,250, 150)); 
+    border: none;
+    border-radius: 8px;
+}
+
+#chatEdit {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(245,252,255, 180),
+               stop:1 rgba(250,252,252, 180));
+    border: 1px solid rgba(190,220,240, 150); 
+    font-family: \"Microsoft YaHei\"; 
+    font-size: 18px; 
+    padding: 8px; 
+    border-radius: 10px; 
+}
+
+#chatEdit:focus {
+    border: 2px solid rgba(150,200,240, 200);
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(250,254,255, 200), 
+               stop:1 rgba(254,252,255, 200)); 
+}
+
+#send_wid {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(245,252,255, 180), 
+               stop:1 rgba(252,242,255, 180));
+    border-top: 1px solid rgba(190,220,240, 100);
+}
+
+#tool_wid {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(245,252,255, 180),  /*  ִ ǳ   */
+               stop:1 rgba(252,242,255, 180)); /*  ִ ǳ   */
+    border-bottom: 1px solid rgba(190,220,240, 100); /*  ִ ǳ  ɫ ߿  */
+}
+
+QScrollBar:vertical {
+    background: transparent; /*              Ϊ͸   */
+    width: 8px; /*         ȣ       Ҫ     */
+    margin: 0px; /*  Ƴ        뻬  ֮  ļ   */
+}
+
+QScrollBar::handle:vertical {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(200,230,240, 200),  /*  ִ ǳ  ɫ */
+               stop:1 rgba(250,210,240, 200)); /*  ִ ǳ  ɫ */
+    min-height: 10px; /*       С ߶ȣ       Ҫ     */
+    border-radius: 4px; /*      ԵԲ ǣ        γ   Բ  ״ */
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px; /*  Ƴ    ° ť */
+    border: none; /*  Ƴ  ߿  */
+    background: transparent; /*     ͸   */
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none; /* ҳ        ֱ   ͸   */
+}
+
+#search_edit {
+    border: 1px solid rgba(190,220,240, 150); /*  ִ ǳ  ɫ ߿  */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(235,250,255, 180),  /*  ִ ǳ   */
+               stop:1 rgba(245,248,255, 180)); /*  ִ ǳ     */
+    border-radius: 6px;
+    padding: 5px;
+}
+
+#search_edit:focus {
+    border: 1px solid rgba(150,200,240, 200); /*  ִ     ɫ ߿  */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(245,252,255, 200),  /*  ִ ǳ   */
+               stop:1 rgba(250,248,255, 200)); /*  ִ ǳ     */
+}
+
+#search_list {
+    background-color: rgba(235,250,255, 180); /*  ִ ǳ  ͸   */
+    border: 1px solid rgba(190,220,240, 100); /*  ִ ǳ  ɫ ߿  */
+}
+#search_list::item:selected {
+    background-color: rgba(210,242,246, 200); /*  ִ      */
+    border: none;
+    outline: none;
+}
+#search_list::item:hover {
+    background-color: rgba(180,220,240, 180); /*  ִ ǳ   */
+    border: none;
+    outline: none;
+}
+#search_list::focus {
+    border: none;
+    outline: none;
+}
+
+#chat_user_list {
+    background-color: rgba(235,250,255, 180); /*  ִ ǳ  ͸   */
+    border: none;
+    border-radius: 8px;
+}
+#chat_user_list::item:selected {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(210,245,250, 220),  /*  ִ      */
+               stop:1 rgba(190,230,245, 220)); /*  ִ ǳ   */
+    border: 1px solid rgba(180,220,240, 150);
+    border-radius: 6px;
+    outline: none;
+}
+#chat_user_list::item:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(215,248,252, 200),  /*  ִ      */
+               stop:1 rgba(200,235,250, 200)); /*  ִ ǳ   */
+    border-radius: 6px;
+    outline: none;
+}
+#chat_user_list::focus {
+    border: 1px solid rgba(150,210,240, 150); /*  ִ     ɫ ߿  */
+    outline: none;
+}
+
+#con_user_list {
+    background-color: rgba(235,250,255, 180); /*  ִ ǳ  ͸   */
+    border: none;
+}
+#con_user_list::item:selected {
+    background-color: rgba(210,242,246, 200); /*  ִ      */
+    border: none;
+    outline: none;
+}
+#con_user_list::item:hover {
+    background-color: rgba(180,220,240, 180); /*  ִ ǳ   */
+    border: none;
+    outline: none;
+}
+#con_user_list::focus {
+    border: none;
+    outline: none;
+}
+
+#side_bar {
+   background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(220,255,255, 220),  /*  ִ ǳ   */
+               stop:0.5 rgba(235,248,255, 220), /*  е  ִ ǳ   */
+               stop:1 rgba(255,235,255, 220)); /*  ִ ǳ   */
+   border-top-left-radius: 0px;
+   border-bottom-left-radius: 0px;
+}
+
+#title_wid {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(225,250,255, 200),  /*  ִ ǳ   */
+               stop:1 rgba(250,235,255, 200)); /*  ִ ǳ   */
+}
+
+#title_lb {
+    background: transparent;
+    color: rgb(40,40,40); /*  ִ    ɫ     */
+    font-family: \"Microsoft YaHei\";
+    font-size: 18px;
+    font-weight: normal;
+}
+
+#receive_btn[state='normal'] {
+   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,220,240, 200),  /*  ִ ǳ   */
+               stop:1 rgba(250,200,230, 200)); /*  ִ   һ  ķ  */
+   color: #000000;
+   font-size: 14px;
+   font-family: \"Microsoft YaHei\";
+   font-weight: bold;
+   border-radius: 8px;
+   border: 1px solid rgba(250,200,230, 100);
+   min-height: 27px;
+}
+
+#receive_btn[state='hover'] {
+   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,200,220, 220),  /*  ִ ǳ   */
+               stop:1 rgba(250,170,200, 220)); /*  ִ   һ  ķ  */
+   color: #000000;
+   font-size: 14px;
+   font-family: \"Microsoft YaHei\";
+   border-radius: 8px;
+   border: 1px solid rgba(250,170,200, 150);
+   min-height: 27px;
+}
+
+#receive_btn[state='press'] {
+   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,170,180, 220),  /*  ִ     */
+               stop:1 rgba(250,150,170, 220)); /*  ִ     ķ  */
+   color: #000000;
+   font-size: 14px;
+   font-family: \"Microsoft YaHei\";
+   border-radius: 8px;
+   border: 1px solid rgba(250,150,170, 150);
+   min-height: 27px;
+}
+
+#send_btn[state='normal'] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,220,240, 200),  /*  ִ ǳ   */
+               stop:1 rgba(250,200,230, 200)); /*  ִ   һ  ķ  */
+    color: #000000;
+    font-size: 14px;
+    font-family: \"Microsoft YaHei\";
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid rgba(250,200,230, 100);
+    min-height: 27px;
+}
+
+#send_btn[state='hover'] {
+   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,200,220, 220),  /*  ִ ǳ   */
+               stop:1 rgba(250,170,200, 220)); /*  ִ   һ  ķ  */
+   color: #000000;
+   font-size: 14px;
+   font-family: \"Microsoft YaHei\";
+   border-radius: 8px;
+   border: 1px solid rgba(250,170,200, 150);
+   min-height: 27px;
+}
+
+#send_btn[state='press'] {
+   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+               stop:0 rgba(250,170,180, 220),  /*  ִ     */
+               stop:1 rgba(250,150,170, 220)); /*  ִ     ķ  */
+   color: #000000;
+   font-size: 14px;
+   font-family: \"Microsoft YaHei\";
+   border-radius: 8px;
+   border: 1px solid rgba(250,150,170, 150);
+   min-height: 27px;
+}
+
+#chat_data_list {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+               stop:0 rgba(235,250,255, 150),  /*  ִ ǳ   */
+               stop:1 rgba(250,240,255, 150)); /*  ִ ǳ   */
+}
+
+#chat_bg {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+               stop:0 rgba(235,250,255, 100), 
+               stop:1 rgba(250,240,255, 100));
+}
+
+/* 视频通话相关 */
+#voice_label{
+    border-image: url(:/images/voice.png);
+    border-radius: 8px;
+}
+
+#video_label{
+    border-image: url(:/images/video.png);
+    border-radius: 8px;
+}
+
+#leave_label{
+    border-image: url(:/images/leave.png);
+    border-radius: 8px;
+}
+
+#minsize_btn{
+    border-image: url(:/images/minsize.png);
+}
+
+#maxsize_btn{
+    border-image: url(:/images/maxsize.png);
+}
+
+#close_btn{
+    border-image: url(:/images/close2.png);
 }

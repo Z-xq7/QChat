@@ -52,6 +52,12 @@ private:
 	void LoadChatMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//处理聊天图片消息的逻辑
 	void DealChatImgMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理视频通话邀请的逻辑：1.先从数据库获取发送者基本信息；2.查询redis 查找接收者对应的server ip；3.如果在本服务器则直接通知对方有视频通话邀请；4.如果不在本服务器则通过grpc通知对应服务器有视频通话邀请
+	void VideoCallInvite(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理视频通话接受的逻辑
+	void VideoCallAccept(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	//处理视频通话拒绝的逻辑
+	void VideoCallReject(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 
 	//判断字符串是否为纯数字（用来判断客户端搜索的是uid还是名字）
 	bool isPureDigit(const std::string& str);

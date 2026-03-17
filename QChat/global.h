@@ -89,7 +89,21 @@ enum ReqId{
     ID_IMG_CHAT_DOWN_INFO_SYNC_REQ  = 1045,  //获取图片下载信息同步请求
     ID_IMG_CHAT_DOWN_INFO_SYNC_RSP  = 1046,  //获取图片下载信息同步回复
     ID_IMG_CHAT_DOWN_REQ   =  1047,    //聊天图片下载请求
-    ID_IMG_CHAT_DOWN_RSP   =  1048     //聊天图片下载回复
+    ID_IMG_CHAT_DOWN_RSP   =  1048,    //聊天图片下载回复
+    
+    // 视频通话相关协议ID
+    ID_CALL_INVITE_REQ = 1050,        // 视频通话邀请请求
+    ID_CALL_INVITE_RSP = 1051,        // 视频通话邀请响应
+    ID_CALL_INCOMING_NOTIFY = 1052,   // 来电通知
+    ID_CALL_ACCEPT_REQ = 1053,        // 接受通话请求
+    ID_CALL_ACCEPT_RSP = 1054,        // 接受通话响应
+    ID_CALL_ACCEPT_NOTIFY = 1055,     // 接受通话通知
+    ID_CALL_REJECT_REQ = 1056,        // 拒绝通话请求
+    ID_CALL_REJECT_RSP = 1057,        // 拒绝通话响应
+    ID_CALL_REJECT_NOTIFY = 1058,     // 拒绝通话通知
+    ID_CALL_HANGUP_REQ = 1059,        // 挂断通话请求
+    ID_CALL_HANGUP_RSP = 1060,        // 挂断通话响应
+    ID_CALL_HANGUP_NOTIFY = 1061      // 挂断通话通知
 };
 Q_DECLARE_METATYPE(ReqId)
 

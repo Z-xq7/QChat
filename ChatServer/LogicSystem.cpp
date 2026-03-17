@@ -128,6 +128,15 @@ void LogicSystem::RegisterCallBacks() {
 
 	_fun_callbacks[ID_IMG_CHAT_MSG_REQ] = std::bind(&LogicSystem::DealChatImgMsg, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	_fun_callbacks[ID_CALL_INVITE_REQ] = std::bind(&LogicSystem::VideoCallInvite, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	_fun_callbacks[ID_CALL_ACCEPT_REQ] = std::bind(&LogicSystem::VideoCallAccept, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	_fun_callbacks[ID_CALL_REJECT_REQ] = std::bind(&LogicSystem::VideoCallReject, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
 }
 
 //处理用户登录的逻辑：1.先从redis中获取用户token是否正确；2.如果token正确，说明登录成功，则从数据库获取用户个人信息；
@@ -788,6 +797,214 @@ void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,
 		});
 
 	//发送通知 todo... 以后等文件上传成功再通知
+}
+
+void LogicSystem::VideoCallInvite(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	auto caller_uid = root["caller_uid"].asInt();	//发起者的uid当做room_id房间号
+	auto caller_nick = root["caller_nick"].asString();
+	auto callee_uid = root["callee_uid"].asInt();
+	std::string call_id = std::to_string(caller_uid);
+
+	Json::Value  rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_CALL_INVITE_RSP);
+		});
+
+	//查询redis 获取callee_uid对应的server ip
+	auto to_str = std::to_string(callee_uid);
+	auto to_ip_key = USERIPPREFIX + to_str;
+	std::string to_ip_value = "";
+
+	bool b_ip = RedisMgr::GetInstance()->Get(to_ip_key, to_ip_value);
+	if (!b_ip) {
+		LOG_DEBUG("Video Call Invite - target user offline, to_uid: " << callee_uid);
+		return;
+	}
+
+	auto& cfg = ConfigMgr::Inst();
+	auto self_name = cfg["SelfServer"]["Name"];
+	//直接通知对方认证通过的信息
+	if (to_ip_value == self_name) {
+		auto session = UserMgr::GetInstance()->GetSession(callee_uid);
+		if (session) {
+			//在内存中，直接发送通知对方
+			rtvalue["caller_nick"] = caller_nick;
+			rtvalue["caller_uid"] = caller_uid;
+			rtvalue["call_id"] = call_id;	//暂时先用caller_uid当做call_id，后续可以优化成全局唯一的call_id
+			std::string return_str = rtvalue.toStyledString();
+			session->Send(return_str, ID_CALL_INCOMING_NOTIFY);
+			LOG_DEBUG("Notify Call Incoming locally - to_uid: " << callee_uid);
+		}
+		return;
+	}
+
+	//todo...不在同一个服务器，则通过grpc通知对应服务器发送文本消息
+	//TextChatMsgReq text_msg_req;
+	//text_msg_req.set_fromuid(uid);
+	//text_msg_req.set_touid(touid);
+	//text_msg_req.set_thread_id(thread_id);
+	//for (const auto& chat_data : chat_datas) {
+	//	auto* text_msg = text_msg_req.add_textmsgs();
+	//	text_msg->set_unique_id(chat_data->unique_id);
+	//	text_msg->set_msgcontent(chat_data->content);
+	//	text_msg->set_msg_id(chat_data->message_id);
+	//	text_msg->set_chat_time(chat_data->chat_time);
+	//}
+	////发送通知 todo...
+	//LOG_DEBUG("Notify text chat msg via grpc - to_uid: " << touid << ", target_server: " << to_ip_value);
+	//ChatGrpcClient::GetInstance()->NotifyTextChatMsg(to_ip_value, text_msg_req, rtvalue);
+}
+
+void LogicSystem::VideoCallAccept(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	// 发起方 uid，当做房间号使用
+	auto caller_uid = root["caller_uid"].asInt();
+	// 通话 id，后续可以改成全局唯一字符串，这里先按 int 处理
+	auto call_id = root["call_id"].asString();
+
+	Json::Value  rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+
+	// 统一的响应：无论后面是否成功给对端发通知，先把当前端的响应发回去
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_CALL_ACCEPT_RSP);
+		});
+
+	// 查询 redis，获取发起方当前所在的 ChatServer 名称
+	auto to_str = std::to_string(caller_uid);
+	auto to_ip_key = USERIPPREFIX + to_str;
+	std::string to_ip_value;
+	bool b_ip = RedisMgr::GetInstance()->Get(to_ip_key, to_ip_value);
+	if (!b_ip)
+	{
+		LOG_DEBUG("Video Call Accept - target user offline, caller_uid: " << caller_uid);
+		rtvalue["error"] = ErrorCodes::UidInvalid;
+		return;
+	}
+
+	auto& cfg = ConfigMgr::Inst();
+	auto self_name = cfg["SelfServer"]["Name"];
+
+	// 只处理“对端在本机 ChatServer” 的简单情况
+	if (to_ip_value == self_name)
+	{
+		auto caller_session = UserMgr::GetInstance()->GetSession(caller_uid);
+		if (!caller_session)
+		{
+			LOG_DEBUG("Video Call Accept - caller session not found, caller_uid: " << caller_uid);
+			return;
+		}
+
+		// 组织给发起方的通知数据
+		rtvalue["error"] = ErrorCodes::Success;
+		rtvalue["call_id"] = call_id;
+		// 先用 caller_uid 作为 room_id，保证两端一致地 join 同一个房间
+		rtvalue["room_id"] = call_id;
+
+		// WebRTC 信令服务器（Node TurnServer）的 WebSocket 地址
+		// 建议放到配置文件中，这里先读取配置（如无则可以先写死调试）
+		auto turn_ws_url = cfg["TurnServer"] ["WsUrl"];
+		if (turn_ws_url.empty())
+		{
+			// 如果暂时没配置，则使用一个占位值，方便客户端调试
+			turn_ws_url = "ws://127.0.0.1:3000";
+		}
+		rtvalue["turn_ws_url"] = turn_ws_url;
+
+		// 组装 ICE 服务器配置，供客户端创建 WebRTC PeerConnection 使用
+		Json::Value ice_servers(Json::arrayValue);
+
+		// TURN 服务器（使用你在云服务器上部署的 coturn 配置）
+		Json::Value turn_server;
+		Json::Value turn_urls(Json::arrayValue);
+		// 这里的地址和端口来自 coturn：external-ip=47.113.108.95, listening-port=3478
+		turn_urls.append("turn:47.113.108.95:3478?transport=udp");
+		turn_urls.append("turn:47.113.108.95:3478?transport=tcp");
+		turn_server["urls"] = turn_urls;
+		// 对应 coturn 配置：user=webrtc:520zxq20050713
+		turn_server["username"] = "webrtc";
+		turn_server["credential"] = "520zxq20050713";
+		ice_servers.append(turn_server);
+
+		// 可选：再加一个 STUN，仅做连通性探测
+		Json::Value stun_server;
+		Json::Value stun_urls(Json::arrayValue);
+		stun_urls.append("stun:47.113.108.95:3478");
+		stun_server["urls"] = stun_urls;
+		ice_servers.append(stun_server);
+
+		rtvalue["ice_servers"] = ice_servers;
+
+		std::string rtvalue_str = rtvalue.toStyledString();
+		caller_session->Send(rtvalue_str, ID_CALL_ACCEPT_NOTIFY);
+		LOG_DEBUG("Notify Call Accept locally - caller_uid: " << caller_uid);
+		return;
+	}
+
+	// todo: 对端在其他 ChatServer 上时，通过 gRPC 转发 CALL_ACCEPT_NOTIFY
+	LOG_DEBUG("Video Call Accept - caller on remote server, caller_uid: " << caller_uid << ", target_server: " << to_ip_value);
+}
+
+void LogicSystem::VideoCallReject(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	auto call_id = root["call_id"].asString();
+	auto caller_uid = root["caller_uid"].asInt();
+	auto reason = root["reason"].asString();
+
+	Json::Value  rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_CALL_REJECT_RSP);
+		});
+
+	//查询redis 获取caller_uid对应的server ip
+	auto to_str = std::to_string(caller_uid);
+	auto to_ip_key = USERIPPREFIX + to_str;
+	std::string to_ip_value;
+	bool b_ip = RedisMgr::GetInstance()->Get(to_ip_key, to_ip_value);
+	if (!b_ip) {
+		LOG_DEBUG("Video Call Invite - target user offline, to_uid: " << caller_uid);
+		rtvalue["error"] = ErrorCodes::UidInvalid;
+		return;
+	}
+
+	auto& cfg = ConfigMgr::Inst();
+	auto self_name = cfg["SelfServer"]["Name"];
+	//直接通知对方认证通过的信息
+	if (to_ip_value == self_name) {
+		auto session = UserMgr::GetInstance()->GetSession(caller_uid);
+		if (session) {
+			//在内存中，直接发送通知对方
+			rtvalue["caller_uid"] = caller_uid;
+			rtvalue["call_id"] = call_id;
+			rtvalue["reason"] = reason;
+			std::string return_str = rtvalue.toStyledString();
+			session->Send(return_str, ID_CALL_REJECT_NOTIFY);
+			LOG_DEBUG("Notify Call Incoming locally - to_uid: " << caller_uid);
+		}
+		return;
+	}
+
+	//todo...不在同一个服务器，则通过grpc通知对应服务器发送文本消息
 }
 
 bool LogicSystem::isPureDigit(const std::string& str)

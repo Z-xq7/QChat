@@ -74,7 +74,21 @@ enum MSG_IDS {
 	ID_IMG_CHAT_MSG_RSP = 1036,			//图片聊天信息回复
 	ID_NOTIFY_IMG_CHAT_MSG_REQ = 1039,	//通知用户图片聊天信息
 	ID_FILE_INFO_SYNC_REQ = 1041,		//文件信息同步请求
-	ID_FILE_INFO_SYNC_RSP = 1042		//文件信息同步回复
+	ID_FILE_INFO_SYNC_RSP = 1042,		//文件信息同步回复
+
+	// 视频通话相关协议ID
+	ID_CALL_INVITE_REQ = 1050,        // 视频通话邀请请求
+	ID_CALL_INVITE_RSP = 1051,        // 视频通话邀请响应
+	ID_CALL_INCOMING_NOTIFY = 1052,   // 来电通知
+	ID_CALL_ACCEPT_REQ = 1053,        // 接受通话请求
+	ID_CALL_ACCEPT_RSP = 1054,        // 接受通话响应
+	ID_CALL_ACCEPT_NOTIFY = 1055,     // 接受通话通知
+	ID_CALL_REJECT_REQ = 1056,        // 拒绝通话请求
+	ID_CALL_REJECT_RSP = 1057,        // 拒绝通话响应
+	ID_CALL_REJECT_NOTIFY = 1058,     // 拒绝通话通知
+	ID_CALL_HANGUP_REQ = 1059,        // 挂断通话请求
+	ID_CALL_HANGUP_RSP = 1060,        // 挂断通话响应
+	ID_CALL_HANGUP_NOTIFY = 1061,      // 挂断通话通知
 };
 
 //消息状态

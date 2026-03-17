@@ -26,6 +26,8 @@ class TcpMgr:public QObject,public Singleton<TcpMgr>,public std::enable_shared_f
     friend class Singleton<TcpMgr>;
 public:
     ~TcpMgr();
+    // 用于连接VideoCallManager的初始化方法
+    void initializeVideoCallConnections();
     //关闭tcp连接
     void CloseConnection();
     //向服务器发送数据（封装sig_send_data信号）
@@ -107,6 +109,15 @@ signals:
     void sig_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
     //聊天图片变化->接收对方发来的图片消息
     void sig_img_chat_msg(std::shared_ptr<ImgChatData> msg_list);
+    
+    // 视频通话相关信号
+    void sig_call_incoming(int caller_uid, const QString& call_id, const QString& caller_name);
+    //接受对方视频请求
+    void sig_accept_call(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers);
+    //视频请求被对方接受
+    void sig_call_accepted(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers);
+    void sig_call_rejected(const QString& call_id, const QString& reason);
+    void sig_call_hangup(const QString& call_id);
 };
 
 #endif // TCPMGR_H

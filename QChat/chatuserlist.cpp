@@ -54,7 +54,6 @@ bool ChatUserList::eventFilter(QObject *watched, QEvent *event)
             //定时器100ms完成加载
             QTimer::singleShot(100, [this](){
                 _load_pending = false;
-                QCoreApplication::quit(); // 完成后退出应用程序
             });
             //发送信号通知聊天界面加载更多聊天内容
             emit sig_loading_chat_user();

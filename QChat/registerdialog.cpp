@@ -20,6 +20,54 @@ RegisterDialog::RegisterDialog(QWidget *parent)
     connect(_ani_timer, &QTimer::timeout, this, &RegisterDialog::updateAnimation);
     _ani_timer->start(50); // 每50ms更新一次动画，约20fps
 
+    // 设置整体样式
+    setStyleSheet(
+        "QDialog {"
+        "    background: transparent;"
+        "}"
+        "QLineEdit {"
+        "    border: 2px solid #d0d0d0;"
+        "    border-radius: 10px;"
+        "    padding: 0px 5px 0px 5px;"
+        "    background: rgba(255, 255, 255, 0.8);"
+        "    font-size: 12px;"
+        "}"
+        "QLineEdit:focus {"
+        "    border: 2px solid #ff69b4;"
+        "    background: rgba(255, 255, 255, 0.9);"
+        "}"
+        "QLabel {"
+        "    color: #333;"
+        "    font-weight: bold;"
+        "    font-size: 13px;"
+        "    background: transparent;"
+        "}"
+        "#err_tip[state='normal']{"
+        "color: green;"
+        "}"
+        "#err_tip[state='err']{"
+        "color: red;"
+        "}"
+        "QPushButton {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff69b4, stop:1 #d74177);"
+        "    border: none;"
+        "    border-radius: 10px;"
+        "    color: white;"
+        "    font-weight: bold;"
+        "    font-size: 14px;"
+        "    padding: 5px;"
+        "}"
+        "QPushButton:hover {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff7eb3, stop:1 #ff4f8b);"
+        "}"
+        "QPushButton:pressed {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #d74177, stop:1 #ff69b4);"
+        "}"
+        "QPushButton:disabled {"
+        "    background: #cccccc;"
+        "}"
+        );
+
     //设置错误提示状态
     ui->err_tip->setProperty("state","normal");
     //刷新错误提示
@@ -412,57 +460,51 @@ void RegisterDialog::updateBackground()
     // 创建与窗口大小相同的背景图片
     _bg_pixmap = QPixmap(size());
     _bg_pixmap.fill(Qt::transparent);
-    
+
     QPainter painter(&_bg_pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    
+
     // 获取窗口大小
     QRect rect = this->rect();
     int width = rect.width();
     int height = rect.height();
-    
-    // 绘制渐变色背景
+
+    // 绘制更美观的渐变色背景 - 粉紫色系
     QLinearGradient gradient(0, 0, width, height);
-    gradient.setColorAt(0, QColor(173, 216, 230, 180));  // 淡蓝色
-    gradient.setColorAt(0.5, QColor(135, 206, 250, 180)); // 天蓝色
-    gradient.setColorAt(1, QColor(70, 130, 180, 180));    // 钢蓝色
+    gradient.setColorAt(0, QColor(255, 182, 193, 200));  // 浅粉色
+    gradient.setColorAt(0.5, QColor(221, 160, 221, 200)); // 萝兰紫
+    gradient.setColorAt(1, QColor(176, 196, 222, 200));   // 钢蓝色
     painter.fillRect(rect, gradient);
-    
-    // 绘制动态波浪效果
-    QPainterPath wavePath;
-    wavePath.moveTo(0, static_cast<int>(height * 0.6 + qSin(_ani_offset * 0.1) * 20));
-    
-    for (int x = 0; x <= width; x += 20) {
-        wavePath.lineTo(x, static_cast<int>(height * 0.6 + qSin((_ani_offset + x) * 0.05) * 20));
+
+    // 绘制动态装饰效果 - 细线网格
+    painter.setPen(QColor(255, 255, 255, 40));
+    // 垂直线
+    for (int x = 0; x < width; x += 30) {
+        int offset = static_cast<int>(qSin(_ani_offset * 0.05 + x * 0.1) * 10);
+        painter.drawLine(x, 0, x + offset, height);
     }
-    
-    wavePath.lineTo(width, height);
-    wavePath.lineTo(0, height);
-    wavePath.closeSubpath();
-    
-    painter.setBrush(QColor(255, 255, 255, 30)); // 半透明白色
-    painter.setPen(Qt::NoPen);
-    painter.drawPath(wavePath);
-    
-    // 绘制漂浮圆点
-    painter.setPen(QColor(255, 255, 255, 80));
-    painter.setBrush(QColor(255, 255, 255, 80));
-    
-    // 圆点1
-    int x1 = static_cast<int>(qSin(_ani_offset * 0.02) * 50 + width / 3) % width;
-    int y1 = static_cast<int>(qCos(_ani_offset * 0.02) * 30 + height / 4) % height;
-    painter.drawEllipse(x1, y1, 15, 15);
-    
-    // 圆点2
-    int x2 = static_cast<int>(qCos(_ani_offset * 0.03) * 70 + 2 * width / 3) % width;
-    int y2 = static_cast<int>(qSin(_ani_offset * 0.03) * 40 + 2 * height / 3) % height;
-    painter.drawEllipse(x2, y2, 20, 20);
-    
-    // 圆点3
-    int x3 = static_cast<int>(qSin(_ani_offset * 0.015) * 60 + width / 2) % width;
-    int y3 = static_cast<int>(qCos(_ani_offset * 0.015) * 50 + height / 2) % height;
-    painter.drawEllipse(x3, y3, 12, 12);
-    
+    // 水平线
+    for (int y = 0; y < height; y += 30) {
+        int offset = static_cast<int>(qCos(_ani_offset * 0.05 + y * 0.1) * 10);
+        painter.drawLine(0, y, width, y + offset);
+    }
+
+    // 绘制漂浮粒子效果
+    for (int i = 0; i < 5; ++i) {
+        int size = 8 + (i % 3); // 不同大小
+        int speed = 1 + (i % 3); // 不同速度
+        int x = static_cast<int>(qSin(_ani_offset * 0.02 * speed + i) * (width / 4) + width / 2);
+        int y = static_cast<int>(qCos(_ani_offset * 0.02 * speed + i) * (height / 4) + height / 2);
+
+        QRadialGradient particleGradient(x, y, size);
+        particleGradient.setColorAt(0, QColor(255, 255, 255, 100));
+        particleGradient.setColorAt(1, QColor(255, 255, 255, 0));
+
+        painter.setBrush(particleGradient);
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(x - size/2, y - size/2, size, size);
+    }
+
     // 刷新显示
     update();
 }

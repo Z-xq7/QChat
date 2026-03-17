@@ -4,6 +4,8 @@
 #include <QWidget>
 #include "userdata.h"
 #include <QLabel>
+#include "videocallwindow.h"
+#include "videocallmanager.h"
 
 namespace Ui {
 class FriendInfoPage;
@@ -22,8 +24,18 @@ public:
 private slots:
     void on_msg_chat_clicked();
 
+    void on_video_chat_clicked();
+    
+    // 视频通话管理器信号处理槽函数
+    void onIncomingCall(int caller_uid, const QString& call_id, const QString& caller_name);
+    void onCallAccepted(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers);
+    void onCallRejected(const QString& call_id, const QString& reason);
+    void onCallHangup(const QString& call_id);
+    void onCallStateChanged(VideoCallState new_state);
+
 private:
-    Ui::FriendInfoPage *ui;
+    Ui::FriendInfoPage* ui;
+    VideoCallWindow* video_window;
     std::shared_ptr<UserInfo> _user_info;
 
 signals:

@@ -4,15 +4,29 @@
 #include <QStandardPaths>
 #include "usermgr.h"
 #include "filetcpmgr.h"
+#include "tcpmgr.h"
+#include <QMessageBox>
 
 FriendInfoPage::FriendInfoPage(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::FriendInfoPage),_user_info(nullptr)
+    ui(new Ui::FriendInfoPage), _user_info(nullptr)
 {
     ui->setupUi(this);
     ui->msg_chat->SetState("normal","hover","press");
     ui->video_chat->SetState("normal","hover","press");
     ui->voice_chat->SetState("normal","hover","press");
+    
+    // 连接视频通话管理器信号
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigIncomingCall,
+            this, &FriendInfoPage::onIncomingCall);
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigCallAccepted,
+            this, &FriendInfoPage::onCallAccepted);
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigCallRejected,
+            this, &FriendInfoPage::onCallRejected);
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigCallHangup,
+            this, &FriendInfoPage::onCallHangup);
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigCallStateChanged,
+            this, &FriendInfoPage::onCallStateChanged);
 }
 
 FriendInfoPage::~FriendInfoPage()
@@ -86,13 +100,13 @@ void FriendInfoPage::SetInfo(std::shared_ptr<UserInfo> user_info)
 
 void FriendInfoPage::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QString file_name, QString req_type)
 {
-    UserMgr::GetInstance()->AddLabelToReset(avatarPath, ui->icon_lb);
+    UserMgr::GetInstance()->AddLabelToReset(avatarPath, icon_label);
     //先加载默认的
     QPixmap pixmap(":/images/head_default.png");
     QPixmap scaledPixmap = pixmap.scaled(ui->icon_lb->size(),
                                          Qt::KeepAspectRatio, Qt::SmoothTransformation); // 将图片缩放到label的大小
-    ui->icon_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
-    ui->icon_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
+    icon_label->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
+    icon_label->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
 
     //判断是否正在下载
     bool is_loading = UserMgr::GetInstance()->IsDownLoading(file_name);
@@ -119,3 +133,91 @@ void FriendInfoPage::on_msg_chat_clicked()
     qDebug() << "[FriendInfoPage]: --- msg chat btn clicked ---";
     emit sig_jump_chat_item(_user_info);
 }
+
+void FriendInfoPage::on_video_chat_clicked()
+{
+    qDebug() << "[FriendInfoPage]: --- video chat btn clicked ---";
+    
+    if (!_user_info) {
+        qDebug() << "[FriendInfoPage]: User info is null, cannot start video call";
+        return;
+    }
+    
+    // 设置好友信息到视频通话管理器
+    VideoCallManager::GetInstance()->setFriendInfo(_user_info);
+    
+    // 启动视频通话
+    VideoCallManager::GetInstance()->startCall(_user_info->_uid);
+    
+    // 也可以显示一个等待界面
+    video_window = new VideoCallWindow();
+    video_window->setUserInfo(_user_info->_nick, _user_info->_uid);
+    video_window->show();
+}
+
+// 视频通话管理器信号处理槽函数
+void FriendInfoPage::onIncomingCall(int caller_uid, const QString& call_id, const QString& caller_name)
+{
+    qDebug() << "[FriendInfoPage]: Incoming call from" << caller_uid << caller_name;
+    
+    // 在这里可以显示来电弹窗
+    // 通常在主窗口或聊天窗口中处理来电，而不是在好友信息页
+    // 可以通过信号将事件传递给主窗口处理
+    // 显示视频通话窗口
+    video_window = new VideoCallWindow();
+    video_window->show();
+}
+
+void FriendInfoPage::onCallAccepted(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers)
+{
+    qDebug() << "[FriendInfoPage]: Call accepted, room_id:" << room_id;
+    
+    // 显示视频通话窗口
+    if (!video_window) {
+        video_window = new VideoCallWindow();
+        video_window->show();
+    }
+    
+    video_window->raise();
+    video_window->activateWindow();
+}
+
+void FriendInfoPage::onCallRejected(const QString& call_id, const QString& reason)
+{
+    qDebug() << "[FriendInfoPage]: Call rejected, reason:" << reason;
+    // 可以显示通知给用户
+    //使用静态方法直接弹出一个信息框
+    QMessageBox::information(this,"视频通话","对方拒绝接听！");
+    // 通话被拒绝，关闭视频窗口
+    if (video_window) {
+        video_window->close();
+        video_window = nullptr;
+    }
+}
+
+void FriendInfoPage::onCallHangup(const QString& call_id)
+{
+    qDebug() << "[FriendInfoPage]: Call hangup";
+    // 通话结束，可以关闭视频窗口
+    if (video_window) {
+        video_window->close();
+        video_window = nullptr;
+    }
+}
+
+void FriendInfoPage::onCallStateChanged(VideoCallState new_state)
+{
+    qDebug() << "[FriendInfoPage]: Call state changed to:" << static_cast<int>(new_state);
+    // 根据状态更新UI
+    switch (new_state) {
+        case VideoCallState::Idle:
+            break;
+        case VideoCallState::Ringing:
+            break;
+        case VideoCallState::Connecting:
+            break;
+        case VideoCallState::InCall:
+            break;
+    }
+}
+

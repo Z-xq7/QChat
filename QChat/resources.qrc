@@ -59,5 +59,11 @@
         <file>images/send_fail.png</file>
         <file>images/unread.png</file>
         <file>images/loading2.gif</file>
+        <file>images/close2.png</file>
+        <file>images/maxsize.png</file>
+        <file>images/minsize.png</file>
+        <file>images/leave.png</file>
+        <file>images/video.png</file>
+        <file>images/voice.png</file>
     </qresource>
 </RCC>

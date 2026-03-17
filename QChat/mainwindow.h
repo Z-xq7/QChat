@@ -11,11 +11,14 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QVBoxLayout>
+#include <QWidget>
 #include "logindialog.h"
 #include "registerdialog.h"
 #include "resetdialog.h"
 #include "chatdialog.h"
 #include "tcpmgr.h"
+#include "titlebar.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -39,9 +42,14 @@ public:
 
 private:
     void offlineLogin();        //由SlotOffline调用退回到登录页面
+    void setupCustomTitleBar(); // 设置自定义标题栏
+    void setupMainLayout();     // 设置主布局
 
 private:
     Ui::MainWindow *ui;
+    TitleBar* _title_bar;       // 自定义标题栏
+    QWidget* _mainWidget;       // 主内容widget
+    QVBoxLayout* _mainLayout;   // 主垂直布局
     LoginDialog* _login_dlg;
     RegisterDialog* _reg_dlg;
     ResetDialog* _reset_dlg;

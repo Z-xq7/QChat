@@ -1,4 +1,4 @@
-QT       += core gui network
+QT       += core gui network websockets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -31,6 +31,7 @@ SOURCES += \
     contactuserlist.cpp \
     conuseritem.cpp \
     customizeedit.cpp \
+    cute_pet_widget.cpp \
     filetcpmgr.cpp \
     findfaildlg.cpp \
     findsuccessdialog.cpp \
@@ -40,6 +41,7 @@ SOURCES += \
     grouptipitem.cpp \
     httpmgr.cpp \
     imagecropperlabel.cpp \
+    incomingcalldialog.cpp \
     listitembase.cpp \
     loadingdialog.cpp \
     logindialog.cpp \
@@ -54,9 +56,14 @@ SOURCES += \
     tcpmgr.cpp \
     textbubble.cpp \
     timerbtn.cpp \
+    titlebar.cpp \
     userdata.cpp \
     userinfopage.cpp \
-    usermgr.cpp
+    usermgr.cpp \
+    videocallmanager.cpp \
+    videocallwindow.cpp \
+    qvideooutputwidget.cpp \
+    YangRtcWrapper.cpp
 
 HEADERS += \
     adduseritem.h \
@@ -79,6 +86,7 @@ HEADERS += \
     contactuserlist.h \
     conuseritem.h \
     customizeedit.h \
+    cute_pet_widget.h \
     filetcpmgr.h \
     findfaildlg.h \
     findsuccessdialog.h \
@@ -89,6 +97,7 @@ HEADERS += \
     httpmgr.h \
     imagecropperdialog.h \
     imagecropperlabel.h \
+    incomingcalldialog.h \
     listitembase.h \
     loadingdialog.h \
     logindialog.h \
@@ -103,9 +112,14 @@ HEADERS += \
     tcpmgr.h \
     textbubble.h \
     timerbtn.h \
+    titlebar.h \
     userdata.h \
     userinfopage.h \
-    usermgr.h
+    usermgr.h \
+    qvideooutputwidget.h \
+    videocallmanager.h \
+    videocallwindow.h \
+    YangRtcWrapper.h
 
 FORMS += \
     adduseritem.ui \
@@ -127,7 +141,9 @@ FORMS += \
     mainwindow.ui \
     registerdialog.ui \
     resetdialog.ui \
-    userinfopage.ui
+    userinfopage.ui \
+    videocallwindow.ui \
+    videocallwindow2.ui
 
 TRANSLATIONS += \
     QChat_zh_CN.ts
@@ -218,3 +234,41 @@ win32-msvc*:QMAKE_CXXFLAGS += /wd"4819" /utf-8
 
 # 修复 Qt 6 入口点库链接问题
 win32-g++:LIBS += -Wl,--subsystem,windows -lmingw32
+
+
+
+# 添加对metartc库的兼容性设置
+win32-g++:DEFINES += _GLIBCXX_USE_C99=0
+
+# 添加Windows网络库链接，解决inet_ntoa等网络函数的链接错误
+win32:LIBS += -lws2_32 -lwsock32 -liphlpapi -lcrypt32 -ladvapi32 -luser32 -lgdi32 -lole32 -loleaut32 -luuid -lcomdlg32 -lcomctl32
+
+# 添加IP Helper库链接，解决GetAdaptersAddresses等函数的链接错误
+win32:LIBS += -liphlpapi
+
+# 添加openssl库路径
+INCLUDEPATH += "E:/VS_QChat/thirdparty/openssl/include"
+
+# 添加OpenSSL库链接，解决SSL_get_ex_data、EVP_sha512等加密函数的链接错误
+ win32:LIBS += -L"E:/VS_QChat/thirdparty/openssl/bin/" -lssl -lcrypto
+
+# 添加srtp库路径
+INCLUDEPATH += "E:/VS_QChat/thirdparty/srtp/include"
+
+# 添加SRTP库链接，解决srtp_create等函数的链接错误
+ win32:LIBS += -L"E:/VS_QChat/thirdparty/srtp/bin/" -lsrtp2
+
+# 添加usrsctp库路径
+INCLUDEPATH += "E:/VS_QChat/thirdparty/usrsctp/include"
+
+# 添加SCTP库链接，解决usrsctp_setsockopt等函数的链接错误
+ win32:LIBS += -L"E:/VS_QChat/thirdparty/usrsctp/bin/" -lusrsctp
+
+# 添加metartc库路径（使用绝对路径）
+INCLUDEPATH += "E:/VS_QChat/thirdparty/metartc/include"
+
+# 将所有metartc相关的库放在一起，按正确的依赖顺序链接
+win32: LIBS += -L"E:/VS_QChat/thirdparty/metartc/bin/" -lmetartc7d -lyangwincodec7 -lmetartccore7 -lssl -lcrypto -lsrtp2 -lusrsctp -lws2_32 -lwsock32 -liphlpapi -lcrypt32 -ladvapi32 -luser32 -lgdi32 -lole32 -loleaut32 -luuid -lcomdlg32 -lcomctl32
+
+
+

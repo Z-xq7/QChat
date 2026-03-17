@@ -8,6 +8,7 @@
 #include <QFile>
 #include "filetcpmgr.h"
 #include <QStandardPaths>
+#include "videocallmanager.h"
 
 TcpThread::TcpThread()
 {
@@ -15,6 +16,7 @@ TcpThread::TcpThread()
     TcpMgr::GetInstance()->moveToThread(_tcp_thread);
     QObject::connect(_tcp_thread, &QThread::finished, _tcp_thread, &QObject::deleteLater);
     _tcp_thread->start();
+    qDebug() << "[TcpThread]: Init Success!";
 }
 
 TcpThread::~TcpThread()
@@ -133,6 +135,25 @@ TcpMgr::TcpMgr():_host(""),_port(0),_b_recv_pending(false),_message_id(0),_messa
 
     //注册消息处理
     initHandlers();
+
+    qDebug() << "[TcpMgr]: Init Success!";
+}
+
+void TcpMgr::initializeVideoCallConnections()
+{
+    // 连接视频通话相关信号到VideoCallManager
+    connect(this, &TcpMgr::sig_call_incoming,
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallIncoming);
+    connect(this, &TcpMgr::sig_accept_call,
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleAcceptCall);
+    connect(this, &TcpMgr::sig_call_accepted,
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallAccept);
+    connect(this, &TcpMgr::sig_call_rejected,
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallReject);
+    connect(this, &TcpMgr::sig_call_hangup,
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallHangup);
+
+    qDebug() << "[TcpMgr]: VideoCallManager connections initialized";
 }
 
 void TcpMgr::registerMetaType() {
@@ -161,6 +182,9 @@ void TcpMgr::registerMetaType() {
     qRegisterMetaType<ReqId>("ReqId");
     qRegisterMetaType<std::shared_ptr<ImgChatData>>("std::shared_ptr<ImgChatData>");
     qRegisterMetaType<std::vector<std::shared_ptr<ChatDataBase>>>("std::vector<std::shared_ptr<ChatDataBase>>");
+    
+    // 注册视频通话相关类型
+    qRegisterMetaType<VideoCallState>("VideoCallState");
 }
 
 void TcpMgr::CloseConnection(){
@@ -859,7 +883,7 @@ void TcpMgr::initHandlers()
 
         // 检查转换是否成功
         if (jsonDoc.isNull()) {
-            qDebug() << "[TcpMgr]: Failed to create QJsonDocument.";
+            qDebug() << "[TcpMgr]: Failed to create QJsonDocument";
             return;
         }
 
@@ -973,6 +997,176 @@ void TcpMgr::initHandlers()
         auto send_data = doc.toJson();
         FileTcpMgr::GetInstance()->SendData(ID_IMG_CHAT_DOWN_REQ, send_data);
     });
+    
+    // 注册视频通话邀请请求处理
+    _handlers.insert(ID_CALL_INVITE_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call invite rsp, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_INVITE_RSP JSON";
+            return;
+        }
+        
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error")) {
+            qDebug() << "[TcpMgr]: CALL_INVITE_RSP JSON Parse Err";
+            return;
+        }
+        
+        int err = jsonObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_INVITE_RSP Failed, err: " << err;
+            // todo...可以在这里处理错误，例如通知用户对方不在线等
+            return;
+        }
+        
+        // 如果需要通知UI层邀请发送成功，可以发出信号
+        qDebug() << "[TcpMgr]: Call invite sent successfully";
+    });
+    
+    // 注册来电通知处理
+    _handlers.insert(ID_CALL_INCOMING_NOTIFY, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call incoming notify, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_INCOMING_NOTIFY JSON";
+            return;
+        }
+        
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_INCOMING_NOTIFY Parse Err or Failed";
+            return;
+        }
+        
+        int caller_uid = jsonObj["caller_uid"].toInt();
+        QString call_id = jsonObj["call_id"].toString();
+        QString caller_nick = jsonObj["caller_nick"].toString();
+        
+        // 发送信号到UI层处理来电
+        emit sig_call_incoming(caller_uid, call_id, caller_nick);
+        qDebug() << "[TcpMgr]: Incoming call from user" << caller_uid << ", nick:" << caller_nick;
+    });
+
+    // 注册通话接受服务器回包
+    _handlers.insert(ID_CALL_ACCEPT_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call accept notify, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_ACCEPT_NOTIFY JSON";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_ACCEPT_RSP Parse Err or Failed";
+            return;
+        }
+
+        QString call_id = jsonObj["call_id"].toString();
+        QString room_id = jsonObj["room_id"].toString();
+        QString turn_ws_url = jsonObj["turn_ws_url"].toString();
+        QJsonArray ice_servers = jsonObj["ice_servers"].toArray();
+
+        // 发送信号到UI层处理通话接受
+        emit sig_accept_call(call_id, room_id, turn_ws_url, ice_servers);
+        qDebug() << "[TcpMgr]: Call accepted, room:" << room_id;
+    });
+    
+    // 注册通话接受通知处理
+    _handlers.insert(ID_CALL_ACCEPT_NOTIFY, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call accept notify, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_ACCEPT_NOTIFY JSON";
+            return;
+        }
+        
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_ACCEPT_NOTIFY Parse Err or Failed";
+            return;
+        }
+        
+        QString call_id = jsonObj["call_id"].toString();
+        QString room_id = jsonObj["room_id"].toString();
+        QString turn_ws_url = jsonObj["turn_ws_url"].toString();
+        QJsonArray ice_servers = jsonObj["ice_servers"].toArray();
+        
+        // 发送信号到UI层处理通话接受
+        emit sig_call_accepted(call_id, room_id, turn_ws_url, ice_servers);
+        qDebug() << "[TcpMgr]: Call accepted, room:" << room_id;
+    });
+
+    // 注册通话接受服务器回包
+    _handlers.insert(ID_CALL_REJECT_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call REJECT_RSP, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_REJECT_RSP JSON";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_REJECT_RSP Parse Err or Failed";
+            return;
+        }
+
+        qDebug() << "[TcpMgr]: Reject Call Success!";
+    });
+    
+    // 注册通话拒绝通知处理
+    _handlers.insert(ID_CALL_REJECT_NOTIFY, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call reject notify, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_REJECT_NOTIFY JSON";
+            return;
+        }
+        
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_REJECT_NOTIFY Parse Err or Failed";
+            return;
+        }
+        
+        QString call_id = jsonObj["call_id"].toString();
+        QString reason = jsonObj["reason"].toString();
+        
+        // 发送信号到UI层处理通话拒绝
+        emit sig_call_rejected(call_id, reason);
+        qDebug() << "[TcpMgr]: Call rejected, reason:" << reason;
+    });
+    
+    // 注册通话挂断通知处理
+    _handlers.insert(ID_CALL_HANGUP_NOTIFY, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle call hangup notify, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CALL_HANGUP_NOTIFY JSON";
+            return;
+        }
+        
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: CALL_HANGUP_NOTIFY Parse Err or Failed";
+            return;
+        }
+        
+        QString call_id = jsonObj["call_id"].toString();
+        
+        // 发送信号到UI层处理通话挂断
+        emit sig_call_hangup(call_id);
+        qDebug() << "[TcpMgr]: Call hangup received";
+    });
 }
 
 void TcpMgr::handleMsg(ReqId id, int len, QByteArray data)
@@ -1066,12 +1260,3 @@ void TcpMgr::slot_send_data(ReqId reqId, QByteArray dataBytes)
     _socket.write(_current_block);
     qDebug() << "[TcpMgr]: tcp mgr send byte data is " << block ;
 }
-
-
-
-
-
-
-
-
-
