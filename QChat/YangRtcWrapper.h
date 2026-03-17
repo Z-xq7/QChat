@@ -26,8 +26,8 @@ extern "C" {
 #include <yangutil/buffer/YangAudioBuffer.h>
 #include <yangutil/sys/YangSysMessage.h>
 #include <yangutil/sys/YangThread2.h>
-#include <yangpush/YangPushMessageHandle.h>
-#include <yangpush/YangPushHandleImpl.h>
+#include "../yangpush/YangPushMessageHandle.h"
+#include "../yangpush/YangPushHandleImpl.h"
 #include <yangpush/YangRtcPublish.h>
 
 // 定义RTC连接状态枚举
@@ -139,6 +139,8 @@ private:
     YangPushMessageHandle* m_pushMsgHandle;
     YangPushHandleImpl* m_pushHandle;
     YangRtcPublish* m_rtcPublish;
+    bool m_localStreamNotified;
+    bool m_remoteStreamNotified;
 
     // 用于在回调中访问实例的静态映射
     static QHash<void*, YangRtcWrapper*> s_wrapperMap;

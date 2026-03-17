@@ -304,7 +304,9 @@ void VideoCallManager::handleSignalingMessage(const QString &type,
                                               const QString &sdpMid,
                                               bool isInitiator)
 {
-    if (type == "joined" || type == "ready") {
+    if (type == "joined") {
+        qDebug() << "[VideoCallManager]: Joined room, waiting for ready";
+    } else if (type == "ready") {
         if (isInitiator) {
             QString offerSdp = createOffer();
             if (!offerSdp.isEmpty()) {
@@ -435,8 +437,11 @@ void VideoCallManager::handleAcceptCall(const QString &call_id,
     if (_rtcWrapper) {
         _rtcWrapper->initRtcConnection(_turn_ws_url);
         _rtcWrapper->configureIceServers(_ice_servers);
-        _rtcWrapper->addAudioTrack();
-        _rtcWrapper->addVideoTrack();
+        if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
+            emit sigError("初始化音视频轨道失败");
+            endCall();
+            return;
+        }
     }
 
     if (_signaling_socket && _signaling_socket->state() == QAbstractSocket::UnconnectedState && !_turn_ws_url.isEmpty()) {
@@ -478,8 +483,11 @@ void VideoCallManager::handleCallAccept(const QString &call_id,
     if (_rtcWrapper) {
         _rtcWrapper->initRtcConnection(_turn_ws_url);
         _rtcWrapper->configureIceServers(_ice_servers);
-        _rtcWrapper->addAudioTrack();
-        _rtcWrapper->addVideoTrack();
+        if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
+            emit sigError("初始化音视频轨道失败");
+            endCall();
+            return;
+        }
     }
 
     if (_signaling_socket && _signaling_socket->state() == QAbstractSocket::UnconnectedState && !_turn_ws_url.isEmpty()) {
