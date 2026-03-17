@@ -9,6 +9,10 @@
 #include "usermgr.h"
 #include "YangRtcWrapper.h"
 
+namespace {
+const char* kMediaTrackInitError = "初始化音视频轨道失败";
+}
+
 VideoCallManager::VideoCallManager()
     : _state(VideoCallState::Idle)
     , _current_call_id("")
@@ -438,7 +442,7 @@ void VideoCallManager::handleAcceptCall(const QString &call_id,
         _rtcWrapper->initRtcConnection(_turn_ws_url);
         _rtcWrapper->configureIceServers(_ice_servers);
         if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
-            emit sigError("初始化音视频轨道失败");
+            emit sigError(kMediaTrackInitError);
             endCall();
             return;
         }
@@ -484,7 +488,7 @@ void VideoCallManager::handleCallAccept(const QString &call_id,
         _rtcWrapper->initRtcConnection(_turn_ws_url);
         _rtcWrapper->configureIceServers(_ice_servers);
         if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
-            emit sigError("初始化音视频轨道失败");
+            emit sigError(kMediaTrackInitError);
             endCall();
             return;
         }

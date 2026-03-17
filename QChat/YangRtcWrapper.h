@@ -28,7 +28,7 @@ extern "C" {
 #include <yangutil/sys/YangThread2.h>
 #include "../yangpush/YangPushMessageHandle.h"
 #include "../yangpush/YangPushHandleImpl.h"
-#include <yangpush/YangRtcPublish.h>
+#include "../thirdparty/metartc/include/yangpush/YangRtcPublish.h"
 
 // 定义RTC连接状态枚举
 enum class YangRtcState {

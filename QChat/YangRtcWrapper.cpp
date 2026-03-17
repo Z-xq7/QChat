@@ -324,13 +324,11 @@ int32_t YangRtcWrapper::onVideoFrame(YangPeer* peer, YangFrame *videoFrame)
     const int format = (wrapper->m_avInfo.video.videoEncoderFormat == YangI420) ? 1 : 0;
     const QByteArray frameCopy(reinterpret_cast<const char*>(videoFrame->payload), videoFrame->nb);
 
-    if (wrapper->m_localVideoCallback) {
-        QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
-            if (wrapper->m_localVideoCallback) {
-                wrapper->m_localVideoCallback(frameCopy, width, height, format);
-            }
-        }, Qt::QueuedConnection);
-    }
+    QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
+        if (wrapper->m_localVideoCallback) {
+            wrapper->m_localVideoCallback(frameCopy, width, height, format);
+        }
+    }, Qt::QueuedConnection);
     if (!wrapper->m_localStreamNotified) {
         wrapper->m_localStreamNotified = true;
         QMetaObject::invokeMethod(wrapper, [wrapper]() {
@@ -372,13 +370,11 @@ void YangRtcWrapper::onRecvVideoFrame(void* context, YangFrame *videoFrame)
     QByteArray frameCopy(reinterpret_cast<const char*>(videoFrame->payload),
                          videoFrame->nb);
 
-    if (wrapper->m_remoteVideoCallback) {
-        QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
-            if (wrapper->m_remoteVideoCallback) {
-                wrapper->m_remoteVideoCallback(frameCopy, width, height, format);
-            }
-        }, Qt::QueuedConnection);
-    }
+    QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
+        if (wrapper->m_remoteVideoCallback) {
+            wrapper->m_remoteVideoCallback(frameCopy, width, height, format);
+        }
+    }, Qt::QueuedConnection);
     if (!wrapper->m_remoteStreamNotified) {
         wrapper->m_remoteStreamNotified = true;
         QMetaObject::invokeMethod(wrapper, [wrapper]() {
@@ -409,9 +405,8 @@ void YangRtcWrapper::initCaptureAndPublish()
 
     if (!m_rtcPublish) {
         m_rtcPublish = new YangRtcPublish(m_ctx);
-        if (m_rtcPublish && !m_rtcPublish->m_isStart) {
+        if (!m_rtcPublish->m_isStart) {
             m_rtcPublish->start();
-            m_rtcPublish->m_isStart = 1;
         }
     }
 
