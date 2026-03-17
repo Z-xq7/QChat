@@ -18,6 +18,8 @@ YangRtcWrapper::YangRtcWrapper(QObject *parent)
     , m_pushMsgHandle(nullptr)
     , m_pushHandle(nullptr)
     , m_rtcPublish(nullptr)
+    , m_localStreamNotified(false)
+    , m_remoteStreamNotified(false)
 {
     // 初始化 AV 信息
     yang_init_avinfo(&m_avInfo);
@@ -127,6 +129,8 @@ bool YangRtcWrapper::initRtcConnection(const QString &serverUrl, int localPort)
     }
 
     m_serverUrl = serverUrl;
+    m_localStreamNotified = false;
+    m_remoteStreamNotified = false;
 
     if (localPort > 0) {
         m_avInfo.rtc.rtcLocalPort = localPort;
@@ -306,8 +310,32 @@ int32_t YangRtcWrapper::onAudioFrame(YangPeer* peer, YangFrame *audioFrame)
 
 int32_t YangRtcWrapper::onVideoFrame(YangPeer* peer, YangFrame *videoFrame)
 {
-    Q_UNUSED(peer);
-    Q_UNUSED(videoFrame);
+    if (!peer || !videoFrame || !videoFrame->payload || videoFrame->nb <= 0) {
+        return Yang_Ok;
+    }
+
+    YangRtcWrapper* wrapper = s_wrapperMap.value(peer, nullptr);
+    if (!wrapper) {
+        return Yang_Ok;
+    }
+
+    const int width = wrapper->m_avInfo.video.width;
+    const int height = wrapper->m_avInfo.video.height;
+    const int format = (wrapper->m_avInfo.video.videoEncoderFormat == YangI420) ? 1 : 0;
+    const QByteArray frameCopy(reinterpret_cast<const char*>(videoFrame->payload), videoFrame->nb);
+
+    QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
+        if (wrapper->m_localVideoCallback) {
+            wrapper->m_localVideoCallback(frameCopy, width, height, format);
+        }
+    }, Qt::QueuedConnection);
+    if (!wrapper->m_localStreamNotified) {
+        wrapper->m_localStreamNotified = true;
+        QMetaObject::invokeMethod(wrapper, [wrapper]() {
+            emit wrapper->sigLocalStreamReady();
+        }, Qt::QueuedConnection);
+    }
+
     return Yang_Ok;
 }
 
@@ -342,8 +370,16 @@ void YangRtcWrapper::onRecvVideoFrame(void* context, YangFrame *videoFrame)
     QByteArray frameCopy(reinterpret_cast<const char*>(videoFrame->payload),
                          videoFrame->nb);
 
-    if (wrapper->m_remoteVideoCallback) {
-        wrapper->m_remoteVideoCallback(frameCopy, width, height, format);
+    QMetaObject::invokeMethod(wrapper, [wrapper, frameCopy, width, height, format]() {
+        if (wrapper->m_remoteVideoCallback) {
+            wrapper->m_remoteVideoCallback(frameCopy, width, height, format);
+        }
+    }, Qt::QueuedConnection);
+    if (!wrapper->m_remoteStreamNotified) {
+        wrapper->m_remoteStreamNotified = true;
+        QMetaObject::invokeMethod(wrapper, [wrapper]() {
+            emit wrapper->sigRemoteStreamReady();
+        }, Qt::QueuedConnection);
     }
 }
 
@@ -369,9 +405,8 @@ void YangRtcWrapper::initCaptureAndPublish()
 
     if (!m_rtcPublish) {
         m_rtcPublish = new YangRtcPublish(m_ctx);
-        // 让编码输出喂给当前 PeerConnection
-        if (m_ctx->streams) {
-            m_ctx->streams->setSendRequestCallback(nullptr);
+        if (!m_rtcPublish->m_isStart) {
+            m_rtcPublish->start();
         }
     }
 
