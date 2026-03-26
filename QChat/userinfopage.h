@@ -17,6 +17,9 @@ public:
     ~UserInfoPage();
     void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
 private slots:
     //void on_up_btn_clicked();
     void slot_up_load();

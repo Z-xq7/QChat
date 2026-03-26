@@ -15,6 +15,8 @@ ApplyFriendPage::ApplyFriendPage(QWidget *parent)
     , ui(new Ui::ApplyFriendPage)
 {
     ui->setupUi(this);
+    this->setObjectName("friend_apply_page");
+    this->setAttribute(Qt::WA_StyledBackground); // 确保子窗口能够正确继承样式
 
     connect(ui->apply_friend_list, &ApplyFriendList::sig_show_search, this, &ApplyFriendPage::sig_show_search);
     //加载好友申请列表
@@ -26,6 +28,15 @@ ApplyFriendPage::ApplyFriendPage(QWidget *parent)
 ApplyFriendPage::~ApplyFriendPage()
 {
     delete ui;
+}
+
+void ApplyFriendPage::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+    QStyleOption opt;
+    opt.initFrom(this);
+    QPainter p(this);
+    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
 void ApplyFriendPage::AddNewApply(std::shared_ptr<AddFriendApply> apply)
@@ -52,14 +63,6 @@ void ApplyFriendPage::AddNewApply(std::shared_ptr<AddFriendApply> apply)
         authFriend->SetApplyInfo(apply_info);
         authFriend->show();
     });
-}
-
-void ApplyFriendPage::paintEvent(QPaintEvent *event)
-{
-    QStyleOption opt;
-    opt.initFrom(this);
-    QPainter p(this);
-    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
 void ApplyFriendPage::loadApplyList()

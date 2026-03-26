@@ -1,6 +1,8 @@
 #include "picturebubble.h"
 #include <QLabel>
 #include <QTimer>
+#include <QDir>
+#include <QFileInfo>
 
 #define PIC_MAX_WIDTH 240
 #define PIC_MAX_HEIGHT 135
@@ -22,6 +24,7 @@ PictureBubble::PictureBubble(const QPixmap &picture, ChatRole role, int total, Q
     // 创建可点击的图片标签
     m_picLabel = new ClickableLabel();
     m_picLabel->setScaledContents(true);
+    m_previewPix = picture;
     QPixmap pix = picture.scaled(QSize(PIC_MAX_WIDTH, PIC_MAX_HEIGHT),
                                  Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
@@ -199,6 +202,9 @@ void PictureBubble::setDownloadFinish(std::shared_ptr<MsgInfo> msg, QString file
     m_progressBar->setValue(100);
     setState(TransferState::Completed);
     auto picture = QPixmap(file_path);
+    if (!picture.isNull()) {
+        m_previewPix = picture;
+    }
     QPixmap pix = picture.scaled(QSize(PIC_MAX_WIDTH, PIC_MAX_HEIGHT),
                                  Qt::KeepAspectRatio, Qt::SmoothTransformation);
     m_pixmapSize = pix.size();
@@ -215,6 +221,25 @@ void PictureBubble::onPictureClicked()
     }
 
     switch (m_state) {
+    case TransferState::Completed:
+    case TransferState::None:
+    {
+        QString filePath;
+        if (!_msg_info->_text_or_url.isEmpty()) {
+            QFileInfo fi(_msg_info->_text_or_url);
+            if (fi.exists() && fi.isFile()) {
+                filePath = fi.absoluteFilePath();
+            } else {
+                const QString maybe = QDir(_msg_info->_text_or_url).filePath(_msg_info->_unique_name);
+                if (QFileInfo::exists(maybe)) {
+                    filePath = maybe;
+                }
+            }
+        }
+        emit viewRequested(filePath, m_previewPix);
+        break;
+    }
+
     case TransferState::Downloading:
     case TransferState::Uploading:
         // 暂停
@@ -234,7 +259,6 @@ void PictureBubble::onPictureClicked()
         break;
 
     default:
-        // 其他状态可以实现查看大图等功能
         break;
     }
 }

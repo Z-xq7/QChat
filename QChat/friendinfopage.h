@@ -21,6 +21,9 @@ public:
     void SetInfo(std::shared_ptr<UserInfo> ui);
     void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
 private slots:
     void on_msg_chat_clicked();
 

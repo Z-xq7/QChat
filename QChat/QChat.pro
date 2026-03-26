@@ -1,4 +1,4 @@
-QT       += core gui network websockets
+QT       += core gui network websockets multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -40,6 +40,8 @@ SOURCES += \
     global.cpp \
     grouptipitem.cpp \
     httpmgr.cpp \
+    emojipopup.cpp \
+    imageviewerdialog.cpp \
     imagecropperlabel.cpp \
     incomingcalldialog.cpp \
     listitembase.cpp \
@@ -48,6 +50,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     messagetextedit.cpp \
+    moredialog.cpp \
     picturebubble.cpp \
     registerdialog.cpp \
     resetdialog.cpp \
@@ -58,12 +61,14 @@ SOURCES += \
     timerbtn.cpp \
     titlebar.cpp \
     userdata.cpp \
+    userinfodialog.cpp \
     userinfopage.cpp \
     usermgr.cpp \
     videocallmanager.cpp \
     videocallwindow.cpp \
     qvideooutputwidget.cpp \
-    YangRtcWrapper.cpp
+    YangRtcWrapper.cpp \
+    yang_init_helper.cpp
 
 HEADERS += \
     adduseritem.h \
@@ -95,6 +100,8 @@ HEADERS += \
     global.h \
     grouptipitem.h \
     httpmgr.h \
+    emojipopup.h \
+    imageviewerdialog.h \
     imagecropperdialog.h \
     imagecropperlabel.h \
     incomingcalldialog.h \
@@ -103,6 +110,7 @@ HEADERS += \
     logindialog.h \
     mainwindow.h \
     messagetextedit.h \
+    moredialog.h \
     picturebubble.h \
     registerdialog.h \
     resetdialog.h \
@@ -114,6 +122,7 @@ HEADERS += \
     timerbtn.h \
     titlebar.h \
     userdata.h \
+    userinfodialog.h \
     userinfopage.h \
     usermgr.h \
     qvideooutputwidget.h \
@@ -269,6 +278,3 @@ INCLUDEPATH += "E:/VS_QChat/thirdparty/metartc/include"
 
 # 将所有metartc相关的库放在一起，按正确的依赖顺序链接
 win32: LIBS += -L"E:/VS_QChat/thirdparty/metartc/bin/" -lmetartc7d -lyangwincodec7 -lmetartccore7 -lssl -lcrypto -lsrtp2 -lusrsctp -lws2_32 -lwsock32 -liphlpapi -lcrypt32 -ladvapi32 -luser32 -lgdi32 -lole32 -loleaut32 -luuid -lcomdlg32 -lcomctl32
-
-
-

@@ -5,17 +5,22 @@
 #include "chatitembase.h"
 #include "textbubble.h"
 #include "picturebubble.h"
+#include "imageviewerdialog.h"
+#include "emojipopup.h"
 #include "usermgr.h"
 #include <QUuid>
 #include "tcpmgr.h"
-#include <algorithm>  // 添加算法头文件以支持std::sort
+#include <algorithm>
 #include <QStandardPaths>
 #include "filetcpmgr.h"
 #include <memory>
+#include <QGuiApplication>
+#include <QScreen>
 
 ChatPage::ChatPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::ChatPage)
+    , _emoji_popup(nullptr)
 {
     ui->setupUi(this);
     //设置按钮样式
@@ -24,6 +29,7 @@ ChatPage::ChatPage(QWidget *parent)
     //设置图标样式
     ui->emo_lb->SetState("normal","hover","press","normal","hover","press");
     ui->file_lb->SetState("normal","hover","press","normal","hover","press");
+    connect(ui->emo_lb, &ClickedLabel::clicked, this, &ChatPage::on_emo_clicked);
 }
 
 ChatPage::~ChatPage()
@@ -175,6 +181,8 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp)
                     this, &ChatPage::on_clicked_paused);
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
                     this, &ChatPage::on_clicked_resume);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
 
         pChatItem->setWidget(pBubble);
@@ -215,6 +223,8 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp)
                     this, &ChatPage::on_clicked_paused);
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
                     this, &ChatPage::on_clicked_resume);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
 
         pChatItem->setWidget(pBubble);
@@ -255,6 +265,8 @@ void ChatPage::AppendOtherMsg(std::shared_ptr<ChatDataBase> msg) {
                     this, &ChatPage::on_clicked_paused);
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
                     this, &ChatPage::on_clicked_resume);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
 
         pChatItem->setWidget(pBubble);
@@ -289,6 +301,8 @@ void ChatPage::AppendOtherMsg(std::shared_ptr<ChatDataBase> msg) {
                     this, &ChatPage::on_clicked_paused);
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
                     this, &ChatPage::on_clicked_resume);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
@@ -484,7 +498,9 @@ void ChatPage::on_send_btn_clicked()
                 emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_TEXT_CHAT_MSG_REQ, jsonData);
             }
 
-            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url), role, msgList[i]->_total_size);
+            auto pic_bubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url), role, msgList[i]->_total_size);
+            pic_bubble->setMsgInfo(msgList[i]);
+            pBubble = pic_bubble;
             //需要组织成文件发送，具体参考头像上传
             auto img_msg = std::make_shared<ImgChatData>(msgList[i],uuidString, thread_id, ChatFormType::PRIVATE,
                     ChatMsgType::PIC, user_info->_uid, 0);
@@ -511,6 +527,8 @@ void ChatPage::on_send_btn_clicked()
             //链接恢复信号
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::resumeRequested,
                     this, &ChatPage::on_clicked_resume);
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
         else if(type == MsgType::FILE_MSG)
         {
@@ -571,7 +589,11 @@ void ChatPage::on_receive_btn_clicked()
         }
         else if(type == MsgType::IMG_MSG)
         {
-            pBubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url) , role, msgList[i]->_total_size);
+            auto pic_bubble = new PictureBubble(QPixmap(msgList[i]->_text_or_url) , role, msgList[i]->_total_size);
+            pic_bubble->setMsgInfo(msgList[i]);
+            pBubble = pic_bubble;
+            connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
+                    this, &ChatPage::on_view_picture);
         }
         else if(type == MsgType::FILE_MSG)
         {
@@ -605,3 +627,75 @@ void ChatPage::on_clicked_resume(QString unique_name, TransferType transfer_type
     }
 }
 
+void ChatPage::on_view_picture(const QString& file_path, const QPixmap& preview_pix)
+{
+    if (file_path.isEmpty() && preview_pix.isNull()) {
+        return;
+    }
+    auto viewer = new ImageViewerDialog(this->window());
+    viewer->setAttribute(Qt::WA_DeleteOnClose, true);
+    viewer->setImage(file_path, preview_pix);
+    viewer->show();
+    viewer->raise();
+    viewer->activateWindow();
+}
+
+void ChatPage::on_emo_clicked(QString, ClickLbState)
+{
+    if (_emoji_popup) {
+        _emoji_popup->close();
+        return;
+    }
+
+    _emoji_popup = new EmojiPopup(this->window());
+    connect(_emoji_popup, &EmojiPopup::emojiSelected, this, &ChatPage::on_emoji_selected);
+    connect(_emoji_popup, &QObject::destroyed, this, [this]() {
+        _emoji_popup = nullptr;
+        ui->emo_lb->SetCurState(ClickLbState::Normal);
+    });
+
+    ui->emo_lb->SetCurState(ClickLbState::Selected);
+
+    const QPoint toolTopLeft = ui->tool_wid->mapToGlobal(QPoint(0, 0));
+    const QPoint toolBottomLeft = ui->tool_wid->mapToGlobal(QPoint(0, ui->tool_wid->height()));
+    QRect avail;
+    if (auto screen = QGuiApplication::screenAt(toolTopLeft)) {
+        avail = screen->availableGeometry();
+    } else if (QGuiApplication::primaryScreen()) {
+        avail = QGuiApplication::primaryScreen()->availableGeometry();
+    }
+
+    const int desiredWidth = ui->tool_wid->width();
+    const int popupWidth = qMax(380, qMin(520, desiredWidth));
+    const int popupHeight = 300;
+    _emoji_popup->setFixedSize(popupWidth, popupHeight);
+
+    int x = toolTopLeft.x();
+    int y = toolTopLeft.y() - _emoji_popup->height() - 6;
+    if (!avail.isNull()) {
+        const int availRight = avail.x() + avail.width();
+        const int availBottom = avail.y() + avail.height();
+        if (x + _emoji_popup->width() > availRight) {
+            x = availRight - _emoji_popup->width();
+        }
+        if (x < avail.left()) {
+            x = avail.left();
+        }
+        if (y < avail.top()) {
+            y = avail.top();
+        }
+        if (y + _emoji_popup->height() > availBottom) {
+            y = toolBottomLeft.y() - _emoji_popup->height() - 6;
+        }
+    }
+
+    _emoji_popup->move(x, y);
+    _emoji_popup->show();
+}
+
+void ChatPage::on_emoji_selected(const QString& emoji)
+{
+    if (emoji.isEmpty()) return;
+    ui->chatEdit->insertPlainText(emoji);
+    ui->chatEdit->setFocus();
+}

@@ -6,6 +6,10 @@
 #include <QDebug>
 #include <QLabel>
 #include <QTimer>
+#include <QIcon>
+#include <QSizePolicy>
+#include <QEvent>
+#include <QMouseEvent>
 #include "YangRtcWrapper.h"
 
 VideoCallWindow::VideoCallWindow(QWidget *parent)
@@ -15,6 +19,8 @@ VideoCallWindow::VideoCallWindow(QWidget *parent)
     , m_remoteVideoWidget(nullptr)
     , m_statusLabel(nullptr)
     , m_peerUid(0)
+    , m_useRtcLocal(false)
+    , m_dragging(false)
 {
     ui->setupUi(this);
 
@@ -22,6 +28,27 @@ VideoCallWindow::VideoCallWindow(QWidget *parent)
     this->statusBar()->hide();
     // 设置无边框窗口，这样系统菜单栏就不会显示
     setWindowFlags(Qt::CustomizeWindowHint|Qt::FramelessWindowHint);
+
+    setStyleSheet(
+        "QWidget#centralwidget{background-color:#141414;}"
+        "QWidget#title_wid{background-color:#1f1f1f;}"
+        "QWidget#video_wid{background-color:#141414;}"
+        "QWidget#control_wid{background-color:#1f1f1f;}"
+        "QLabel#title_label{color:#eaeaea;}"
+        "QPushButton#minsize_btn,QPushButton#maxsize_btn,QPushButton#close_btn{border:none;background:transparent;}"
+        "QPushButton#minsize_btn:hover,QPushButton#maxsize_btn:hover{background-color:#2a2a2a;border-radius:4px;}"
+        "QPushButton#close_btn:hover{background-color:#b00020;border-radius:4px;}"
+    );
+
+    ui->minsize_btn->setIcon(QIcon(":/images/minsize.png"));
+    ui->maxsize_btn->setIcon(QIcon(":/images/maxsize.png"));
+    ui->close_btn->setIcon(QIcon(":/images/close2.png"));
+    ui->minsize_btn->setIconSize(QSize(14, 14));
+    ui->maxsize_btn->setIconSize(QSize(14, 14));
+    ui->close_btn->setIconSize(QSize(14, 14));
+
+    ui->title_wid->installEventFilter(this);
+    ui->title_label->installEventFilter(this);
 
     // 初始化视频控件
     initVideoWidgets();
@@ -47,6 +74,8 @@ VideoCallWindow::VideoCallWindow(QWidget *parent)
             this, &VideoCallWindow::onCallStateChanged);
     connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigError,
             this, &VideoCallWindow::onError);
+    connect(VideoCallManager::GetInstance().get(), &VideoCallManager::sigLocalPreviewFrame,
+            this, &VideoCallWindow::onLocalPreviewFrame);
 }
 
 VideoCallWindow::~VideoCallWindow()
@@ -71,14 +100,14 @@ void VideoCallWindow::initVideoWidgets()
     // 创建本地视频控件
     m_localVideoWidget = new QVideoOutputWidget(localContainer);
     m_localVideoWidget->setIsLocalVideo(true);
-    m_localVideoWidget->setMinimumSize(160, 120);
-    m_localVideoWidget->setMaximumSize(160, 120);
-    m_localVideoWidget->startVideoSimulation(); // 开始模拟视频流
+    m_localVideoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_localVideoWidget->startVideoSimulation(); // 开始模拟视频流，直到收到真实视频数据
     
     // 创建远端视频控件
     m_remoteVideoWidget = new QVideoOutputWidget(remoteContainer);
     m_remoteVideoWidget->setIsLocalVideo(false);
-    m_remoteVideoWidget->startVideoSimulation(); // 开始模拟视频流
+    m_remoteVideoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_remoteVideoWidget->startVideoSimulation(); // 开始模拟视频流，直到收到真实视频数据
     
     // 设置布局
     QVBoxLayout* localLayout = new QVBoxLayout(localContainer);
@@ -127,6 +156,33 @@ void VideoCallWindow::updateCallStatus(const QString& status)
     if (m_statusLabel) {
         m_statusLabel->setText(status);
     }
+}
+
+bool VideoCallWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == ui->title_wid || watched == ui->title_label) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (mouseEvent->button() == Qt::LeftButton && !isMaximized()) {
+                m_dragging = true;
+                m_dragOffset = mouseEvent->globalPosition().toPoint() - frameGeometry().topLeft();
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseMove) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (m_dragging && (mouseEvent->buttons() & Qt::LeftButton) && !isMaximized()) {
+                move(mouseEvent->globalPosition().toPoint() - m_dragOffset);
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                m_dragging = false;
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void VideoCallWindow::slot_close_window()
@@ -195,7 +251,7 @@ void VideoCallWindow::onCallAccepted(const QString& call_id, const QString& room
         // 远程视频帧回调
         rtcWrapper->setRemoteVideoCallback(
             [this](const QByteArray& frame, int width, int height, int format) {
-                qDebug() << "[VideoCallWindow] remote frame, w=" << width << " h=" << height << " fmt=" << format;
+                qDebug() << "[VideoCallWindow] remote frame, w=" << width << " h=" << height << " fmt=" << format << " size=" << frame.size();
                 QMetaObject::invokeMethod(this, [this, frame, width, height, format]() {
                     if (m_remoteVideoWidget && !frame.isEmpty()) {
                         m_remoteVideoWidget->stopVideoSimulation();
@@ -207,12 +263,13 @@ void VideoCallWindow::onCallAccepted(const QString& call_id, const QString& room
             }
         );
 
-        // 本地视频帧回调（如需显示本地预览）
+        // 本地视频帧回调（用于本地预览）
         rtcWrapper->setLocalVideoCallback(
             [this](const QByteArray& frame, int width, int height, int format) {
-                qDebug() << "[VideoCallWindow] local frame, w=" << width << " h=" << height << " fmt=" << format;
+                qDebug() << "[VideoCallWindow] local frame, w=" << width << " h=" << height << " fmt=" << format << " size=" << frame.size();
                 QMetaObject::invokeMethod(this, [this, frame, width, height, format]() {
                     if (m_localVideoWidget && !frame.isEmpty()) {
+                        m_useRtcLocal = true;
                         m_localVideoWidget->stopVideoSimulation();
                         m_localVideoWidget->setVideoFrame(
                             reinterpret_cast<uint8_t*>(const_cast<char*>(frame.constData())),
@@ -264,6 +321,13 @@ void VideoCallWindow::onCallStateChanged(VideoCallState new_state)
             if (m_statusLabel) {
                 m_statusLabel->setText("通话中...");
             }
+            // 确保视频组件已准备好接收数据
+            if (m_localVideoWidget) {
+                m_localVideoWidget->startVideoSimulation(); // 启动本地视频模拟，直到收到实际数据
+            }
+            if (m_remoteVideoWidget) {
+                m_remoteVideoWidget->startVideoSimulation(); // 启动远程视频模拟，直到收到实际数据
+            }
             break;
     }
 }
@@ -274,4 +338,20 @@ void VideoCallWindow::onError(const QString& error_msg)
         m_statusLabel->setText(error_msg);
     }
     qDebug() << "[VideoCallWindow]: Error:" << error_msg;
+}
+
+void VideoCallWindow::onLocalPreviewFrame(const QByteArray& frame, int width, int height, int format)
+{
+    if (m_useRtcLocal) return;
+    if (!m_localVideoWidget) return;
+    if (frame.isEmpty()) return;
+
+    QMetaObject::invokeMethod(this, [this, frame, width, height, format]() {
+        if (!m_localVideoWidget) return;
+        if (frame.isEmpty()) return;
+        m_localVideoWidget->stopVideoSimulation();
+        m_localVideoWidget->setVideoFrame(
+            reinterpret_cast<uint8_t*>(const_cast<char*>(frame.constData())),
+            width, height, format);
+    });
 }

@@ -26,6 +26,7 @@ signals:
     void pauseRequested(QString unique_name, TransferType transfer_type);   // 请求暂停
     void resumeRequested(QString unique_name, TransferType transfer_type);  // 请求继续
     void cancelRequested(QString unique_name, TransferType transfer_type);  // 请求取消
+    void viewRequested(const QString& file_path, const QPixmap& preview_pix);
 
 private slots:
     void onPictureClicked();
@@ -43,6 +44,7 @@ private:
     QIcon m_playIcon;
     QIcon m_downloadIcon;
     QSize m_pixmapSize;
+    QPixmap m_previewPix;
     QVBoxLayout* m_vLayout;
     int m_total_size;
     std::shared_ptr<MsgInfo> _msg_info;

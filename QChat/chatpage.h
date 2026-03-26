@@ -6,10 +6,13 @@
 #include "userdata.h"
 #include "ChatItemBase.h"
 #include <QMap>
+#include <QPixmap>
 
 namespace Ui {
 class ChatPage;
 }
+
+class EmojiPopup;
 
 class ChatPage : public QWidget
 {
@@ -53,10 +56,14 @@ private slots:
     void on_clicked_paused(QString unique_name, TransferType transfer_type);
     //接收PictureBubble传回来的继续信号
     void on_clicked_resume(QString unique_name, TransferType transfer_type);
+    void on_view_picture(const QString& file_path, const QPixmap& preview_pix);
+    void on_emo_clicked(QString, ClickLbState);
+    void on_emoji_selected(const QString& emoji);
 
 private:
     Ui::ChatPage *ui;
     QMap<QString, QWidget*>  _bubble_map;
+    EmojiPopup* _emoji_popup;
 
     std::shared_ptr<ChatThreadData> _chat_data;
     //管理未回复聊天信息，未读消息item(unique_id,与发送的一条条消息ChatItemBase关联)

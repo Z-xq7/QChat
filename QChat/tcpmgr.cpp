@@ -143,15 +143,15 @@ void TcpMgr::initializeVideoCallConnections()
 {
     // 连接视频通话相关信号到VideoCallManager
     connect(this, &TcpMgr::sig_call_incoming,
-            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallIncoming);
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallIncoming, Qt::UniqueConnection);
     connect(this, &TcpMgr::sig_accept_call,
-            VideoCallManager::GetInstance().get(), &VideoCallManager::handleAcceptCall);
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleAcceptCall, Qt::UniqueConnection);
     connect(this, &TcpMgr::sig_call_accepted,
-            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallAccept);
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallAccept, Qt::UniqueConnection);
     connect(this, &TcpMgr::sig_call_rejected,
-            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallReject);
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallReject, Qt::UniqueConnection);
     connect(this, &TcpMgr::sig_call_hangup,
-            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallHangup);
+            VideoCallManager::GetInstance().get(), &VideoCallManager::handleCallHangup, Qt::UniqueConnection);
 
     qDebug() << "[TcpMgr]: VideoCallManager connections initialized";
 }

@@ -11,6 +11,9 @@
 #include "userdata.h"
 #include <QListWidgetItem>
 #include <QTimer>
+#include "moredialog.h"
+#include "userinfodialog.h"
+
 namespace Ui {
 class ChatDialog;
 }
@@ -46,6 +49,9 @@ public:
     //加载头像
     void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 
+signals:
+    void switch_login(); // 切换到登录界面
+
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
     void handleGlobalMousePress(QMouseEvent* event);
@@ -76,6 +82,10 @@ private:
     //当前加载的聊天对话信息
     std::shared_ptr<ChatThreadData> _cur_load_chat;
 
+    // 更多菜单和个人信息窗口
+    MoreDialog* _more_dialog;
+    UserInfoDialog* _user_info_dialog;
+
 private slots:
     //加载未显示的聊天列表
     void slot_loading_chat_user();
@@ -87,6 +97,12 @@ private slots:
     void slot_text_changed(const QString& str);
     //重置头像
     void slot_reset_head();
+    //显示更多菜单
+    void slot_show_more(QString name, ClickLbState state);
+    //显示个人信息
+    void slot_show_user_info(QString name, ClickLbState state);
+    //切换到登录界面逻辑
+    void slot_switch_login();
 
 public slots:
     void slot_apply_friend(std::shared_ptr<AddFriendApply> apply);

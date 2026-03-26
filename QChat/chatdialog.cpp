@@ -17,6 +17,7 @@ ChatDialog::ChatDialog(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::ChatDialog),_mode(ChatUIMode::ChatMode),_state(ChatUIMode::ChatMode)
     ,_b_loading(false),_cur_chat_thread_id(0),_last_widget(nullptr),_loading_dialog(nullptr)
+    ,_more_dialog(nullptr), _user_info_dialog(nullptr)
 {
     ui->setupUi(this);
 
@@ -82,6 +83,8 @@ ChatDialog::ChatDialog(QWidget *parent)
     ui->side_contact_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
     ui->side_settings_lb->setProperty("state","normal");
     ui->side_settings_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
+    ui->more_lb->SetState("normal","hover","press","normal","hover","press");
+    ui->side_head_lb->SetState("normal","hover","press","normal","hover","press");
 
     AddLBGroup(ui->side_contact_lb);
     AddLBGroup(ui->side_chat_lb);
@@ -94,6 +97,12 @@ ChatDialog::ChatDialog(QWidget *parent)
 
     //连接搜索框输入变化
     connect(ui->search_edit,&QLineEdit::textChanged,this,&ChatDialog::slot_text_changed);
+
+    //连接更多按钮点击信号
+    connect(ui->more_lb, &ClickedLabel::clicked, this, &ChatDialog::slot_show_more);
+
+    //连接头像点击信号
+    connect(ui->side_head_lb, &ClickedLabel::clicked, this, &ChatDialog::slot_show_user_info);
 
     //检测鼠标点击位置判断是否要清空搜索框
     this->installEventFilter(this); //安装事件过滤器
@@ -722,6 +731,56 @@ void ChatDialog::slot_reset_head()
             LoadHeadIcon(avatarPath, ui->side_head_lb, file_name, "self_icon");
         }
     }
+}
+
+void ChatDialog::slot_show_more(QString name, ClickLbState state)
+{
+    if(_more_dialog){
+        _more_dialog->close();
+        return;
+    }
+
+    _more_dialog = new MoreDialog(this->window());
+    connect(_more_dialog, &MoreDialog::switch_login, this, &ChatDialog::slot_switch_login);
+    connect(_more_dialog, &QObject::destroyed, [this](){
+        _more_dialog = nullptr;
+        ui->more_lb->SetCurState(ClickLbState::Normal);
+    });
+
+    ui->more_lb->SetCurState(ClickLbState::Selected);
+
+    // 设置位置
+    QPoint pos = ui->more_lb->mapToGlobal(QPoint(0, 0));
+    _more_dialog->adjustSize();
+    _more_dialog->move(pos.x() + ui->more_lb->width() + 5, pos.y() - _more_dialog->height());
+    _more_dialog->show();
+}
+
+void ChatDialog::slot_show_user_info(QString name, ClickLbState state)
+{
+    if(_user_info_dialog){
+        _user_info_dialog->close();
+        return;
+    }
+
+    _user_info_dialog = new UserInfoDialog(this->window());
+    connect(_user_info_dialog, &QObject::destroyed, [this](){
+        _user_info_dialog = nullptr;
+        ui->side_head_lb->SetCurState(ClickLbState::Normal);
+    });
+
+    ui->side_head_lb->SetCurState(ClickLbState::Selected);
+
+    // 设置位置
+    QPoint pos = ui->side_head_lb->mapToGlobal(QPoint(0, 0));
+    _user_info_dialog->adjustSize();
+    _user_info_dialog->move(pos.x() + ui->side_head_lb->width() + 10, pos.y());
+    _user_info_dialog->show();
+}
+
+void ChatDialog::slot_switch_login()
+{
+    emit switch_login();
 }
 
 void ChatDialog::slot_apply_friend(std::shared_ptr<AddFriendApply> apply)

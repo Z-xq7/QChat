@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QPoint>
 #include "qvideooutputwidget.h"
 #include "videocallmanager.h"
 
@@ -31,12 +32,18 @@ public:
     // 更新通话状态文本
     void updateCallStatus(const QString& status);
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     Ui::VideoCallWindow *ui;
     QVideoOutputWidget* m_localVideoWidget;
     QVideoOutputWidget* m_remoteVideoWidget;
     QLabel* m_statusLabel;  // 状态标签
     int m_peerUid;          // 对端用户ID
+    bool m_useRtcLocal;
+    bool m_dragging;
+    QPoint m_dragOffset;
 
 private slots:
     void slot_close_window();
@@ -54,6 +61,7 @@ private slots:
     void onCallHangup(const QString& call_id);
     void onCallStateChanged(VideoCallState new_state);
     void onError(const QString& error_msg);
+    void onLocalPreviewFrame(const QByteArray& frame, int width, int height, int format);
 };
 
 #endif // VIDEOCALLWINDOW_H

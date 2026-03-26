@@ -69,7 +69,7 @@ void IncomingCallDialog::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QS
 
 void IncomingCallDialog::setupUI()
 {
-    setStyleSheet("background-color: #2C2C2C; border: 2px solid #4CAF50; border-radius: 10px;");
+    setStyleSheet("background-color: #1f1f1f; border: 1px solid #3a3a3a; border-radius: 10px;");
     
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(20, 20, 20, 20);
@@ -79,7 +79,7 @@ void IncomingCallDialog::setupUI()
     QHBoxLayout *topLayout = new QHBoxLayout();
     m_avatarLabel = new QLabel();
     m_avatarLabel->setFixedSize(80, 80);
-    m_avatarLabel->setStyleSheet("QLabel { border-radius: 40px; background-color: #444; }");
+    m_avatarLabel->setStyleSheet("QLabel { border-radius: 40px; background-color: #2a2a2a; }");
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setText("头像");
     

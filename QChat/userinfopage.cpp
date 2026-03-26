@@ -8,6 +8,8 @@
 #include <QStandardPaths>
 #include <QRegularExpression>
 #include <QDir>
+#include <QStyleOption>
+#include <QPainter>
 #include "usermgr.h"
 #include "tcpmgr.h"
 #include "filetcpmgr.h"
@@ -18,6 +20,8 @@ UserInfoPage::UserInfoPage(QWidget *parent) :
     ui(new Ui::UserInfoPage)
 {
     ui->setupUi(this);
+    this->setObjectName("user_info_page");
+    this->setAttribute(Qt::WA_StyledBackground); // 确保子窗口能够正确继承样式
 
     auto icon = UserMgr::GetInstance()->GetIcon();
     qDebug() << "[UserInfoPage]: icon is " << icon ;
@@ -92,6 +96,15 @@ UserInfoPage::UserInfoPage(QWidget *parent) :
 UserInfoPage::~UserInfoPage()
 {
     delete ui;
+}
+
+void UserInfoPage::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+    QStyleOption opt;
+    opt.initFrom(this);
+    QPainter p(this);
+    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
 void UserInfoPage::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QString file_name, QString req_type)
@@ -273,5 +286,4 @@ void UserInfoPage::slot_up_load()
     FileTcpMgr::GetInstance()->SendData(ID_UPLOAD_HEAD_ICON_REQ, send_data);
     file.close();
 }
-
 

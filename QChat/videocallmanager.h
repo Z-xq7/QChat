@@ -5,6 +5,11 @@
 #include <QWebSocket>
 #include <QJsonObject>
 #include <QTimer>
+#include <QVideoFrame>
+#include <QImage>
+#include <QCamera>
+#include <QMediaCaptureSession>
+#include <QVideoSink>
 #include <memory>
 #include "singleton.h"
 #include "global.h"
@@ -93,6 +98,7 @@ public slots:
                                 int sdpMLineIndex,
                                 const QString& sdpMid,
                                 bool isInitiator);
+    void onLocalVideoFrameCaptured(const QVideoFrame& frame);
 
 private:
     VideoCallManager();
@@ -121,11 +127,16 @@ private:
     void handleOfferInternal(const QString& sdp);
     void handleAnswerInternal(const QString& sdp);
     void handleIceCandidateInternal(const QString& candidate, int sdpMLineIndex, const QString& sdpMid);
+    void startLocalVideo();
+    void stopLocalVideo();
+    void processVideoFrame(const QVideoFrame& frame);
+    void processVideoImage(QImage image);
 
 private:
     VideoCallState _state;
     QString _current_call_id;
     int _current_peer_uid;
+    bool _isCaller;
     QString _room_id;
     QString _turn_ws_url;
     QJsonArray _ice_servers;
@@ -135,6 +146,9 @@ private:
 
     // metartc封装类实例
     YangRtcWrapper* _rtcWrapper;
+    QCamera* _camera;
+    QMediaCaptureSession* _captureSession;
+    QVideoSink* _videoSink;
 
 public:
     // 来电弹窗
@@ -148,6 +162,7 @@ signals:
     void sigCallHangup(const QString& call_id);
     void sigCallStateChanged(VideoCallState new_state);
     void sigError(const QString& error_msg);
+    void sigLocalPreviewFrame(const QByteArray& frame, int width, int height, int format);
 
     // WebRTC相关信号
     void sigLocalStreamReady();

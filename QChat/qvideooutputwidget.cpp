@@ -90,7 +90,7 @@ void QVideoOutputWidget::setVideoFrame(uint8_t* data, int width, int height, int
             {
                 // 使用QImage::fromData方法创建RGB图像
                 // 对于RGB888格式，每像素3字节
-                image = QImage(data, width, height, QImage::Format_RGB888);
+                image = QImage(data, width, height, width * 3, QImage::Format_RGB888).copy();
                 break;
             }
             case 1: // YUV420P - 需要转换为RGB
@@ -101,7 +101,7 @@ void QVideoOutputWidget::setVideoFrame(uint8_t* data, int width, int height, int
             }
             case 2: // BGRA
             {
-                image = QImage(data, width, height, QImage::Format_ARGB32);
+                image = QImage(data, width, height, width * 4, QImage::Format_ARGB32).copy();
                 break;
             }
             default:

@@ -65,5 +65,8 @@
         <file>images/leave.png</file>
         <file>images/video.png</file>
         <file>images/voice.png</file>
+        <file>images/more.png</file>
+        <file>images/more_hover.png</file>
+        <file>images/more_press.png</file>
     </qresource>
 </RCC>

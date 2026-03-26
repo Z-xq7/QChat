@@ -227,7 +227,10 @@ void MainWindow::SlotSwitchChat()
     _mainLayout->addWidget(_chat_dlg);
     _chat_dlg->show();
 
-    this->setMinimumSize(QSize(880,680)); // 增加高度以适应标题栏
+    //连接退出登录信号
+    connect(_chat_dlg, &ChatDialog::switch_login, this, &MainWindow::offlineLogin);
+
+    this->setMinimumSize(QSize(970,720)); // 增加高度以适应标题栏
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     //加载聊天列表
     _chat_dlg->loadChatList();

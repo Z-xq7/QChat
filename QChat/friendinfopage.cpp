@@ -6,12 +6,16 @@
 #include "filetcpmgr.h"
 #include "tcpmgr.h"
 #include <QMessageBox>
+#include <QStyleOption>
+#include <QPainter>
 
 FriendInfoPage::FriendInfoPage(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::FriendInfoPage), _user_info(nullptr)
+    ui(new Ui::FriendInfoPage), video_window(nullptr), _user_info(nullptr)
 {
     ui->setupUi(this);
+    this->setObjectName("friend_info_page");
+    this->setAttribute(Qt::WA_StyledBackground); // 确保子窗口能够正确继承样式
     ui->msg_chat->SetState("normal","hover","press");
     ui->video_chat->SetState("normal","hover","press");
     ui->voice_chat->SetState("normal","hover","press");
@@ -32,6 +36,15 @@ FriendInfoPage::FriendInfoPage(QWidget *parent) :
 FriendInfoPage::~FriendInfoPage()
 {
     delete ui;
+}
+
+void FriendInfoPage::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+    QStyleOption opt;
+    opt.initFrom(this);
+    QPainter p(this);
+    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
 void FriendInfoPage::SetInfo(std::shared_ptr<UserInfo> user_info)
@@ -142,6 +155,12 @@ void FriendInfoPage::on_video_chat_clicked()
         qDebug() << "[FriendInfoPage]: User info is null, cannot start video call";
         return;
     }
+
+    if (video_window) {
+        video_window->raise();
+        video_window->activateWindow();
+        return;
+    }
     
     // 设置好友信息到视频通话管理器
     VideoCallManager::GetInstance()->setFriendInfo(_user_info);
@@ -151,6 +170,8 @@ void FriendInfoPage::on_video_chat_clicked()
     
     // 也可以显示一个等待界面
     video_window = new VideoCallWindow();
+    video_window->setAttribute(Qt::WA_DeleteOnClose, true);
+    connect(video_window, &QObject::destroyed, this, [this]() { video_window = nullptr; });
     video_window->setUserInfo(_user_info->_nick, _user_info->_uid);
     video_window->show();
 }
@@ -163,9 +184,10 @@ void FriendInfoPage::onIncomingCall(int caller_uid, const QString& call_id, cons
     // 在这里可以显示来电弹窗
     // 通常在主窗口或聊天窗口中处理来电，而不是在好友信息页
     // 可以通过信号将事件传递给主窗口处理
-    // 显示视频通话窗口
-    video_window = new VideoCallWindow();
-    video_window->show();
+    if (video_window) {
+        video_window->raise();
+        video_window->activateWindow();
+    }
 }
 
 void FriendInfoPage::onCallAccepted(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers)
@@ -175,6 +197,8 @@ void FriendInfoPage::onCallAccepted(const QString& call_id, const QString& room_
     // 显示视频通话窗口
     if (!video_window) {
         video_window = new VideoCallWindow();
+        video_window->setAttribute(Qt::WA_DeleteOnClose, true);
+        connect(video_window, &QObject::destroyed, this, [this]() { video_window = nullptr; });
         video_window->show();
     }
     
@@ -220,4 +244,3 @@ void FriendInfoPage::onCallStateChanged(VideoCallState new_state)
             break;
     }
 }
-
