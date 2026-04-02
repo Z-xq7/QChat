@@ -1,6 +1,11 @@
 #include "bubbleframe.h"
 #include <QPainter>
 #include <QDebug>
+#include <QMenu>
+#include <QContextMenuEvent>
+#include <QApplication>
+#include <QClipboard>
+#include "textbubble.h"
 
 const int WIDTH_SANJIAO  = 8;  //三角宽
 
@@ -75,4 +80,32 @@ void BubbleFrame::paintEvent(QPaintEvent *e)
         painter.drawPolygon(points, 3);
     }
     return QFrame::paintEvent(e);
+}
+
+void BubbleFrame::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+    QAction* copy_action = new QAction("复制", this);
+    QAction* delete_action = new QAction("删除", this);
+
+    menu.addAction(copy_action);
+    menu.addAction(delete_action);
+
+    connect(copy_action, &QAction::triggered, this, [this]() {
+        // 尝试获取文本并复制
+        TextBubble* text_bubble = dynamic_cast<TextBubble*>(this);
+        if (text_bubble) {
+            // 需要在 TextBubble 中提供获取文本的方法，或者通过 layout 查找
+            auto text_edit = this->findChild<QTextEdit*>();
+            if (text_edit) {
+                QApplication::clipboard()->setText(text_edit->toPlainText());
+            }
+        }
+    });
+
+    connect(delete_action, &QAction::triggered, this, [this]() {
+        emit sig_delete_msg();
+    });
+
+    menu.exec(event->globalPos());
 }

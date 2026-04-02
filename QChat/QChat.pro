@@ -1,4 +1,4 @@
-QT       += core gui network websockets multimedia
+QT       += core gui network websockets multimedia multimediawidgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -12,6 +12,7 @@ DESTDIR = ./bin
 
 SOURCES += \
     adduseritem.cpp \
+    aipage.cpp \
     applyfriend.cpp \
     applyfrienditem.cpp \
     applyfriendlist.cpp \
@@ -32,6 +33,8 @@ SOURCES += \
     conuseritem.cpp \
     customizeedit.cpp \
     cute_pet_widget.cpp \
+    filebubble.cpp \
+    fileconfirmdlg.cpp \
     filetcpmgr.cpp \
     findfaildlg.cpp \
     findsuccessdialog.cpp \
@@ -66,12 +69,15 @@ SOURCES += \
     usermgr.cpp \
     videocallmanager.cpp \
     videocallwindow.cpp \
+    videopage.cpp \
     qvideooutputwidget.cpp \
     YangRtcWrapper.cpp \
-    yang_init_helper.cpp
+    yang_init_helper.cpp \
+    toolspage.cpp
 
 HEADERS += \
     adduseritem.h \
+    aipage.h \
     applyfriend.h \
     applyfrienditem.h \
     applyfriendlist.h \
@@ -92,6 +98,8 @@ HEADERS += \
     conuseritem.h \
     customizeedit.h \
     cute_pet_widget.h \
+    filebubble.h \
+    fileconfirmdlg.h \
     filetcpmgr.h \
     findfaildlg.h \
     findsuccessdialog.h \
@@ -128,7 +136,10 @@ HEADERS += \
     qvideooutputwidget.h \
     videocallmanager.h \
     videocallwindow.h \
-    YangRtcWrapper.h
+    videopage.h \
+    YangRtcWrapper.h \
+    yang_init_helper.h \
+    toolspage.h
 
 FORMS += \
     adduseritem.ui \
@@ -140,6 +151,7 @@ FORMS += \
     chatpage.ui \
     chatuserwid.ui \
     conuseritem.ui \
+    fileconfirmdlg.ui \
     findfaildlg.ui \
     findsuccessdialog.ui \
     friendinfopage.ui \
@@ -151,8 +163,7 @@ FORMS += \
     registerdialog.ui \
     resetdialog.ui \
     userinfopage.ui \
-    videocallwindow.ui \
-    videocallwindow2.ui
+    videocallwindow.ui
 
 TRANSLATIONS += \
     QChat_zh_CN.ts

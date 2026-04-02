@@ -90,7 +90,7 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <property name="spacing">
-          <number>20</number>
+          <number>15</number>
          </property>
          <property name="leftMargin">
           <number>0</number>
@@ -163,6 +163,54 @@
          </item>
          <item>
           <widget class="StateWidget" name="side_settings_lb" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="StateWidget" name="side_tool_lb" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="StateWidget" name="side_ai_lb" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>35</width>
+             <height>35</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="StateWidget" name="side_video_lb" native="true">
            <property name="minimumSize">
             <size>
              <width>35</width>
@@ -372,6 +420,9 @@
          <bool>true</bool>
         </property>
        </widget>
+      </item>
+      <item>
+       <widget class="QListWidget" name="ai_user_list"/>
       </item>
       <item>
        <widget class="SearchList" name="search_list"/>

@@ -9,6 +9,7 @@
 #include "filetcpmgr.h"
 #include <QStandardPaths>
 #include "videocallmanager.h"
+#include <QFileIconProvider>
 
 TcpThread::TcpThread()
 {
@@ -706,6 +707,79 @@ void TcpMgr::initHandlers()
 
                 continue;
             }
+
+            if (msg_type == int(ChatMsgType::FILE)) {
+                auto uid = UserMgr::GetInstance()->GetUid();
+                QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+                QString file_path_str = storageDir + "/user/" + QString::number(uid) + "/chatfile/" + QString::number(send_uid);
+                
+                QString unique_name = msg_content;
+                QString origin_name = msg_content;
+                // 解析 unique_name|origin_name
+                int pos = msg_content.indexOf('|');
+                if (pos != -1) {
+                    unique_name = msg_content.left(pos);
+                    origin_name = msg_content.mid(pos + 1);
+                }
+
+                QString file_path = file_path_str + "/" + unique_name;
+                
+                QFileInfo fileInfo(file_path);
+                qint64 file_size = 0;
+                QPixmap pix;
+                TransferState transfer_state = TransferState::None;
+                QString text_or_url = file_path_str; // 默认使用目录，用于下载
+                
+                if (QFile::exists(file_path)) {
+                    file_size = fileInfo.size();
+                    QFileIconProvider provider;
+                    pix = provider.icon(fileInfo).pixmap(40, 40);
+                    transfer_state = TransferState::Completed;
+                    text_or_url = file_path; // 已完成，使用全路径
+                } else {
+                    // 文件不存在，使用默认图标并标记为需要下载
+                    pix = QPixmap(":/images/file.png");
+                    transfer_state = TransferState::Downloading;
+                    text_or_url = file_path_str; // 未完成，使用目录用于下载
+                }
+
+                auto file_info = std::make_shared<MsgInfo>(MsgType::FILE_MSG, text_or_url,
+                                                           pix, unique_name, file_size, "", origin_name); 
+                file_info->_msg_id = msg_id;
+                file_info->_sender = send_uid;
+                file_info->_receiver = recv_id;
+                file_info->_thread_id = thread_id;
+                file_info->_transfer_type = TransferType::Download;
+                file_info->_transfer_state = transfer_state;
+
+                auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, ChatFormType::PRIVATE,
+                                                               ChatMsgType::FILE, send_uid, status, chat_time);
+                chat_datas.push_back(chat_data);
+
+                // 如果本地没有且不是自己发的，则发起下载请求
+                if (transfer_state == TransferState::Downloading && send_uid != uid) {
+                    UserMgr::GetInstance()->AddTransFile(unique_name, file_info);
+                    QJsonObject jsonObj_send;
+                    jsonObj_send["name"] = unique_name;
+                    jsonObj_send["seq"] = file_info->_seq;
+                    jsonObj_send["trans_size"] = "0";
+                    jsonObj_send["total_size"] = "0";
+                    jsonObj_send["token"] = UserMgr::GetInstance()->GetToken();
+                    jsonObj_send["sender_id"] = send_uid;
+                    jsonObj_send["receiver_id"] = uid;
+                    jsonObj_send["message_id"] = msg_id;
+                    jsonObj_send["uid"] = uid;
+
+                    QDir chatfileDir(file_path_str);
+                    if (!chatfileDir.exists()) {
+                        chatfileDir.mkpath(".");
+                    }
+
+                    QJsonDocument doc(jsonObj_send);
+                    FileTcpMgr::GetInstance()->SendData(ID_FILE_CHAT_DOWN_REQ, doc.toJson());
+                }
+                continue;
+            }
         }
 
         //发送信号通知界面
@@ -762,7 +836,142 @@ void TcpMgr::initHandlers()
         emit sig_chat_msg_rsp(thread_id, chat_datas);
     });
 
-    //注册聊天chatpage将图片消息发送出去传给服务器，服务器的应答
+    //注册聊天将文件消息发送出去传给服务器，服务器的应答
+    _handlers.insert(ID_FILE_CHAT_MSG_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error")) return;
+        int err = jsonObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) return;
+
+        auto thread_id = jsonObj["thread_id"].toInt();
+        auto unique_id = jsonObj["unique_id"].toString();
+        auto unique_name = jsonObj["unique_name"].toString();
+        auto sender = jsonObj["fromuid"].toInt();
+        auto msg_id = jsonObj["message_id"].toInt();
+        QString chat_time = jsonObj["chat_time"].toString();
+        int status = jsonObj["status"].toInt();
+        auto receiver = jsonObj["touid"].toInt();
+
+        auto file_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
+        if (!file_info) return;
+
+        file_info->_msg_id = msg_id;
+        file_info->_thread_id = thread_id;
+        file_info->_transfer_type = TransferType::Upload;
+        file_info->_transfer_state = TransferState::Uploading;
+        file_info->_sender = sender;
+        file_info->_receiver = receiver;
+
+        auto chat_data = std::make_shared<FileChatData>(file_info, unique_id, thread_id, ChatFormType::PRIVATE,
+                                                       ChatMsgType::FILE, sender, status, chat_time);
+        chat_data->SetMsgId(msg_id);
+
+        emit sig_chat_file_rsp(thread_id, chat_data);
+
+        // 开始发送文件块
+        QFile file(file_info->_text_or_url);
+        if (!file.open(QIODevice::ReadOnly)) return;
+        file.seek(file_info->_current_size);
+        auto buffer = file.read(MAX_FILE_LEN);
+        QString base64Data = buffer.toBase64();
+        
+        QJsonObject file_obj;
+        file_obj["name"] = file_info->_unique_name;
+        file_obj["unique_id"] = unique_id;
+        file_obj["seq"] = file_info->_seq;
+        file_info->_current_size = buffer.size() + (file_info->_seq - 1) * MAX_FILE_LEN;
+        file_obj["trans_size"] = QString::number(file_info->_current_size);
+        file_obj["total_size"] = QString::number(file_info->_total_size);
+        file_obj["token"] = UserMgr::GetInstance()->GetToken();
+        file_obj["md5"] = file_info->_md5;
+        file_obj["uid"] = UserMgr::GetInstance()->GetUid();
+        file_obj["data"] = base64Data;
+        file_obj["message_id"] = msg_id;
+        file_obj["receiver"] = receiver;
+        file_obj["sender"] = sender;
+        file_obj["last"] = (file_info->_current_size >= file_info->_total_size) ? 1 : 0;
+
+        QJsonDocument doc_file(file_obj);
+        FileTcpMgr::GetInstance()->SendData(ReqId::ID_FILE_INFO_SYNC_REQ, doc_file.toJson(QJsonDocument::Compact));
+    });
+
+    //注册通知用户接收到对方发来的文件消息逻辑
+    _handlers.insert(ID_NOTIFY_FILE_CHAT_MSG_REQ, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error")) return;
+        int err = jsonObj["error"].toInt();
+        if (err != ErrorCodes::SUCCESS) return;
+
+        auto from_uid = jsonObj["fromuid"].toInt();
+        auto thread_id = jsonObj["thread_id"].toInt();
+        auto msg_id = jsonObj["message_id"].toInt();
+        auto msg_content = jsonObj["name"].toString();
+        
+        QString unique_name = msg_content;
+        QString origin_name = msg_content;
+        int pos = msg_content.indexOf('|');
+        if (pos != -1) {
+            unique_name = msg_content.left(pos);
+            origin_name = msg_content.mid(pos + 1);
+        }
+
+        auto total_size = jsonObj["total_size"].toString().toULongLong();
+        auto chat_time = jsonObj["chat_time"].toString();
+        auto status = jsonObj["status"].toInt();
+        auto md5 = jsonObj["md5"].toString();
+
+        auto uid = UserMgr::GetInstance()->GetUid();
+        QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QString file_dir = storageDir + "/user/" + QString::number(uid) + "/chatfile/" + QString::number(from_uid);
+
+        QFileIconProvider provider;
+        QPixmap pix = provider.icon(QFileInfo(origin_name)).pixmap(40, 40);
+
+        auto file_info = std::make_shared<MsgInfo>(MsgType::FILE_MSG, file_dir, pix, unique_name, total_size, md5, origin_name);
+        file_info->_msg_id = msg_id;
+        file_info->_sender = from_uid;
+        file_info->_receiver = uid;
+        file_info->_thread_id = thread_id;
+        file_info->_transfer_type = TransferType::Download;
+        file_info->_transfer_state = TransferState::Downloading;
+        
+        // 将文件信息加入管理
+        UserMgr::GetInstance()->AddTransFile(unique_name, file_info);
+
+        auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, ChatFormType::PRIVATE,
+                                                       ChatMsgType::FILE, from_uid, status, chat_time);
+        emit sig_file_chat_msg(chat_data);
+
+        // 自动发起下载请求
+        QJsonObject jsonObj_send;
+        jsonObj_send["name"] = unique_name;
+        jsonObj_send["seq"] = file_info->_seq;
+        jsonObj_send["trans_size"] = "0";
+        jsonObj_send["total_size"] = QString::number(total_size);
+        jsonObj_send["token"] = UserMgr::GetInstance()->GetToken();
+        jsonObj_send["sender_id"] = from_uid;
+        jsonObj_send["receiver_id"] = uid;
+        jsonObj_send["message_id"] = msg_id;
+        jsonObj_send["uid"] = uid;
+
+        QDir chatfileDir(storageDir + "/user/" + QString::number(uid) + "/chatfile/" + QString::number(from_uid));
+        if (!chatfileDir.exists()) {
+            chatfileDir.mkpath(".");
+        }
+
+        QJsonDocument doc(jsonObj_send);
+        FileTcpMgr::GetInstance()->SendData(ID_FILE_CHAT_DOWN_REQ, doc.toJson());
+    });
+
+    //注册聊天将图片消息发送出去传给服务器，服务器的应答
     _handlers.insert(ID_IMG_CHAT_MSG_RSP, [this](ReqId id, int len, QByteArray data) {
         Q_UNUSED(len);
         qDebug() << "[TcpMgr]: handle id is " << id << " data is " << data;

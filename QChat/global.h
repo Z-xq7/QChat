@@ -34,9 +34,9 @@
 //最大文件长度
 //#define MAX_FILE_LEN 2048
 //最大文件长度
-#define MAX_FILE_LEN (1024*12)
+#define MAX_FILE_LEN (1024*256)
 //定义最大拥塞窗口的大小
-#define MAX_CWND_SIZE 5
+#define MAX_CWND_SIZE 16
 
 //刷新
 extern std::function<void(QWidget*)> repolish;
@@ -103,7 +103,13 @@ enum ReqId{
     ID_CALL_REJECT_NOTIFY = 1058,     // 拒绝通话通知
     ID_CALL_HANGUP_REQ = 1059,        // 挂断通话请求
     ID_CALL_HANGUP_RSP = 1060,        // 挂断通话响应
-    ID_CALL_HANGUP_NOTIFY = 1061      // 挂断通话通知
+    ID_CALL_HANGUP_NOTIFY = 1061,      // 挂断通话通知
+
+    ID_FILE_CHAT_MSG_REQ = 1062,       //文件聊天消息请求
+    ID_FILE_CHAT_MSG_RSP = 1063,       //文件聊天信息回复
+    ID_NOTIFY_FILE_CHAT_MSG_REQ = 1064, //通知用户文件聊天信息
+    ID_FILE_CHAT_DOWN_REQ  =  1065,    //聊天文件下载请求
+    ID_FILE_CHAT_DOWN_RSP  =  1066,    //聊天文件下载回复
 };
 Q_DECLARE_METATYPE(ReqId)
 
@@ -160,6 +166,8 @@ enum ChatUIMode{
     ChatMode,       //聊天模式
     ContactMode,    //联系模式
     SettingsMode,   //设置模式
+    AIMode,         //AI模式
+    VideoMode,      //短视频模式
 };
 
 //自定义的QListWidgetItem的几种类型
@@ -213,18 +221,26 @@ enum class TransferState {
 
 //聊天信息
 struct MsgInfo{
-    MsgInfo() = default;
-    MsgInfo(MsgType msgtype, QString text_or_url, QPixmap pixmap, QString unique_name, qint64 total_size, QString md5)
+    MsgInfo() : _msg_type(MsgType::TEXT_MSG), _total_size(0), _current_size(0), _seq(1)
+        , _last_confirmed_seq(0), _max_seq(0), _msg_id(0), _rsp_size(0), _thread_id(0)
+        , _transfer_state(TransferState::None), _transfer_type(TransferType::None), _sender(0), _receiver(0)
+    {}
+    MsgInfo(MsgType msgtype, QString text_or_url, QPixmap pixmap, QString unique_name, qint64 total_size, QString md5, QString origin_name = "")
         :_msg_type(msgtype), _text_or_url(text_or_url), _preview_pix(pixmap),_unique_name(unique_name),_total_size(total_size)
-        , _current_size(0), _seq(1),_md5(md5), _last_confirmed_seq(0)
+        , _current_size(0), _seq(1),_md5(md5), _last_confirmed_seq(0), _origin_name(origin_name)
+        , _transfer_state(TransferState::None), _transfer_type(TransferType::None)
     {
         _max_seq = (total_size + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
+        if (_origin_name.isEmpty() && !_unique_name.isEmpty()) {
+            _origin_name = _unique_name;
+        }
     }
 
     MsgType _msg_type;      //消息类型, 文本，图片，视频，文件
     QString _text_or_url;   //表示文件和图像的url,文本信息
     QPixmap _preview_pix;   //文件和图片的缩略图
     QString _unique_name;   //文件唯一名字
+    QString _origin_name;   //文件原始名字
     qint64 _total_size;     //文件总大小
     qint64 _current_size;   //传输大小
     qint64 _seq;            //传输序号

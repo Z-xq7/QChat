@@ -19,6 +19,8 @@
 #include "chatdialog.h"
 #include "tcpmgr.h"
 #include "titlebar.h"
+#include <QSystemTrayIcon>
+#include <QMenu>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -44,6 +46,10 @@ private:
     void offlineLogin();        //由SlotOffline调用退回到登录页面
     void setupCustomTitleBar(); // 设置自定义标题栏
     void setupMainLayout();     // 设置主布局
+    void setupTrayIcon();       // 设置系统托盘
+
+protected:
+    void changeEvent(QEvent *event) override; // 重写改变事件，处理最小化到托盘
 
 private:
     Ui::MainWindow *ui;
@@ -55,6 +61,11 @@ private:
     ResetDialog* _reset_dlg;
     ChatDialog* _chat_dlg;
     UIStatus _ui_status;
+
+    QSystemTrayIcon* _tray_icon; // 系统托盘
+    QMenu* _tray_menu;           // 托盘菜单
+    QAction* _restore_action;    // 还原动作
+    QAction* _quit_action;       // 退出动作
 
 public slots:
     void SlotSwitchReg();       //由登录页面切换到注册页面

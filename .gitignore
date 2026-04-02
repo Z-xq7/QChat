@@ -55,6 +55,8 @@ build/
 debug/
 release/
 bin/
+static/
+video/
 .qmake.stash
 *.qm
 .qm

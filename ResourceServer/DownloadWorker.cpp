@@ -137,8 +137,10 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 	infile.seekg(offset);
 
 	// 读取最多2048字节
-	char buffer[MAX_FILE_LEN];
-	infile.read(buffer, MAX_FILE_LEN);
+	//char buffer[MAX_FILE_LEN];
+	std::vector<char> buffer(MAX_FILE_LEN);
+
+	infile.read(buffer.data(), MAX_FILE_LEN);
 	//让read实际读取了多少字节
 	std::streamsize bytes_read = infile.gcount();
 
@@ -151,7 +153,7 @@ void DownloadWorker::task_callback(std::shared_ptr<DownloadTask> task)
 	}
 
 	// 将读取的数据进行base64编码
-	std::string data_to_encode(buffer, bytes_read);
+	std::string data_to_encode(buffer.data(), bytes_read);
 	std::string encoded_data = base64_encode(data_to_encode);
 
 	// 判断是否是最后一包

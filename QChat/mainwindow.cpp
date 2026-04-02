@@ -5,6 +5,8 @@
 #include "filetcpmgr.h"
 #include <QVBoxLayout>
 #include "videocallmanager.h"
+#include <QTimer>
+#include <QApplication>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -27,6 +29,9 @@ MainWindow::MainWindow(QWidget *parent)
     
     // 初始化自定义标题栏
     setupCustomTitleBar();
+
+    // 初始化系统托盘
+    setupTrayIcon();
 
     //登录界面
     _login_dlg = new LoginDialog(this);
@@ -91,6 +96,51 @@ void MainWindow::setupCustomTitleBar()
     connect(_title_bar, &TitleBar::closeClicked, this, [this]() {
         this->close();
     });
+}
+
+void MainWindow::setupTrayIcon()
+{
+    _tray_icon = new QSystemTrayIcon(this);
+    _tray_icon->setIcon(QIcon(":/images/favicon.png"));
+    _tray_icon->setToolTip("QChat");
+
+    _tray_menu = new QMenu(this);
+    _restore_action = new QAction("打开主界面", this);
+    _quit_action = new QAction("退出", this);
+
+    _tray_menu->addAction(_restore_action);
+    _tray_menu->addSeparator();
+    _tray_menu->addAction(_quit_action);
+
+    _tray_icon->setContextMenu(_tray_menu);
+
+    connect(_restore_action, &QAction::triggered, this, [this]() {
+        this->showNormal();
+        this->activateWindow();
+    });
+
+    connect(_quit_action, &QAction::triggered, qApp, &QApplication::quit);
+
+    connect(_tray_icon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+            this->showNormal();
+            this->activateWindow();
+        }
+    });
+
+    _tray_icon->show();
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::WindowStateChange) {
+        if (isMinimized()) {
+            // 延迟隐藏窗口，防止任务栏图标闪烁
+            QTimer::singleShot(0, this, &MainWindow::hide);
+            _tray_icon->showMessage("QChat", "程序已最小化到系统托盘", QSystemTrayIcon::Information, 2000);
+        }
+    }
+    QMainWindow::changeEvent(event);
 }
 
 MainWindow::~MainWindow()

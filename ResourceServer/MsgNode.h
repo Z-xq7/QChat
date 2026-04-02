@@ -3,43 +3,42 @@
 #include "const.h"
 #include <iostream>
 #include <boost/asio.hpp>
+#include <vector>
 using namespace std;
 using boost::asio::ip::tcp;
 class LogicSystem;
 class MsgNode
 {
 public:
-	MsgNode(short max_len) :_total_len(max_len), _cur_len(0) {
-		_data = new char[_total_len + 1]();
-		_data[_total_len] = '\0';
-	}
+	MsgNode(std::size_t max_len)
+		: _data(max_len + 1, 0), _cur_len(0) {}
 
 	~MsgNode() {
 		std::cout << "destruct MsgNode" << endl;
-		delete[] _data;
 	}
 
 	void Clear() {
-		::memset(_data, 0, _total_len);
+		std::fill(_data.begin(), _data.end(), 0);
 		_cur_len = 0;
 	}
 
-	short _cur_len;
-	short _total_len;
-	char* _data;
+	std::size_t _cur_len;
+	std::vector<char> _data;
+
+	std::size_t total_len() const { return _data.empty() ? 0 : _data.size() - 1; }
 };
 
 class RecvNode :public MsgNode {
 	friend class LogicSystem;
 public:
-	RecvNode(int max_len, short msg_id);
+	RecvNode(std::size_t max_len, short msg_id);
 	short _msg_id;
 };
 
 class SendNode:public MsgNode {
 	friend class LogicSystem;
 public:
-	SendNode(const char* msg,int max_len, short msg_id);
+	SendNode(const char* msg,std::size_t max_len, short msg_id);
 	short _msg_id;
 };
 

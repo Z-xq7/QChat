@@ -45,7 +45,7 @@ private:
 
 	tcp::socket _socket;
 	std::string _session_id;
-	char _data[MAX_LENGTH];
+	std::vector<char> _data; // buffer stored on heap via vector
 	CServer* _server;
 	bool _b_close;
 	std::queue<shared_ptr<SendNode> > _send_que;

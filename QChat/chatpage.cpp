@@ -16,6 +16,12 @@
 #include <memory>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QLineEdit>
+
+#include "filebubble.h"
+#include "fileconfirmdlg.h"
+#include <QFileDialog>
+#include <QStandardPaths>
 
 ChatPage::ChatPage(QWidget *parent)
     : QWidget(parent)
@@ -30,6 +36,9 @@ ChatPage::ChatPage(QWidget *parent)
     ui->emo_lb->SetState("normal","hover","press","normal","hover","press");
     ui->file_lb->SetState("normal","hover","press","normal","hover","press");
     connect(ui->emo_lb, &ClickedLabel::clicked, this, &ChatPage::on_emo_clicked);
+    connect(ui->file_lb, &ClickedLabel::clicked, this, &ChatPage::on_file_clicked);
+    // 连接搜索聊天记录
+    connect(ui->chat_search_edit, &QLineEdit::textChanged, this, &ChatPage::slot_chat_search);
 }
 
 ChatPage::~ChatPage()
@@ -115,11 +124,20 @@ void ChatPage::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QString file
 
 void ChatPage::SetChatIcon(ChatItemBase *pChatItem, int uid, QString icon, QString req_type)
 {
+    // 先尝试从缓存获取
+    QPixmap cachedPixmap = UserMgr::GetInstance()->GetCachedIcon(icon);
+    if (!cachedPixmap.isNull()) {
+        pChatItem->setUserIcon(cachedPixmap);
+        return;
+    }
+
     // 使用正则表达式检查是否是默认头像
     QRegularExpression regex("^:/images/head_(\\d+)\\.jpg$");
     QRegularExpressionMatch match = regex.match(icon);
     if (match.hasMatch()) {
-        pChatItem->setUserIcon(QPixmap(icon));
+        QPixmap pixmap(icon);
+        UserMgr::GetInstance()->CacheIcon(icon, pixmap);
+        pChatItem->setUserIcon(pixmap);
     }
     else {
         // 如果是用户上传的头像，获取存储目录
@@ -132,6 +150,7 @@ void ChatPage::SetChatIcon(ChatItemBase *pChatItem, int uid, QString icon, QStri
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
+                UserMgr::GetInstance()->CacheIcon(icon, pixmap);
                 pChatItem->setUserIcon(pixmap);
             }
             else {
@@ -184,6 +203,26 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp)
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
                     this, &ChatPage::on_view_picture);
         }
+        else if (msg->GetMsgType() == ChatMsgType::FILE) {
+            auto file_msg = std::dynamic_pointer_cast<FileChatData>(msg);
+            auto file_bubble = new FileBubble(role, file_msg->_msg_info->_text_or_url, file_msg->_msg_info->_total_size);
+            file_bubble->setMsgInfo(file_msg->_msg_info);
+            pBubble = file_bubble;
+
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
+        }
+
+        // 连接删除消息信号
+        connect(dynamic_cast<BubbleFrame*>(pBubble), &BubbleFrame::sig_delete_msg, this, [this, pChatItem, msg]() {
+            ui->chat_data_list->layout()->removeWidget(pChatItem);
+            pChatItem->deleteLater();
+            // 同时从 map 中移除
+            _base_item_map.remove(msg->GetMsgId());
+            _unrsp_item_map.remove(msg->GetUniqueId());
+        });
 
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
@@ -226,6 +265,25 @@ void ChatPage::AppendChatMsg(std::shared_ptr<ChatDataBase> msg, bool rsp)
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
                     this, &ChatPage::on_view_picture);
         }
+        else if(msg->GetMsgType() == ChatMsgType::FILE) {
+            auto file_msg = std::dynamic_pointer_cast<FileChatData>(msg);
+            auto file_bubble = new FileBubble(role, file_msg->_msg_info->_text_or_url, file_msg->_msg_info->_total_size);
+            file_bubble->setMsgInfo(file_msg->_msg_info);
+            pBubble = file_bubble;
+
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
+        }
+
+        // 连接删除消息信号
+        connect(dynamic_cast<BubbleFrame*>(pBubble), &BubbleFrame::sig_delete_msg, this, [this, pChatItem, msg]() {
+            ui->chat_data_list->layout()->removeWidget(pChatItem);
+            pChatItem->deleteLater();
+            _base_item_map.remove(msg->GetMsgId());
+            _unrsp_item_map.remove(msg->GetUniqueId());
+        });
 
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
@@ -268,6 +326,17 @@ void ChatPage::AppendOtherMsg(std::shared_ptr<ChatDataBase> msg) {
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
                     this, &ChatPage::on_view_picture);
         }
+        else if (msg->GetMsgType() == ChatMsgType::FILE) {
+            auto file_msg = std::dynamic_pointer_cast<FileChatData>(msg);
+            auto file_bubble = new FileBubble(role, file_msg->_msg_info->_text_or_url, file_msg->_msg_info->_total_size);
+            file_bubble->setMsgInfo(file_msg->_msg_info);
+            pBubble = file_bubble;
+            //连接暂停和恢复信号
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
+        }
 
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
@@ -303,6 +372,17 @@ void ChatPage::AppendOtherMsg(std::shared_ptr<ChatDataBase> msg) {
                     this, &ChatPage::on_clicked_resume);
             connect(dynamic_cast<PictureBubble*>(pBubble), &PictureBubble::viewRequested,
                     this, &ChatPage::on_view_picture);
+        }
+        else if (msg->GetMsgType() == ChatMsgType::FILE) {
+            auto file_msg = std::dynamic_pointer_cast<FileChatData>(msg);
+            auto file_bubble = new FileBubble(role, file_msg->_msg_info->_text_or_url, file_msg->_msg_info->_total_size);
+            file_bubble->setMsgInfo(file_msg->_msg_info);
+            pBubble = file_bubble;
+            //连接暂停和恢复信号
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
         }
         pChatItem->setWidget(pBubble);
         auto status = msg->GetStatus();
@@ -359,6 +439,11 @@ void ChatPage::UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info) {
         PictureBubble*  pic_bubble = dynamic_cast<PictureBubble*>(bubble);
         pic_bubble->setProgress(msg_info->_rsp_size, msg_info->_total_size);
     }
+    else if (msg_info->_msg_type == MsgType::FILE_MSG) {
+        auto bubble = iter.value()->getBubble();
+        FileBubble* file_bubble = dynamic_cast<FileBubble*>(bubble);
+        file_bubble->setProgress(msg_info->_rsp_size, msg_info->_total_size);
+    }
 }
 
 void ChatPage::DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString file_path)
@@ -381,6 +466,29 @@ void ChatPage::DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString f
         img_data->_msg_info->_preview_pix =  QPixmap(file_path);
         img_data->_msg_info->_transfer_state = TransferState::Completed;
         img_data->_msg_info->_current_size = img_data->_msg_info->_total_size;
+    }
+    else if (msg_info->_msg_type == MsgType::FILE_MSG) {
+        auto bubble = iter.value()->getBubble();
+        FileBubble* file_bubble = dynamic_cast<FileBubble*>(bubble);
+        file_bubble->setDownloadFinish(msg_info, file_path);
+    }
+}
+
+void ChatPage::FileTransferFailed(std::shared_ptr<MsgInfo> msg_info)
+{
+    auto iter = _base_item_map.find(msg_info->_msg_id);
+    if (iter == _base_item_map.end()) {
+        return;
+    }
+
+    auto bubble = iter.value()->getBubble();
+    if (msg_info->_msg_type == MsgType::IMG_MSG) {
+        PictureBubble* pic_bubble = dynamic_cast<PictureBubble*>(bubble);
+        // pic_bubble->setFailed(); 
+    }
+    else if (msg_info->_msg_type == MsgType::FILE_MSG) {
+        FileBubble* file_bubble = dynamic_cast<FileBubble*>(bubble);
+        file_bubble->setFailed();
     }
 }
 
@@ -514,6 +622,11 @@ void ChatPage::on_send_btn_clicked()
             textObj["token"] = UserMgr::GetInstance()->GetToken();
             textObj["unique_id"] = uuidString;
             textObj["text_or_url"] = msgList[i]->_text_or_url;
+            
+            msgList[i]->_transfer_type = TransferType::Upload;
+            msgList[i]->_transfer_state = TransferState::Uploading;
+            msgList[i]->_thread_id = thread_id;
+
             //文件信息加入管理
             UserMgr::GetInstance()->AddTransFile(msgList[i]->_unique_name, msgList[i]);
             QJsonDocument doc(textObj);
@@ -532,7 +645,51 @@ void ChatPage::on_send_btn_clicked()
         }
         else if(type == MsgType::FILE_MSG)
         {
+            //将之前缓存的文本发送过去
+            if (txt_size) {
+                textObj["fromuid"] = user_info->_uid;
+                textObj["touid"] = _chat_data->GetOtherId();
+                textObj["thread_id"] = thread_id;
+                textObj["text_array"] = textArray;
+                QJsonDocument doc(textObj);
+                QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+                txt_size = 0;
+                textArray = QJsonArray();
+                textObj = QJsonObject();
+                emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_TEXT_CHAT_MSG_REQ, jsonData);
+            }
 
+            auto file_bubble = new FileBubble(role, msgList[i]->_text_or_url, msgList[i]->_total_size);
+            file_bubble->setMsgInfo(msgList[i]);
+            pBubble = file_bubble;
+
+            auto file_msg = std::make_shared<FileChatData>(msgList[i], uuidString, thread_id, ChatFormType::PRIVATE,
+                    ChatMsgType::FILE, user_info->_uid, 0);
+            _chat_data->AppendUnRspMsg(uuidString, file_msg);
+
+            textObj["fromuid"] = user_info->_uid;
+            textObj["touid"] = _chat_data->GetOtherId();
+            textObj["thread_id"] = thread_id;
+            textObj["md5"] = msgList[i]->_md5;
+            textObj["origin_name"] = msgList[i]->_origin_name;
+            textObj["name"] = msgList[i]->_unique_name;
+            textObj["token"] = UserMgr::GetInstance()->GetToken();
+            textObj["unique_id"] = uuidString;
+            textObj["text_or_url"] = msgList[i]->_text_or_url;
+            
+            msgList[i]->_transfer_type = TransferType::Upload;
+            msgList[i]->_transfer_state = TransferState::Uploading;
+            msgList[i]->_thread_id = thread_id;
+
+            UserMgr::GetInstance()->AddTransFile(msgList[i]->_unique_name, msgList[i]);
+            QJsonDocument doc(textObj);
+            QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+            emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_FILE_CHAT_MSG_REQ, jsonData);
+
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::pauseRequested,
+                    this, &ChatPage::on_clicked_paused);
+            connect(dynamic_cast<FileBubble*>(pBubble), &FileBubble::resumeRequested,
+                    this, &ChatPage::on_clicked_resume);
         }
         //发送消息到聊天框
         if(pBubble != nullptr)
@@ -607,22 +764,27 @@ void ChatPage::on_receive_btn_clicked()
     }
 }
 
-void ChatPage::on_clicked_paused(QString unique_name, TransferType transfer_type)
+void ChatPage::on_clicked_paused(std::shared_ptr<MsgInfo> msg_info)
 {
-    UserMgr::GetInstance()->PauseTransFileByName(unique_name);
+    UserMgr::GetInstance()->PauseTransFileByName(msg_info->_unique_name);
 }
 
-void ChatPage::on_clicked_resume(QString unique_name, TransferType transfer_type)
+void ChatPage::on_clicked_resume(std::shared_ptr<MsgInfo> msg_info)
 {
-    UserMgr::GetInstance()->ResumeTransFileByName(unique_name);
+    // 确保在管理中
+    UserMgr::GetInstance()->AddTransFile(msg_info->_unique_name, msg_info);
+    
+    UserMgr::GetInstance()->ResumeTransFileByName(msg_info->_unique_name);
     //继续发送或者下载
-    if (transfer_type == TransferType::Upload) {
-        FileTcpMgr::GetInstance()->ContinueUploadFile(unique_name);
+    if (msg_info->_transfer_type == TransferType::Upload) {
+        FileTcpMgr::GetInstance()->ContinueUploadFile(msg_info->_unique_name);
         return;
     }
 
-    if (transfer_type == TransferType::Download) {
-        FileTcpMgr::GetInstance()->ContinueDownloadFile(unique_name);
+    if (msg_info->_transfer_type == TransferType::Download || msg_info->_transfer_type == TransferType::None) {
+        // 如果是None，默认发起下载
+        msg_info->_transfer_type = TransferType::Download;
+        FileTcpMgr::GetInstance()->ContinueDownloadFile(msg_info->_unique_name);
         return;
     }
 }
@@ -638,6 +800,58 @@ void ChatPage::on_view_picture(const QString& file_path, const QPixmap& preview_
     viewer->show();
     viewer->raise();
     viewer->activateWindow();
+}
+
+void ChatPage::on_file_clicked(QString, ClickLbState)
+{
+    QString filePath = QFileDialog::getOpenFileName(this, "选择文件", QDir::homePath(), "All Files (*.*)");
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QFileInfo fileInfo(filePath);
+    FileConfirmDlg* pDlg = new FileConfirmDlg(this);
+    pDlg->setFileInfo(filePath, fileInfo.size());
+    pDlg->setTargetName(ui->title_lb->text());
+
+    if (pDlg->exec() == QDialog::Accepted) {
+        ui->chatEdit->insertFile(filePath);
+        // 自动触发发送
+        on_send_btn_clicked();
+    }
+    delete pDlg;
+}
+
+void ChatPage::slot_chat_search(const QString &text)
+{
+    if (text.isEmpty()) {
+        for (auto& item : _base_item_map) {
+            item->show();
+        }
+        return;
+    }
+
+    if (_chat_data == nullptr) {
+        return;
+    }
+
+    auto msg_map = _chat_data->GetMsgMapRef();
+    for (auto iter = msg_map.begin(); iter != msg_map.end(); ++iter) {
+        auto msg = iter.value();
+        auto item = _base_item_map.value(msg->GetMsgId());
+        if (!item) continue;
+
+        if (msg->GetMsgType() == ChatMsgType::TEXT) {
+            if (msg->GetMsgContent().contains(text, Qt::CaseInsensitive)) {
+                item->show();
+            } else {
+                item->hide();
+            }
+        } else {
+            // 目前只支持搜索文本消息，非文本消息隐藏
+            item->hide();
+        }
+    }
 }
 
 void ChatPage::on_emo_clicked(QString, ClickLbState)

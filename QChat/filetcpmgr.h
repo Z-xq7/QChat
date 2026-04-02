@@ -83,6 +83,7 @@ signals:
     void sig_continue_download_file(QString unique_name);
     void sig_update_download_progress(std::shared_ptr<MsgInfo>);
     void sig_download_finish(std::shared_ptr<MsgInfo>,QString file_path);
+    void sig_file_transfer_failed(std::shared_ptr<MsgInfo>);
 
 public slots:
     void slot_send_data(ReqId reqId, QByteArray data);

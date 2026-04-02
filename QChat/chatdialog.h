@@ -13,6 +13,9 @@
 #include <QTimer>
 #include "moredialog.h"
 #include "userinfodialog.h"
+#include "toolspage.h"
+#include "aipage.h"
+#include "videopage.h"
 
 namespace Ui {
 class ChatDialog;
@@ -70,9 +73,11 @@ private:
     //QMap<int, QListWidgetItem*> _chat_items_added;
     //chat_thread_id与item的映射关系
     QMap<int, QListWidgetItem*> _chat_thread_items;
+    QMap<int, QListWidgetItem*> _ai_thread_items;
     //当前的聊天thread编号
     //int _cur_chat_uid;
     int _cur_chat_thread_id;
+    int _cur_ai_thread_id;
     //记录上次的widget状态
     QWidget*_last_widget;
     //心跳定时器
@@ -85,6 +90,8 @@ private:
     // 更多菜单和个人信息窗口
     MoreDialog* _more_dialog;
     UserInfoDialog* _user_info_dialog;
+    AIPage* _ai_page;
+    VideoPage* _video_page;
 
 private slots:
     //加载未显示的聊天列表
@@ -94,6 +101,9 @@ private slots:
     void slot_side_chat();
     void slot_side_contact();
     void slot_side_settings();
+    void slot_side_tools();
+    void slot_side_ai();
+    void slot_side_video();
     void slot_text_changed(const QString& str);
     //重置头像
     void slot_reset_head();
@@ -123,9 +133,11 @@ public slots:
     // //（已废弃）将聊天消息缓存在本地
     // void slot_append_send_chat_msg(std::shared_ptr<TextChatData> msgdata);
     //对方发来文本消息通知
-    void slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msglists);
+    void slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> msg_list);
     //对方发来图片文本消息通知
-    void slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat);
+    void slot_img_chat_msg(std::shared_ptr<ImgChatData> msg);
+    //对方发来文件消息通知
+    void slot_file_chat_msg(std::shared_ptr<FileChatData> msg);
     //加载聊天列表
     void slot_load_chat_thread(bool load_more,int next_last_id,std::vector<std::shared_ptr<ChatThreadInfo>> thread_list);
     //从friendinfopage新创建聊天item
@@ -133,17 +145,21 @@ public slots:
     //加载聊天页面chatpage聊天对话消息
     void slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
     //发送消息后服务器回传接收到消息的信号后的通知
-    void slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData>> msglists);
+    void slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
     //发送图片消息后服务器回传接收到图片消息的信号后的通知
-    void slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> img_msg);
+    void slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> chat_data);
+    //发送文件消息后服务器回传接收到文件消息的信号后的通知
+    void slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> chat_data);
     //重新加载头像
-    void slot_reset_icon(QString path);
+    void slot_reset_icon(QString icon_path);
     //更新图片上传进度
     void slot_update_upload_progress(std::shared_ptr<MsgInfo> msg_info);
     //更新图片下载进度
     void slot_update_download_progress(std::shared_ptr<MsgInfo> msg_info);
     //下载完成
     void slot_download_finish(std::shared_ptr<MsgInfo> msg_info, QString file_path);
+    //文件传输失败
+    void slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info);
 
 };
 

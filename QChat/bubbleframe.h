@@ -16,6 +16,10 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *e);
+    void contextMenuEvent(QContextMenuEvent *event) override; // 添加右键菜单
+
+signals:
+    void sig_delete_msg(); // 删除消息信号
 
 private:
     QHBoxLayout *m_pHLayout;

@@ -398,6 +398,78 @@ LoadingDialog{
     border-image: url(:/images/setting_press.png);
 }
 
+#side_tool_lb[state='normal']{
+    border-image: url(:/images/star.png);
+}
+
+#side_tool_lb[state='hover']{
+    border-image: url(:/images/star_hover.png);
+}
+
+#side_tool_lb[state='pressed']{
+    border-image: url(:/images/star_press.png);
+}
+
+#side_tool_lb[state='selected_normal']{
+    border-image: url(:/images/star_press.png);
+}
+
+#side_tool_lb[state='selected_hover']{
+    border-image: url(:/images/star_press.png);
+}
+
+#side_tool_lb[state='selected_pressed']{
+    border-image: url(:/images/star_press.png);
+}
+
+#side_ai_lb[state='normal']{
+    border-image: url(:/images/ai.png);
+}
+
+#side_ai_lb[state='hover']{
+    border-image: url(:/images/ai_hover.png);
+}
+
+#side_ai_lb[state='pressed']{
+    border-image: url(:/images/ai_press.png);
+}
+
+#side_ai_lb[state='selected_normal']{
+    border-image: url(:/images/ai_press.png);
+}
+
+#side_ai_lb[state='selected_hover']{
+    border-image: url(:/images/ai_press.png);
+}
+
+#side_ai_lb[state='selected_pressed']{
+    border-image: url(:/images/ai_press.png);
+}
+
+#side_video_lb[state='normal']{
+    border-image: url(:/images/video.png);
+}
+
+#side_video_lb[state='hover']{
+    border-image: url(:/images/video_hover.png);
+}
+
+#side_video_lb[state='pressed']{
+    border-image: url(:/images/video_press.png);
+}
+
+#side_video_lb[state='selected_normal']{
+    border-image: url(:/images/video_press.png);
+}
+
+#side_video_lb[state='selected_hover']{
+    border-image: url(:/images/video_press.png);
+}
+
+#side_video_lb[state='selected_pressed']{
+    border-image: url(:/images/video_press.png);
+}
+
 #more_lb[state='normal']{
     border-image: url(:/images/more.png);
 }
@@ -428,22 +500,22 @@ LoadingDialog{
 }
 
 /* 搜索框列表*/
-#search_list {
+#search_list, #ai_user_list {
     background-color: rgba(232,255,255, 180); /* 浅蓝透明 */
     border: 1px solid rgba(176,224,230, 100); /* 浅蓝色边框 */
 }
 
-#search_list::item:selected {
+#search_list::item:selected, #ai_user_list::item:selected {
     background-color: rgba(200,238,238, 200); /* 淡蓝 */
     border: none;
     outline: none;
 }
-#search_list::item:hover {
+#search_list::item:hover, #ai_user_list::item:hover {
     background-color: rgba(173,216,230, 180); /* 浅蓝 */
     border: none;
     outline: none;
 }
-#search_list::focus {
+#search_list::focus, #ai_user_list::focus {
     border: none;
     outline: none;
 }
@@ -1088,7 +1160,7 @@ background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
     transform: translateY(1px);
 }
 
-#chat_page {
+#chat_page, #AIPage {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
                stop:0 rgba(220,255,255, 180), 
                stop:1 rgba(255,225,255, 180));

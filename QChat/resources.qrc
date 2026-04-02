@@ -68,5 +68,23 @@
         <file>images/more.png</file>
         <file>images/more_hover.png</file>
         <file>images/more_press.png</file>
+        <file>images/star_hover.png</file>
+        <file>images/star_press.png</file>
+        <file>images/ai.png</file>
+        <file>images/ai_hover.png</file>
+        <file>images/ai_press.png</file>
+        <file>images/doubao.png</file>
+        <file>images/send.png</file>
+        <file>images/comment.png</file>
+        <file>images/like.png</file>
+        <file>images/like_press.png</file>
+        <file>images/loading.gif</file>
+        <file>images/loading.png</file>
+        <file>images/save.png</file>
+        <file>images/save_press.png</file>
+        <file>images/share.png</file>
+        <file>images/video_hover.png</file>
+        <file>images/video_press.png</file>
+        <file>images/test.png</file>
     </qresource>
 </RCC>

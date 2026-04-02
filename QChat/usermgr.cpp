@@ -472,6 +472,22 @@ void UserMgr::AddLabelToReset(QString path, QLabel* label)
     iter->append(label);
 }
 
+QPixmap UserMgr::GetCachedIcon(QString path)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    auto iter = _icon_cache.find(path);
+    if(iter != _icon_cache.end()){
+        return iter.value();
+    }
+    return QPixmap();
+}
+
+void UserMgr::CacheIcon(QString path, QPixmap pixmap)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    _icon_cache[path] = pixmap;
+}
+
 void UserMgr::ResetLabelIcon(QString path)
 {
     auto iter = _path_to_reset_labels.find(path);
@@ -592,11 +608,17 @@ bool UserMgr::TransFileIsUploading(QString name) {
         return false;
     }
 
-    if (iter.value()->_transfer_state == TransferState::Uploading) {
-        return true;
-    }
+    return iter.value()->_transfer_state == TransferState::Uploading;
+}
 
-    return false;
+std::vector<std::shared_ptr<MsgInfo>> UserMgr::GetAllTransFiles()
+{
+    std::lock_guard<std::mutex> mtx(_trans_mtx);
+    std::vector<std::shared_ptr<MsgInfo>> trans_files;
+    for (auto iter = _name_to_msg_info.begin(); iter != _name_to_msg_info.end(); iter++) {
+        trans_files.push_back(iter.value());
+    }
+    return trans_files;
 }
 
 

@@ -40,8 +40,8 @@ public:
     void UpdateImgChatStatus(std::shared_ptr<ImgChatData> img_msg);
     //更新文件上传状态
     void UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info);
-    //文件图片下载完成
     void DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString file_path);
+    void FileTransferFailed(std::shared_ptr<MsgInfo> msg_info);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -53,12 +53,15 @@ private slots:
     void on_send_btn_clicked();
     void on_receive_btn_clicked();
     //接收PictureBubble传回来的暂停信号
-    void on_clicked_paused(QString unique_name, TransferType transfer_type);
+    void on_clicked_paused(std::shared_ptr<MsgInfo> msg_info);
     //接收PictureBubble传回来的继续信号
-    void on_clicked_resume(QString unique_name, TransferType transfer_type);
+    void on_clicked_resume(std::shared_ptr<MsgInfo> msg_info);
     void on_view_picture(const QString& file_path, const QPixmap& preview_pix);
+    void on_file_clicked(QString, ClickLbState);
     void on_emo_clicked(QString, ClickLbState);
     void on_emoji_selected(const QString& emoji);
+    // 搜索聊天记录
+    void slot_chat_search(const QString& text);
 
 private:
     Ui::ChatPage *ui;

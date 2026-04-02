@@ -244,18 +244,18 @@ void PictureBubble::onPictureClicked()
     case TransferState::Uploading:
         // 暂停
         setState(TransferState::Paused);
-        emit pauseRequested(_msg_info->_unique_name, _msg_info->_transfer_type);
+        emit pauseRequested(_msg_info);
         break;
 
     case TransferState::Paused:
         // 继续
         resumeState(); //
-        emit resumeRequested(_msg_info->_unique_name, _msg_info->_transfer_type);
+        emit resumeRequested(_msg_info);
         break;
 
     case TransferState::Failed:
         // 重试
-        emit resumeRequested(_msg_info->_unique_name, _msg_info->_transfer_type);
+        emit resumeRequested(_msg_info);
         break;
 
     default:

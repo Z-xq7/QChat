@@ -217,6 +217,23 @@ public:
 };
 Q_DECLARE_METATYPE(std::shared_ptr<ImgChatData>)
 
+class FileChatData : public ChatDataBase {
+public:
+    FileChatData(std::shared_ptr<MsgInfo> msg_info, QString unique_id,
+                int thread_id, ChatFormType form_type, ChatMsgType msg_type,
+                int send_uid, int status, QString chat_time = ""):
+        ChatDataBase(unique_id, thread_id, form_type, msg_type, msg_info->_text_or_url,
+                     send_uid, status, chat_time), _msg_info(msg_info)
+    {
+        _msg_id = _msg_info->_msg_id;
+    }
+
+    ~FileChatData() override {}
+
+    std::shared_ptr<MsgInfo> _msg_info;
+};
+Q_DECLARE_METATYPE(std::shared_ptr<FileChatData>)
+
 //聊天列表信息
 struct ChatThreadInfo{
     ChatThreadInfo() = default;

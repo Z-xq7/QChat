@@ -21,6 +21,18 @@ ChatUserWid::~ChatUserWid()
 void ChatUserWid::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     _chat_data = chat_data;
     auto other_id = _chat_data->GetOtherId();
+
+    if (other_id == 0) {
+        // AI 助手特殊处理
+        QPixmap pixmap(":/images/doubao.png");
+        QPixmap scaledPixmap = pixmap.scaled(ui->icon_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        ui->icon_lb->setPixmap(scaledPixmap);
+        ui->icon_lb->setScaledContents(true);
+        ui->user_name_lb->setText("豆包 AI 助手");
+        ui->user_chat_lb->setText(chat_data->GetLastMsg().isEmpty() ? "点击开始对话" : chat_data->GetLastMsg());
+        return;
+    }
+
     auto other_info = UserMgr::GetInstance()->GetFriendById(other_id);
     // 加载头像图片
     QString head_icon = UserMgr::GetInstance()->GetIcon();

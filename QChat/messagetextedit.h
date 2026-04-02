@@ -26,6 +26,8 @@ public:
     QVector<std::shared_ptr<MsgInfo>> getMsgList();
 
     void insertFileFromUrl(const QStringList &urls);
+    void insertFile(const QString &url);
+
 signals:
     void send();
 
@@ -36,7 +38,6 @@ protected:
 
 private:
     void insertImages(const QString &url);
-    void insertFile(const QString &url);
     bool canInsertFromMimeData(const QMimeData *source) const;
     void insertFromMimeData(const QMimeData *source);
 

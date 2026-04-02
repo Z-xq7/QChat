@@ -98,6 +98,11 @@ public:
     std::shared_ptr<DownloadInfo> GetDownloadInfo(QString name);
     //添加资源路径到将要重置的Label集合
     void AddLabelToReset(QString path, QLabel* label);
+
+    // 获取缓存的头像
+    QPixmap GetCachedIcon(QString path);
+    // 缓存头像
+    void CacheIcon(QString path, QPixmap pixmap);
     //重置用户label头像
     void ResetLabelIcon(QString path);
     //添加传输中的文件
@@ -116,6 +121,8 @@ public:
     void ResumeTransFileByName(QString name);
     //判断文件是否正在上传
     bool TransFileIsUploading(QString name);
+    //获取所有传输中的文件
+    std::vector<std::shared_ptr<MsgInfo>> GetAllTransFiles();
 
 private:
     UserMgr();
@@ -156,6 +163,8 @@ private:
     QHash<QString, std::shared_ptr<MsgInfo> > _name_to_msg_info;
     //传输锁
     std::mutex _trans_mtx;
+    // 头像缓存
+    QMap<QString, QPixmap> _icon_cache;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

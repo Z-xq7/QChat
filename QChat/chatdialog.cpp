@@ -56,6 +56,7 @@ ChatDialog::ChatDialog(QWidget *parent)
 
     //初始化时先不显示搜索列表
     ShowSearch(false);
+    ui->ai_user_list->hide();
     ui->search_edit->SetMaxLength(15);
 
     //连接加载聊天列表信号和槽
@@ -83,17 +84,29 @@ ChatDialog::ChatDialog(QWidget *parent)
     ui->side_contact_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
     ui->side_settings_lb->setProperty("state","normal");
     ui->side_settings_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
+    ui->side_tool_lb->setProperty("state","normal");
+    ui->side_tool_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
+    ui->side_ai_lb->setProperty("state","normal");
+    ui->side_ai_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
+    ui->side_video_lb->setProperty("state","normal");
+    ui->side_video_lb->SetState("normal","hover","pressed","selected_normal","selected_hover","selected_pressed");
     ui->more_lb->SetState("normal","hover","press","normal","hover","press");
     ui->side_head_lb->SetState("normal","hover","press","normal","hover","press");
 
     AddLBGroup(ui->side_contact_lb);
     AddLBGroup(ui->side_chat_lb);
     AddLBGroup(ui->side_settings_lb);
+    AddLBGroup(ui->side_tool_lb);
+    AddLBGroup(ui->side_ai_lb);
+    AddLBGroup(ui->side_video_lb);
 
     //连接侧边栏点击后页面变化的槽函数
     connect(ui->side_chat_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_chat);
     connect(ui->side_contact_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_contact);
     connect(ui->side_settings_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_settings);
+    connect(ui->side_tool_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_tools);
+    connect(ui->side_ai_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_ai);
+    connect(ui->side_video_lb, &StateWidget::clicked, this, &ChatDialog::slot_side_video);
 
     //连接搜索框输入变化
     connect(ui->search_edit,&QLineEdit::textChanged,this,&ChatDialog::slot_text_changed);
@@ -145,14 +158,89 @@ ChatDialog::ChatDialog(QWidget *parent)
     //设置中心部件为chatpage
     ui->stackedWidget->setCurrentWidget(ui->chat_page);
 
+    // 添加工具页面
+    ui->stackedWidget->addWidget(new ToolsPage(this));
+
+    // 添加 AI 页面
+    _ai_page = new AIPage(this);
+    ui->stackedWidget->addWidget(_ai_page);
+
+    // 添加短视频页面
+    _video_page = new VideoPage(this);
+    ui->stackedWidget->addWidget(_video_page);
+    
+    // 连接 AI 页面最后一条消息更新信号
+    connect(_ai_page, &AIPage::sig_update_last_msg, this, [this](int thread_id, const QString& msg){
+        auto find_iter = _ai_thread_items.find(thread_id);
+        if (find_iter != _ai_thread_items.end()) {
+            auto widget = ui->ai_user_list->itemWidget(find_iter.value());
+            auto ai_wid = qobject_cast<ChatUserWid*>(widget);
+            if (ai_wid) {
+                // 更新显示
+                auto label = ai_wid->findChild<QLabel*>("user_chat_lb");
+                if (label) label->setText(msg);
+            }
+        }
+    });
+
+    // 默认创建一个 AI 会话
+    {
+        int new_id = -1;
+        auto ai_data = std::make_shared<ChatThreadData>(0, new_id, 0);
+        auto* chat_user_wid = new ChatUserWid();
+        chat_user_wid->SetChatData(ai_data);
+        QListWidgetItem* item = new QListWidgetItem;
+        item->setSizeHint(chat_user_wid->sizeHint());
+        ui->ai_user_list->addItem(item);
+        ui->ai_user_list->setItemWidget(item, chat_user_wid);
+        _ai_thread_items.insert(new_id, item);
+        _cur_ai_thread_id = new_id;
+        _ai_page->SetChatData(ai_data);
+    }
+
     //连接聊天列表点击信号
     connect(ui->chat_user_list,&QListWidget::itemClicked,this,&ChatDialog::slot_item_clicked);
+    
+    //连接 AI 列表点击信号
+    connect(ui->ai_user_list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item){
+        auto widget = ui->ai_user_list->itemWidget(item);
+        auto ai_wid = qobject_cast<ChatUserWid*>(widget);
+        if (ai_wid) {
+            _cur_ai_thread_id = ai_wid->GetChatData()->GetThreadId();
+            _ai_page->SetChatData(ai_wid->GetChatData());
+        }
+    });
+
+    //连接加号按钮点击信号 (如果是 AI 模式则创建新对话)
+    connect(ui->add_btn, &ClickedBtn::clicked, this, [this](){
+        if (_state == ChatUIMode::AIMode) {
+            // 创建新 AI 对话
+            int new_id = -(_ai_thread_items.size() + 1); // 使用负 ID 区分
+            auto ai_data = std::make_shared<ChatThreadData>(0, new_id, 0);
+            
+            auto* chat_user_wid = new ChatUserWid();
+            chat_user_wid->SetChatData(ai_data);
+            
+            QListWidgetItem* item = new QListWidgetItem;
+            item->setSizeHint(chat_user_wid->sizeHint());
+            ui->ai_user_list->insertItem(0, item);
+            ui->ai_user_list->setItemWidget(item, chat_user_wid);
+            _ai_thread_items.insert(new_id, item);
+            
+            ui->ai_user_list->setCurrentItem(item);
+            _cur_ai_thread_id = new_id;
+            _ai_page->SetChatData(ai_data);
+        }
+    });
 
     //连接对方发来文本消息通知
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_text_chat_msg, this, &ChatDialog::slot_text_chat_msg);
 
     //连接对方发来图片消息通知
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_img_chat_msg, this, &ChatDialog::slot_img_chat_msg);
+
+    //连接对方发来文件消息通知
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_file_chat_msg, this, &ChatDialog::slot_file_chat_msg);
 
     //注册心跳检测
     _timer = new QTimer(this);
@@ -183,6 +271,9 @@ ChatDialog::ChatDialog(QWidget *parent)
     //连接tcp返回的图片聊天信息回复
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_chat_img_rsp, this, &ChatDialog::slot_add_img_msg);
 
+    //连接tcp返回的文件聊天信息回复
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_chat_file_rsp, this, &ChatDialog::slot_add_file_msg);
+
     //重置label icon
     connect(FileTcpMgr::GetInstance().get(), &FileTcpMgr::sig_reset_label_icon, this, &ChatDialog::slot_reset_icon);
 
@@ -197,6 +288,10 @@ ChatDialog::ChatDialog(QWidget *parent)
     //接收tcp返回的下载完成信息
     connect(FileTcpMgr::GetInstance().get(), &FileTcpMgr::sig_download_finish,
             this, &ChatDialog::slot_download_finish);
+
+    //接收tcp返回的传输失败信息
+    connect(FileTcpMgr::GetInstance().get(), &FileTcpMgr::sig_file_transfer_failed,
+            this, &ChatDialog::slot_file_transfer_failed);
 }
 
 ChatDialog::~ChatDialog()
@@ -553,22 +648,38 @@ void ChatDialog::ShowSearch(bool bsearch)
     if(bsearch){
         if (ui->chat_user_list) ui->chat_user_list->hide();
         if (ui->con_user_list) ui->con_user_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->hide();
         if (ui->search_list) ui->search_list->show();
         _mode = ChatUIMode::SearchMode;
     }else if(_state == ChatUIMode::ChatMode){
         if (ui->chat_user_list) ui->chat_user_list->show();
         if (ui->con_user_list) ui->con_user_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->hide();
         if (ui->search_list) ui->search_list->hide();
         _mode = ChatUIMode::ChatMode;
     }else if(_state == ChatUIMode::ContactMode){
         if (ui->chat_user_list) ui->chat_user_list->hide();
         if (ui->search_list) ui->search_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->hide();
         if (ui->con_user_list) ui->con_user_list->show();
         _mode = ChatUIMode::ContactMode;
     }else if(_state == ChatUIMode::SettingsMode){
         if (ui->chat_user_list) ui->chat_user_list->hide();
         if (ui->search_list) ui->search_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->hide();
         if (ui->con_user_list) ui->con_user_list->hide();
+    }else if(_state == ChatUIMode::AIMode){
+        if (ui->chat_user_list) ui->chat_user_list->hide();
+        if (ui->con_user_list) ui->con_user_list->hide();
+        if (ui->search_list) ui->search_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->show();
+        _mode = ChatUIMode::AIMode;
+    }else if(_state == ChatUIMode::VideoMode){
+        if (ui->chat_user_list) ui->chat_user_list->hide();
+        if (ui->con_user_list) ui->con_user_list->hide();
+        if (ui->search_list) ui->search_list->hide();
+        if (ui->ai_user_list) ui->ai_user_list->hide();
+        _mode = ChatUIMode::VideoMode;
     }
 }
 
@@ -623,6 +734,9 @@ void ChatDialog::slot_side_chat()
     if (!ui->side_chat_lb) return;
     ClearLabelState(ui->side_chat_lb);
     if (!ui->stackedWidget || !ui->chat_page) return;
+
+    if (_video_page) _video_page->stopAll();
+
     //显示聊天页面
     ui->stackedWidget->setCurrentWidget(ui->chat_page);
     _state = ChatUIMode::ChatMode;
@@ -641,6 +755,9 @@ void ChatDialog::slot_side_contact()
     if (!ui->side_contact_lb) return;
     ClearLabelState(ui->side_contact_lb);
     if (!ui->stackedWidget || !ui->friend_apply_page) return;
+
+    if (_video_page) _video_page->stopAll();
+
     //显示添加好友页面
     if (_last_widget == nullptr) {
         ui->stackedWidget->setCurrentWidget(ui->friend_apply_page);
@@ -661,10 +778,69 @@ void ChatDialog::slot_side_settings()
     if (!ui->side_settings_lb) return;
     ClearLabelState(ui->side_settings_lb);
     if (!ui->stackedWidget || !ui->user_info_page) return;
+
+    if (_video_page) _video_page->stopAll();
+
     //显示设置个人信息页面
     ui->stackedWidget->setCurrentWidget(ui->user_info_page);
     _state = ChatUIMode::SettingsMode;
     ShowSearch(false);
+}
+
+//显示工具页面
+void ChatDialog::slot_side_tools()
+{
+    qDebug()<< "[ChatDialog]: --- receive side tools clicked ---";
+
+    if (!ui->side_tool_lb) return;
+    ClearLabelState(ui->side_tool_lb);
+    if (!ui->stackedWidget) return;
+    
+    if (_video_page) _video_page->stopAll();
+
+    // 工具页面是最后添加的之前添加了AIPage，所以是倒数第二个
+    ui->stackedWidget->setCurrentWidget(ui->stackedWidget->widget(ui->stackedWidget->count() - 3));
+    
+    _state = ChatUIMode::SettingsMode; // 借用 SettingsMode 的隐藏逻辑
+    ShowSearch(false);
+}
+
+//显示 AI 页面
+void ChatDialog::slot_side_ai()
+{
+    qDebug()<< "[ChatDialog]: --- receive side ai clicked ---";
+
+    if (!ui->side_ai_lb) return;
+    ClearLabelState(ui->side_ai_lb);
+    if (!ui->stackedWidget || !_ai_page) return;
+
+    if (_video_page) _video_page->stopAll();
+
+    ui->stackedWidget->setCurrentWidget(_ai_page);
+    _state = ChatUIMode::AIMode;
+    ShowSearch(false);
+
+    // 选中当前的 AI 会话
+    auto find_iter = _ai_thread_items.find(_cur_ai_thread_id);
+    if (find_iter != _ai_thread_items.end()) {
+        ui->ai_user_list->setCurrentItem(find_iter.value());
+    }
+}
+
+//显示短视频页面
+void ChatDialog::slot_side_video()
+{
+    qDebug()<< "[ChatDialog]: --- receive side video clicked ---";
+
+    if (!ui->side_video_lb) return;
+    ClearLabelState(ui->side_video_lb);
+    if (!ui->stackedWidget || !_video_page) return;
+
+    ui->stackedWidget->setCurrentWidget(_video_page);
+    _state = ChatUIMode::VideoMode;
+    ShowSearch(false);
+
+    if (_video_page) _video_page->playCurrent();
 }
 
 //搜索添加好友
@@ -693,12 +869,23 @@ void ChatDialog::slot_reset_head()
 {
     //模拟加载自己头像
     QString head_icon = UserMgr::GetInstance()->GetIcon();
+
+    // 先尝试从缓存获取
+    QPixmap cachedPixmap = UserMgr::GetInstance()->GetCachedIcon(head_icon);
+    if (!cachedPixmap.isNull()) {
+        QPixmap scaledPixmap = cachedPixmap.scaled(ui->side_head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        ui->side_head_lb->setPixmap(scaledPixmap);
+        ui->side_head_lb->setScaledContents(true);
+        return;
+    }
+
     //使用正则表达式检查是否使用默认头像
     QRegularExpression regex("^:/images/head_(\\d+)\\.jpg$");
     QRegularExpressionMatch match = regex.match(head_icon);
     if (match.hasMatch()) {
         // 如果是默认头像（:/images/head_X.jpg 格式）
         QPixmap pixmap(head_icon); // 加载默认头像图片
+        UserMgr::GetInstance()->CacheIcon(head_icon, pixmap);
         QPixmap scaledPixmap = pixmap.scaled(ui->side_head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
         ui->side_head_lb->setPixmap(scaledPixmap); // 将缩放后的图片设置到QLabel上
         ui->side_head_lb->setScaledContents(true); // 设置QLabel自动缩放图片内容以适应大小
@@ -715,6 +902,7 @@ void ChatDialog::slot_reset_head()
             QString avatarPath = avatarsDir.filePath(file_name); // 获取上传头像的完整路径
             QPixmap pixmap(avatarPath); // 加载上传的头像图片
             if (!pixmap.isNull()) {
+                UserMgr::GetInstance()->CacheIcon(head_icon, pixmap);
                 QPixmap scaledPixmap = pixmap.scaled(ui->side_head_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 ui->side_head_lb->setPixmap(scaledPixmap);
                 ui->side_head_lb->setScaledContents(true);
@@ -1092,6 +1280,19 @@ void ChatDialog::slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat)
     ui->chat_page->AppendOtherMsg(imgchat);
 }
 
+void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
+{
+    //更新数据
+    auto thread_id = file_chat->GetThreadId();
+    auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+    thread_data->AddMsg(file_chat);
+    if (_cur_chat_thread_id != thread_id) {
+        return;
+    }
+
+    ui->chat_page->AppendOtherMsg(file_chat);
+}
+
 void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
      std::vector<std::shared_ptr<ChatThreadInfo>> chat_threads)
 {
@@ -1274,6 +1475,41 @@ void ChatDialog::slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> im
 
     //更新聊天界面信息
     ui->chat_page->UpdateImgChatStatus(img_msg);
+}
+
+void ChatDialog::slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> file_msg)
+{
+    auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+    if (chat_data == nullptr) {
+        return;
+    }
+
+    chat_data->MoveMsg(file_msg);
+
+    if (_cur_chat_thread_id != thread_id) {
+        return;
+    }
+
+    //更新聊天界面信息
+    ui->chat_page->UpdateChatStatus(file_msg);
+}
+
+void ChatDialog::slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info)
+{
+    auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(msg_info->_thread_id);
+    if (chat_data == nullptr) {
+        return;
+    }
+
+    //更新消息状态
+    chat_data->UpdateProgress(msg_info);
+
+    if (_cur_chat_thread_id != msg_info->_thread_id) {
+        return;
+    }
+
+    //更新聊天界面信息
+    ui->chat_page->FileTransferFailed(msg_info);
 }
 
 void ChatDialog::slot_reset_icon(QString path)

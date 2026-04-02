@@ -227,9 +227,9 @@ void MessageTextEdit::insertMsgList(QVector<std::shared_ptr<MsgInfo>> &list, Msg
                                     QString text_or_url, QPixmap preview_pix,
                                     QString unique_name, uint64_t total_size, QString md5) {
 
-    auto msg_info = std::make_shared<MsgInfo>(msgtype, text_or_url, preview_pix, unique_name, total_size, md5);
+    QString origin_name = QFileInfo(text_or_url).fileName();
+    auto msg_info = std::make_shared<MsgInfo>(msgtype, text_or_url, preview_pix, unique_name, total_size, md5, origin_name);
     list.append(msg_info);
-
 }
 
 QStringList MessageTextEdit::getUrl(QString text)
