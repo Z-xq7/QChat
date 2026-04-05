@@ -381,6 +381,11 @@ std::shared_ptr<ChatThreadData> UserMgr::GetChatThreadByThreadId(int thread_id)
     if (find_iter != _chat_map.end()) {
         return find_iter.value();
     }
+    // 同时查找群聊 map
+    auto group_iter = _group_chat_map.find(thread_id);
+    if (group_iter != _group_chat_map.end()) {
+        return group_iter.value();
+    }
     return nullptr;
 }
 
@@ -763,4 +768,68 @@ void UserMgr::SlotUpdateGroupNotice(int thread_id, const QString& notice)
         group_data->SetNotice(notice);
         qDebug() << "[UserMgr]: Updated group notice, thread_id=" << thread_id;
     }
+}
+
+bool UserMgr::IsFriendOnline(int uid)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    auto iter = _friend_online_status.find(uid);
+    if (iter == _friend_online_status.end()) {
+        return false; // 默认离线
+    }
+    return iter.value();
+}
+
+void UserMgr::SetFriendOnlineStatus(int uid, bool online)
+{
+    {
+        std::lock_guard<std::mutex> lock(_mtx);
+        bool old_status = _friend_online_status.value(uid, false);
+        if (old_status == online) {
+            return; // 状态未变化
+        }
+        _friend_online_status[uid] = online;
+    }
+    qDebug() << "[UserMgr]: Friend status changed, uid=" << uid << ", online=" << online;
+    emit sig_friend_status_changed(uid, online);
+}
+
+void UserMgr::SetFriendOnlineStatusBatch(const QJsonObject& online_map)
+{
+    // 先清除所有旧状态（默认全部离线），然后设置在线的好友
+    {
+        std::lock_guard<std::mutex> lock(_mtx);
+        for (auto it = _friend_online_status.begin(); it != _friend_online_status.end(); ++it) {
+            it.value() = false;
+        }
+        // 设置在线的好友
+        for (auto it = online_map.begin(); it != online_map.end(); ++it) {
+            int uid = it.key().toInt();
+            _friend_online_status[uid] = true;
+        }
+    }
+    qDebug() << "[UserMgr]: Batch updated online status, online_count=" << online_map.size();
+    // 一次性发出信号，由接收方统一刷新 UI（避免逐个 emit 导致重复遍历列表）
+    emit sig_friend_online_status_batch();
+}
+
+void UserMgr::RequestFriendOnlineStatus()
+{
+    QJsonObject json;
+    json["uid"] = GetUid();
+    QJsonDocument doc(json);
+    QByteArray data = doc.toJson(QJsonDocument::Compact);
+    TcpMgr::GetInstance()->SendData(ReqId::ID_GET_FRIEND_ONLINE_STATUS_REQ, data);
+    qDebug() << "[UserMgr]: Sent get friend online status request";
+}
+
+void UserMgr::SlotFriendOnline(int uid)
+{
+    SetFriendOnlineStatus(uid, true);
+}
+
+void UserMgr::SlotFriendOffline(int uid)
+{
+    qDebug() << "[UserMgr]: SlotFriendOffline called, uid=" << uid;
+    SetFriendOnlineStatus(uid, false);
 }

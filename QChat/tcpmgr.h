@@ -131,6 +131,15 @@ signals:
     void sig_update_group_notice(int thread_id, const QString& notice);
     // 群成员列表加载完成
     void sig_group_members_loaded(int thread_id, const std::vector<std::shared_ptr<GroupMemberInfo>>& members);
+
+    // 好友在线状态相关信号
+    void sig_friend_online_status(QJsonObject online_list);  // 查询结果
+    void sig_user_online(int uid);    // 好友上线通知
+    void sig_user_offline(int uid);   // 好友下线通知
+
+    // 已读回执相关信号
+    void sig_unread_counts(QJsonObject unread_counts);  // 未读消息数查询结果
+    void sig_notify_msg_read(int thread_id, int reader_uid);  // 消息已读通知
 };
 
 #endif // TCPMGR_H

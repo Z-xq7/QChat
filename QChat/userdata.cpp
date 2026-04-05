@@ -61,8 +61,22 @@ QString ChatDataBase::GetUniqueId()
 void ChatThreadData::AddMsg(std::shared_ptr<ChatDataBase> msg)
 {
     _msg_map.insert(msg->GetMsgId(), msg);
-    _last_msg = msg->GetMsgContent();
     _last_msg_id = msg->GetMsgId();
+    // 根据消息类型设置最后一条消息的显示文本
+    switch (msg->GetMsgType()) {
+    case ChatMsgType::TEXT:
+        _last_msg = msg->GetMsgContent();
+        break;
+    case ChatMsgType::PIC:
+        _last_msg = "[图片]";
+        break;
+    case ChatMsgType::FILE:
+        _last_msg = "[文件]";
+        break;
+    default:
+        _last_msg = msg->GetMsgContent();
+        break;
+    }
 }
 
 void ChatThreadData::MoveMsg(std::shared_ptr<ChatDataBase> msg)
@@ -143,13 +157,38 @@ QMap<int, std::shared_ptr<ChatDataBase>>& ChatThreadData::GetMsgMapRef()
 
 void ChatThreadData::AppendMsg(int msg_id, std::shared_ptr<ChatDataBase> base_msg) {
     _msg_map.insert(msg_id, base_msg);
-    _last_msg = base_msg->GetMsgContent();
     _last_msg_id = msg_id;
+    switch (base_msg->GetMsgType()) {
+    case ChatMsgType::PIC:
+        _last_msg = "[图片]";
+        break;
+    case ChatMsgType::FILE:
+        _last_msg = "[文件]";
+        break;
+    default:
+        _last_msg = base_msg->GetMsgContent();
+        break;
+    }
 }
 
 QString ChatThreadData::GetLastMsg()
 {
     return _last_msg;
+}
+
+void ChatThreadData::SetLastMsg(const QString& msg)
+{
+    _last_msg = msg;
+}
+
+void ChatThreadData::IncrementUnreadCount()
+{
+    _unread_count++;
+}
+
+void ChatThreadData::SetUnreadCount(int count)
+{
+    _unread_count = count;
 }
 
 QMap<QString, std::shared_ptr<ChatDataBase> > &ChatThreadData::GetMsgUnRspRef()

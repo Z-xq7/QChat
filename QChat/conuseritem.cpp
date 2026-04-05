@@ -12,6 +12,11 @@ ConUserItem::ConUserItem(QWidget *parent) :
     SetItemType(ListItemType::CONTACT_USER_ITEM);
     ui->red_point->raise();
     ShowRedPoint(false);
+
+    // 初始化在线状态标签（默认离线）
+    ui->online_status_lb->setText("<span style='color:#999999;'>[● 离线]</span>");
+    // 初始化签名标签（后续使用）
+    ui->user_signature_lb->setText("这个人很懒...");
 }
 
 ConUserItem::~ConUserItem()
@@ -262,4 +267,24 @@ void ConUserItem::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QString f
         //发送消息
         FileTcpMgr::GetInstance()->SendDownloadInfo(download_info, req_type);
     }
+}
+
+void ConUserItem::SetOnlineStatus(bool online)
+{
+    if (online) {
+        ui->online_status_lb->setText("<span style='color:#4CD964;'>[● 在线]</span>");
+    } else {
+        ui->online_status_lb->setText("<span style='color:#999999;'>[● 离线]</span>");
+    }
+    ui->online_status_lb->show();
+}
+
+void ConUserItem::HideOnlineStatus()
+{
+    ui->online_status_lb->hide();
+}
+
+void ConUserItem::HideUserSignature()
+{
+    ui->user_signature_lb->hide();
 }

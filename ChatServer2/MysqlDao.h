@@ -196,6 +196,19 @@ public:
 	}
 
 	void returnConnection(std::unique_ptr<SqlConnection> con) {
+		if (con && con->_con) {
+			try {
+				// 确保归还的连接 autocommit=true，避免下一个复用者受残留事务影响
+				if (!con->_con->getAutoCommit()) {
+					con->_con->rollback();
+					con->_con->setAutoCommit(true);
+				}
+			}
+			catch (sql::SQLException&) {
+				// 连接已损坏，丢弃不归还
+				return;
+			}
+		}
 		std::unique_lock<std::mutex> lock(mutex_);
 		if (b_stop_) {
 			return;
@@ -263,6 +276,13 @@ public:
 	bool GetGroupMembers(int thread_id, std::vector<std::shared_ptr<GroupMemberInfo>>& members);
 	// 获取用户加入的所有群聊
 	bool GetUserGroupChats(int user_id, std::vector<int>& thread_ids);
+
+	// 获取用户所有私聊会话的未读消息数
+	bool GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts);
+	// 标记指定会话的消息为已读
+	bool MarkMsgRead(int thread_id, int reader_uid);
+	// 根据 thread_id 查询私聊对方 uid
+	bool GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid);
 
 private:
 	std::unique_ptr<MySqlPool> pool_;

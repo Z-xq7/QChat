@@ -49,6 +49,8 @@ public:
     void UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info);
     void DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString file_path);
     void FileTransferFailed(std::shared_ptr<MsgInfo> msg_info);
+    // 收到消息已读通知，刷新气泡状态图标
+    void slot_notify_msg_read(int thread_id, int reader_uid);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -88,6 +90,8 @@ private slots:
 
     // 群公告按钮点击（查看公告）
     void on_group_notice_clicked();
+    // 好友在线状态变更
+    void slot_friend_status_changed(int uid, bool online);
 
 private:
     // 初始化侧边栏
@@ -114,6 +118,10 @@ private:
     
     // 当前侧边栏类型: 0=私聊, 1=群聊
     int m_currentSideType;
+
+    // 在线状态指示器
+    QLabel* m_onlineDot;
+    QLabel* m_onlineText;
 
     // 记录有待弹出公告的群聊 thread_id 集合（用户不在该群页面时收到公告更新，延迟弹出）
     QSet<int> m_pendingNoticeThreadIds;

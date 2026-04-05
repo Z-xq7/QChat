@@ -1543,6 +1543,104 @@ void TcpMgr::initHandlers()
         // 复用同一个信号，chatpage 已经监听此信号并更新 UI
         emit sig_update_group_notice(thread_id, notice);
     });
+
+    // 注册查询好友在线状态响应
+    _handlers.insert(ReqId::ID_GET_FRIEND_ONLINE_STATUS_RSP, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle get friend online status rsp ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        QJsonArray online_list = jsonObj["online_list"].toArray();
+        // 将在线列表转为 QJsonObject 便于传递
+        QJsonObject online_map;
+        for (const auto& item : online_list) {
+            QJsonObject obj = item.toObject();
+            online_map[QString::number(obj["uid"].toInt())] = true;
+        }
+        emit sig_friend_online_status(online_map);
+    });
+
+    // 注册好友上线通知
+    _handlers.insert(ReqId::ID_NOTIFY_USER_ONLINE, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle notify user online ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        int uid = jsonObj["uid"].toInt();
+        emit sig_user_online(uid);
+    });
+
+    // 注册好友下线通知
+    _handlers.insert(ReqId::ID_NOTIFY_USER_OFFLINE, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle notify user offline --- raw data:" << data;
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) {
+            qWarning() << "[TcpMgr]: notify user offline json parse failed!";
+            return;
+        }
+        QJsonObject jsonObj = jsonDoc.object();
+        int uid = jsonObj["uid"].toInt();
+        qDebug() << "[TcpMgr]: emit sig_user_offline, uid=" << uid;
+        emit sig_user_offline(uid);
+    });
+
+    // 注册获取未读消息数响应
+    _handlers.insert(ReqId::ID_GET_UNREAD_COUNTS_RSP, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle get unread counts rsp ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        int err = jsonObj["error"].toInt();
+        if(err != ErrorCodes::SUCCESS) {
+            qWarning() << "[TcpMgr]: get unread counts failed, error:" << err;
+            return;
+        }
+        // 解析未读数列表
+        QJsonObject unread_counts;
+        QJsonArray counts_arr = jsonObj["unread_counts"].toArray();
+        for(const QJsonValue& item : counts_arr) {
+            QJsonObject obj = item.toObject();
+            int thread_id = obj["thread_id"].toInt();
+            int count = obj["unread_count"].toInt();
+            unread_counts[QString::number(thread_id)] = count;
+        }
+        emit sig_unread_counts(unread_counts);
+    });
+
+    // 注册标记消息已读响应
+    _handlers.insert(ReqId::ID_MARK_MSG_READ_RSP, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle mark msg read rsp ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        int err = jsonObj["error"].toInt();
+        if(err != ErrorCodes::SUCCESS) {
+            qWarning() << "[TcpMgr]: mark msg read failed, error:" << err;
+        }
+    });
+
+    // 注册通知消息已读（接收方阅读后通知发送方）
+    _handlers.insert(ReqId::ID_NOTIFY_MSG_READ, [this](ReqId id, int len, QByteArray data){
+        Q_UNUSED(id);
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle notify msg read ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        int thread_id = jsonObj["thread_id"].toInt();
+        int reader_uid = jsonObj["reader_uid"].toInt();
+        emit sig_notify_msg_read(thread_id, reader_uid);
+    });
 }
 
 void TcpMgr::handleMsg(ReqId id, int len, QByteArray data)

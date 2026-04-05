@@ -11,6 +11,7 @@ ChatUserWid::ChatUserWid(QWidget *parent) :
 {
     ui->setupUi(this);
     SetItemType(ListItemType::CHAT_USER_ITEM);
+    ui->unread_badge->hide();
 }
 
 ChatUserWid::~ChatUserWid()
@@ -108,13 +109,25 @@ std::shared_ptr<ChatThreadData> ChatUserWid::GetChatData()
     return _chat_data;
 }
 
-void ChatUserWid::ShowRedPoint(bool bshow)
+void ChatUserWid::UpdateUnreadCount(int count)
 {
-    // if(bshow){
-    //     ui->red_point->show();
-    // }else{
-    //     ui->red_point->hide();
-    // }
+    if (count <= 0) {
+        ui->unread_badge->hide();
+        return;
+    }
+    // 超过99显示99+
+    QString text = count > 99 ? "99+" : QString::number(count);
+    ui->unread_badge->setText(text);
+    ui->unread_badge->show();
+    ui->unread_badge->raise();
+}
+
+void ChatUserWid::UpdateLastMsg(const QString& msg)
+{
+    if (!msg.isEmpty()) {
+        _chat_data->SetLastMsg(msg);
+    }
+    ui->user_chat_lb->setText(_chat_data->GetLastMsg());
 }
 
 void ChatUserWid::updateLastMsg(std::vector<std::shared_ptr<TextChatData> > msgs)

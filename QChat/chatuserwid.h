@@ -24,8 +24,10 @@ public:
     void SetChatData(std::shared_ptr<ChatThreadData> chat_data);
     //（已修改）获取聊天列表用户item信息
     std::shared_ptr<ChatThreadData> GetChatData();
-    //有新消息显示红点
-    void ShowRedPoint(bool bshow);
+    //显示/更新未读消息计数角标
+    void UpdateUnreadCount(int count);
+    //更新聊天列表显示的最后一条聊天消息
+    void UpdateLastMsg(const QString& msg);
     // //设置聊天列表用户item信息（由用户信息）
     // void SetInfo(std::shared_ptr<UserInfo> user_info);
     // //设置聊天列表用户item信息(由好友信息)

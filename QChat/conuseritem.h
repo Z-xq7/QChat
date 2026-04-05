@@ -24,6 +24,12 @@ public:
     void SetInfo(int uid, QString name, QString icon);
     void ShowRedPoint(bool show = false);
     std::shared_ptr<UserInfo> GetInfo();
+    // 设置在线状态（显示在头像右下角）
+    void SetOnlineStatus(bool online);
+    // 隐藏在线状态标签（"新的朋友"等非联系人条目使用）
+    void HideOnlineStatus();
+    // 隐藏签名标签（"新的朋友"等非联系人条目使用）
+    void HideUserSignature();
 
     void LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString file_name, QString req_type);
 

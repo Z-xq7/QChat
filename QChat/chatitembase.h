@@ -20,6 +20,7 @@ public:
     void setStatus(int status);
     QLabel* getIconLabel();
     QWidget* getBubble();
+    ChatRole getRole() const { return m_role; }
 
 private:
     ChatRole m_role;

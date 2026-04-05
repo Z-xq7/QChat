@@ -99,6 +99,20 @@ enum MSG_IDS {
 	ID_NOTIFY_GROUP_CHAT_CREATED = 1072,	// 通知用户被加入群聊
 	ID_GET_GROUP_MEMBERS_REQ = 1073,	// 获取群成员列表请求
 	ID_GET_GROUP_MEMBERS_RSP = 1074,	// 获取群成员列表响应
+	ID_UPDATE_GROUP_NOTICE_REQ = 1075,	// 更新群公告请求
+	ID_UPDATE_GROUP_NOTICE_RSP = 1076,	// 更新群公告响应
+	ID_NOTIFY_GROUP_NOTICE_UPDATE = 1077,	// 通知群成员群公告更新
+	ID_GET_FRIEND_ONLINE_STATUS_REQ = 1080,	// 查询好友在线状态请求
+	ID_GET_FRIEND_ONLINE_STATUS_RSP = 1081,	// 查询好友在线状态响应
+	ID_NOTIFY_USER_ONLINE = 1082,				// 通知好友用户上线
+	ID_NOTIFY_USER_OFFLINE = 1083,			// 通知好友用户下线
+
+	// 已读回执相关消息ID
+	ID_GET_UNREAD_COUNTS_REQ = 1090,			// 获取未读消息数请求
+	ID_GET_UNREAD_COUNTS_RSP = 1091,			// 获取未读消息数响应
+	ID_MARK_MSG_READ_REQ = 1092,				// 标记消息已读请求
+	ID_MARK_MSG_READ_RSP = 1093,				// 标记消息已读响应
+	ID_NOTIFY_MSG_READ = 1094,				// 通知发送方消息已读
 };
 
 //��Ϣ״̬

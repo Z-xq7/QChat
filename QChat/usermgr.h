@@ -140,8 +140,21 @@ public:
     // 登录时批量追加群聊基本信息
     void AppendGroupList(QJsonArray array);
 
+    // 查询好友是否在线
+    bool IsFriendOnline(int uid);
+    // 设置好友在线状态
+    void SetFriendOnlineStatus(int uid, bool online);
+    // 批量设置好友在线状态（登录时查询结果）
+    void SetFriendOnlineStatusBatch(const QJsonObject& online_map);
+    // 发送查询好友在线状态请求
+    void RequestFriendOnlineStatus();
+
 signals:
-    // 群聊创建成功信号，通知UI更新聊天列表
+    // 好友上线状态变更信号（uid, isOnline）——用于单个好友上/下线通知
+    void sig_friend_status_changed(int uid, bool online);
+    // 好友在线状态批量更新完成信号——用于登录时一次性刷新所有 UI
+    void sig_friend_online_status_batch();
+    // 群聊创建成功信号（thread_id, group_name）
     void sig_group_chat_created(int thread_id, const QString& group_name);
 
 public slots:
@@ -152,6 +165,10 @@ public slots:
                               const std::vector<std::shared_ptr<GroupMemberInfo>>& members);
     // 处理群公告更新通知（来自服务器推送）
     void SlotUpdateGroupNotice(int thread_id, const QString& notice);
+    // 处理好友上线通知
+    void SlotFriendOnline(int uid);
+    // 处理好友下线通知
+    void SlotFriendOffline(int uid);
 
 private:
     UserMgr();
@@ -196,6 +213,8 @@ private:
     QMap<QString, QPixmap> _icon_cache;
     // 群聊数据映射 thread_id -> ChatThreadData
     QMap<int, std::shared_ptr<ChatThreadData>> _group_chat_map;
+    // 好友在线状态缓存 (uid -> isOnline)
+    QMap<int, bool> _friend_online_status;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

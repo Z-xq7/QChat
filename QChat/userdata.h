@@ -306,6 +306,11 @@ public:
     QMap<int, std::shared_ptr<ChatDataBase>>&  GetMsgMapRef();
     void AppendMsg(int msg_id, std::shared_ptr<ChatDataBase> base_msg);
     QString GetLastMsg();
+    void SetLastMsg(const QString& msg);
+    // 未读消息计数
+    void IncrementUnreadCount();
+    void SetUnreadCount(int count);
+    int GetUnreadCount() const { return _unread_count; }
     QMap<QString, std::shared_ptr<ChatDataBase>>& GetMsgUnRspRef();
     void AppendUnRspMsg(QString unique_id, std::shared_ptr<ChatDataBase> base_msg);
     std::shared_ptr<ChatDataBase> GetChatDataBase(int msg_id);
@@ -316,6 +321,8 @@ private:
     int _last_msg_id;
     int _thread_id;
     QString _last_msg;
+    // 未读消息计数
+    int _unread_count = 0;
     //是否是群聊
     bool _is_group;
     //群聊信息,成员列表

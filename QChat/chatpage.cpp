@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QSpacerItem>
 #include <QDir>
 #include <QRegularExpression>
 #include "chatsidepage.h"
@@ -81,6 +82,37 @@ ChatPage::ChatPage(QWidget *parent)
 
     // 设置标题栏样式
     ui->title_lb->setStyleSheet("QLabel { font-size: 16px; font-weight: bold; color: #333333; background-color: transparent; }");
+
+    // 创建在线状态指示器（放在 title_lb 右边）
+    m_onlineDot = new QLabel(this);
+    m_onlineDot->setFixedSize(10, 10);
+    m_onlineDot->setObjectName("chatpage_online_dot");
+    m_onlineDot->hide();
+
+    m_onlineText = new QLabel(this);
+    m_onlineText->setObjectName("chatpage_online_text");
+    m_onlineText->setStyleSheet("QLabel { font-size: 12px; color: #999999; background-color: transparent; }");
+    m_onlineText->hide();
+
+    // 在 widget_3 的 HBoxLayout 中，将在线指示器插入到 title_lb 之后、spacer 之前
+    QHBoxLayout* titleHLayout = qobject_cast<QHBoxLayout*>(ui->widget_3->layout());
+    if (titleHLayout) {
+        int titleIndex = titleHLayout->indexOf(ui->title_lb);
+        if (titleIndex >= 0) {
+            // 在 title_lb 之后插入一个间距，再插入在线指示器
+            titleHLayout->insertSpacerItem(titleIndex + 1, new QSpacerItem(8, 1, QSizePolicy::Fixed, QSizePolicy::Minimum));
+            titleHLayout->insertWidget(titleIndex + 2, m_onlineDot);
+            titleHLayout->insertWidget(titleIndex + 3, m_onlineText);
+        }
+    }
+
+    // 连接好友状态变更信号
+    connect(UserMgr::GetInstance().get(), &UserMgr::sig_friend_status_changed, this, &ChatPage::slot_friend_status_changed);
+
+    // 连接批量状态更新信号，刷新当前聊天页面的在线状态
+    connect(UserMgr::GetInstance().get(), &UserMgr::sig_friend_online_status_batch, this, [this](){
+        slot_friend_status_changed(_chat_data ? _chat_data->GetOtherId() : 0, true);
+    });
 
     // 初始化侧边栏
     initSidePage();
@@ -252,6 +284,10 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
 
         // 设置侧边栏类型为群聊
         m_currentSideType = 1;
+
+        // 群聊不显示在线状态
+        m_onlineDot->hide();
+        m_onlineText->hide();
         
         // 更新群聊侧边栏数据
         if (m_groupSidePage) {
@@ -302,6 +338,17 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
         return;
     }
     ui->title_lb->setText(friend_info->_name);
+
+    // 显示好友在线状态
+    bool online = UserMgr::GetInstance()->IsFriendOnline(other_id);
+    if (online) {
+        m_onlineDot->show();
+        m_onlineText->setText("在线");
+        m_onlineText->show();
+    } else {
+        m_onlineDot->hide();
+        m_onlineText->hide();
+    }
 
     // 切换按钮为远程控制模式
     ui->remote_control_lb->setObjectName("remote_control_lb");
@@ -833,6 +880,49 @@ void ChatPage::on_group_notice_clicked()
         return;
     }
     showGroupNoticeDialog(_chat_data->GetThreadId());
+}
+
+void ChatPage::slot_friend_status_changed(int uid, bool online)
+{
+    // 只在私聊时更新在线状态
+    if (!_chat_data || _chat_data->IsGroup()) {
+        return;
+    }
+
+    int other_id = _chat_data->GetOtherId();
+    if (uid != other_id) {
+        return; // 不是当前聊天对象的状态变化
+    }
+
+    if (online) {
+        m_onlineDot->show();
+        m_onlineText->setText("在线");
+        m_onlineText->show();
+    } else {
+        m_onlineDot->hide();
+        m_onlineText->hide();
+    }
+}
+
+void ChatPage::slot_notify_msg_read(int thread_id, int reader_uid)
+{
+    Q_UNUSED(reader_uid);
+    // 只处理当前会话的已读通知
+    if (!_chat_data || _chat_data->GetThreadId() != thread_id) {
+        return;
+    }
+
+    // 遍历所有消息气泡，将 Self 的消息状态更新为 READED
+    for (auto it = _base_item_map.begin(); it != _base_item_map.end(); ++it) {
+        auto* item = it.value();
+        if (!item) continue;
+        // 只更新自己发送的消息
+        if (item->getRole() == ChatRole::Self) {
+            item->setStatus(MsgStatus::READED);
+        }
+    }
+
+    qDebug() << "[ChatPage]: messages marked as read in thread" << thread_id;
 }
 
 void ChatPage::showGroupNoticeDialog(int thread_id)

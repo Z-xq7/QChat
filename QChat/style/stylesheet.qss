@@ -1578,3 +1578,40 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 #close_btn{
     border-image: url(:/images/close2.png);
 }
+
+/* ==================== 在线状态指示器样式 ==================== */
+
+/* 聊天页面标题栏的在线绿点 */
+#chatpage_online_dot {
+    background-color: #4CD964;
+    border-radius: 5px;
+    border: 2px solid #FFFFFF;
+}
+
+/* 好友列表 - 在线状态标签（名字下方） */
+#online_status_lb {
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+/* 好友列表 - 签名标签（名字下方，在线状态右侧，预留给后续使用） */
+#user_signature_lb {
+    background-color: transparent;
+    color: #BBBBBB;
+    font-size: 11px;
+    padding: 0;
+    margin: 0;
+    padding-left: 6px;
+}
+
+/* 聊天列表 - 未读消息角标 */
+#unread_badge {
+    background-color: #FF3B30;
+    color: #FFFFFF;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 10px;
+    padding: 0px;
+    margin: 0px;
+}

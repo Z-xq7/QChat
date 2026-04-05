@@ -68,6 +68,9 @@ void ContactUserList::addContactUserList()
     _add_friend_item->setObjectName("new_friend_item");
     _add_friend_item->SetInfo(0,tr("新的朋友"),":/images/add_friend.png");
     _add_friend_item->SetItemType(ListItemType::APPLY_FRIEND_ITEM);
+    // "新的朋友"不需要显示在线状态
+    _add_friend_item->HideOnlineStatus();
+    _add_friend_item->HideUserSignature();
 
     QListWidgetItem *add_item = new QListWidgetItem;
     //qDebug()<<"chat_user_wid sizeHint is " << chat_user_wid->sizeHint();
@@ -144,10 +147,9 @@ bool ContactUserList::eventFilter(QObject *watched, QEvent *event)
 
             _load_pending = true;
 
-            //计时器100ms完成加载
+            //计时器100ms后重置加载锁
             QTimer::singleShot(100, [this](){
                 _load_pending = false;
-                QCoreApplication::quit(); // 完成后退出应用程序
             });
             // 滚动到底部，加载新的联系人
             qDebug()<<"[ContactUserList]: --- load more contact user ---";

@@ -106,3 +106,35 @@ bool MysqlMgr::GetUserGroupChats(int user_id, std::vector<int>& thread_ids)
 	return _dao.GetUserGroupChats(user_id, thread_ids);
 }
 
+bool MysqlMgr::GetGroupInfo(int thread_id, GroupInfo& group_info)
+{
+	return _dao.GetGroupInfo(thread_id, group_info);
+}
+
+bool MysqlMgr::UpdateGroupNotice(int thread_id, const std::string& notice)
+{
+	return _dao.UpdateGroupNotice(thread_id, notice);
+}
+
+bool MysqlMgr::UpdateGroupMemberSetting(int thread_id, int user_id, const std::string& group_nick, int role, int is_disturb, int is_top)
+{
+	return _dao.UpdateGroupMemberSetting(thread_id, user_id, group_nick, role, is_disturb, is_top);
+}
+
+bool MysqlMgr::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts)
+{
+	return _dao.GetUnreadCounts(user_id, unread_counts);
+}
+
+bool MysqlMgr::MarkMsgRead(int thread_id, int reader_uid)
+{
+	return _dao.MarkMsgRead(thread_id, reader_uid);
+}
+
+bool MysqlMgr::GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid)
+{
+	return _dao.GetPrivateChatPeer(thread_id, self_uid, peer_uid);
+}
+
+
+

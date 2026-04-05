@@ -146,6 +146,13 @@ void LogicSystem::RegisterCallBacks() {
 		placeholders::_1, placeholders::_2, placeholders::_3);
 	_fun_callbacks[ID_GET_GROUP_MEMBERS_REQ] = std::bind(&LogicSystem::GetGroupMembersHandler, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
+	_fun_callbacks[ID_GET_FRIEND_ONLINE_STATUS_REQ] = std::bind(&LogicSystem::GetFriendOnlineStatusHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+	// 已读回执相关回调
+	_fun_callbacks[ID_GET_UNREAD_COUNTS_REQ] = std::bind(&LogicSystem::GetUnreadCountsHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+	_fun_callbacks[ID_MARK_MSG_READ_REQ] = std::bind(&LogicSystem::MarkMsgReadHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
 }
 
 //�����û���¼���߼���1.�ȴ�redis�л�ȡ�û�token�Ƿ���ȷ��2.���token��ȷ��˵����¼�ɹ���������ݿ��ȡ�û�������Ϣ��
@@ -291,6 +298,10 @@ void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id
 
 	}
 	LOG_INFO("User login success - uid: " << uid << ", name: " << user_info->name);
+
+	// 通知好友该用户已上线
+	NotifyFriendsUserOnline(uid);
+
 	return;
 }
 
@@ -553,7 +564,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 		chat_msg->unique_id = unique_id;
 		chat_msg->thread_id = thread_id;
 		chat_msg->content = content;
-		chat_msg->status = 2;
+		chat_msg->status = MsgStatus::UN_READ;
 		chat_msg->msg_type = int(ChatMsgType::TEXT);
 		chat_datas.push_back(chat_msg);
 	}
@@ -1489,4 +1500,174 @@ bool LogicSystem::GetUserThreads(int64_t userId, int64_t last_id, int page_size,
 {
 	return MysqlMgr::GetInstance()->GetUserThreads(userId,last_id,page_size,threads,load_more,next_last_id);
 }
+
+// 查询好友在线状态
+void LogicSystem::GetFriendOnlineStatusHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto uid = root["uid"].asInt();
+	LOG_INFO("Get friend online status request - uid: " << uid);
+
+	Json::Value rtvalue;
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_GET_FRIEND_ONLINE_STATUS_RSP);
+	});
+
+	// 获取好友列表
+	std::vector<std::shared_ptr<UserInfo>> friend_list;
+	bool b_friend_list = GetFriendList(uid, friend_list);
+	if (!b_friend_list) {
+		rtvalue["error"] = ErrorCodes::Success;
+		LOG_WARN("Get friend online status - no friend list for uid: " << uid);
+		return;
+	}
+
+	Json::Value online_list(Json::arrayValue);
+	for (auto& friend_ele : friend_list) {
+		int friend_uid = friend_ele->uid;
+		auto friend_session = UserMgr::GetInstance()->GetSession(friend_uid);
+		if (friend_session) {
+			Json::Value obj;
+			obj["uid"] = friend_uid;
+			obj["online"] = true;
+			online_list.append(obj);
+		}
+	}
+
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["online_list"] = online_list;
+	LOG_INFO("Get friend online status - uid: " << uid << ", online_count: " << online_list.size());
+}
+
+// 通知好友该用户已上线
+void LogicSystem::NotifyFriendsUserOnline(int uid) {
+	std::vector<std::shared_ptr<UserInfo>> friend_list;
+	bool b_friend_list = GetFriendList(uid, friend_list);
+	if (!b_friend_list) {
+		return;
+	}
+
+	Json::Value notify;
+	notify["error"] = ErrorCodes::Success;
+	notify["uid"] = uid;
+	std::string notify_str = notify.toStyledString();
+
+	for (auto& friend_ele : friend_list) {
+		int friend_uid = friend_ele->uid;
+		auto friend_session = UserMgr::GetInstance()->GetSession(friend_uid);
+		if (friend_session) {
+			friend_session->Send(notify_str, ID_NOTIFY_USER_ONLINE);
+			LOG_DEBUG("Notify user online - from_uid: " << uid << ", to_uid: " << friend_uid);
+		}
+	}
+
+	LOG_INFO("Notify user online - uid: " << uid << ", notified_friends: " << friend_list.size());
+}
+
+// 通知好友该用户已下线
+void LogicSystem::NotifyFriendsUserOffline(int uid) {
+	std::vector<std::shared_ptr<UserInfo>> friend_list;
+	bool b_friend_list = GetFriendList(uid, friend_list);
+	if (!b_friend_list) {
+		return;
+	}
+
+	Json::Value notify;
+	notify["error"] = ErrorCodes::Success;
+	notify["uid"] = uid;
+	std::string notify_str = notify.toStyledString();
+
+	for (auto& friend_ele : friend_list) {
+		int friend_uid = friend_ele->uid;
+		auto friend_session = UserMgr::GetInstance()->GetSession(friend_uid);
+		if (friend_session) {
+			friend_session->Send(notify_str, ID_NOTIFY_USER_OFFLINE);
+			LOG_DEBUG("Notify user offline - from_uid: " << uid << ", to_uid: " << friend_uid);
+		}
+	}
+
+	LOG_INFO("Notify user offline - uid: " << uid << ", notified_friends: " << friend_list.size());
+}
+
+void LogicSystem::GetUnreadCountsHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto uid = root["uid"].asInt();
+	LOG_INFO("Get unread counts request - uid: " << uid);
+
+	Json::Value rtvalue;
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_GET_UNREAD_COUNTS_RSP);
+	});
+
+	std::vector<std::pair<int, int>> unread_counts;
+	bool res = MysqlMgr::GetInstance()->GetUnreadCounts(uid, unread_counts);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::RPCFailed;
+		return;
+	}
+
+	rtvalue["error"] = ErrorCodes::Success;
+	Json::Value counts(Json::arrayValue);
+	for (size_t i = 0; i < unread_counts.size(); ++i) {
+		Json::Value item;
+		item["thread_id"] = unread_counts[i].first;
+		item["unread_count"] = unread_counts[i].second;
+		counts.append(item);
+	}
+	rtvalue["unread_counts"] = counts;
+	LOG_INFO("Get unread counts - uid: " << uid << ", sessions_with_unread: " << unread_counts.size());
+}
+
+void LogicSystem::MarkMsgReadHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto uid = root["uid"].asInt();
+	auto thread_id = root["thread_id"].asInt();
+	LOG_INFO("Mark msg read request - uid: " << uid << ", thread_id: " << thread_id);
+
+	Json::Value rtvalue;
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_MARK_MSG_READ_RSP);
+	});
+
+	// 1. 更新数据库中该会话的消息状态为已读
+	bool res = MysqlMgr::GetInstance()->MarkMsgRead(thread_id, uid);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::RPCFailed;
+		LOG_ERROR("MarkMsgRead failed - uid: " << uid << ", thread_id: " << thread_id);
+		return;
+	}
+
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["thread_id"] = thread_id;
+
+	// 2. 精确查找私聊对方并发送已读通知
+	int peer_uid = 0;
+	bool b_peer = MysqlMgr::GetInstance()->GetPrivateChatPeer(thread_id, uid, peer_uid);
+	if (!b_peer) {
+		LOG_DEBUG("MarkMsgRead - not a private chat or no peer found, thread_id: " << thread_id);
+		return;
+	}
+
+	auto peer_session = UserMgr::GetInstance()->GetSession(peer_uid);
+	if (peer_session) {
+		Json::Value notify;
+		notify["error"] = ErrorCodes::Success;
+		notify["thread_id"] = thread_id;
+		notify["reader_uid"] = uid;
+		std::string notify_str = notify.toStyledString();
+		peer_session->Send(notify_str, ID_NOTIFY_MSG_READ);
+		LOG_DEBUG("Notify msg read - reader: " << uid << ", sender: " << peer_uid
+			<< ", thread_id: " << thread_id);
+	}
+}
+
+
 

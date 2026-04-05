@@ -36,6 +36,11 @@ public:
 		const std::vector<int>& member_uids, int& thread_id);
 	bool GetGroupMembers(int thread_id, std::vector<std::shared_ptr<GroupMemberInfo>>& members);
 	bool GetUserGroupChats(int user_id, std::vector<int>& thread_ids);
+	// 获取用户所有私聊会话的未读消息数
+	bool GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts);
+	// 标记指定会话的消息为已读
+	bool MarkMsgRead(int thread_id, int reader_uid);
+	bool GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid);
 
 private:
 	MysqlMgr();

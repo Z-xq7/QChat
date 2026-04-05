@@ -33,7 +33,9 @@ CREATE TABLE `chat_message`  (
   `msg_type` tinyint NOT NULL DEFAULT 0 COMMENT '0=文本 1=图片 2=视频 3=文件',
   PRIMARY KEY (`message_id`) USING BTREE,
   INDEX `idx_thread_created`(`thread_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_thread_message`(`thread_id` ASC, `message_id` ASC) USING BTREE
+  INDEX `idx_thread_message`(`thread_id` ASC, `message_id` ASC) USING BTREE,
+  INDEX `idx_recv_status`(`recv_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_thread_recv_status`(`thread_id` ASC, `recv_id` ASC, `status` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 378 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

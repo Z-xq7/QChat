@@ -867,6 +867,10 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 			msg.msg_type = rs->getInt("msg_type");
 			page_res->messages.push_back(std::move(msg));
 		}
+		if (page_res->messages.empty()) {
+			// 没有更多消息，直接返回
+			return page_res;
+		}
 		if (page_res->messages.size() > page_size) {
 			page_res->messages.pop_back();
 			page_res->load_more = true;
@@ -1338,6 +1342,122 @@ bool MysqlDao::UpdateGroupMemberSetting(int thread_id, int user_id, const std::s
 	}
 	catch (sql::SQLException& e) {
 		LOG_ERROR("UpdateGroupMemberSetting SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		// 查询用户所有私聊会话中 recv_id = user_id 且 status = 0(UN_READ) 的消息数
+		// 通过 private_chat 表确认哪些会话是用户参与的
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"SELECT cm.thread_id, COUNT(*) AS unread_count "
+			"FROM chat_message cm "
+			"JOIN private_chat pc ON cm.thread_id = pc.thread_id "
+			"WHERE cm.recv_id = ? AND cm.status = 0 "
+			"AND (pc.user1_id = ? OR pc.user2_id = ?) "
+			"GROUP BY cm.thread_id"
+		));
+		pstmt->setInt(1, user_id);
+		pstmt->setInt(2, user_id);
+		pstmt->setInt(3, user_id);
+
+		std::unique_ptr<sql::ResultSet> rs(pstmt->executeQuery());
+
+		unread_counts.clear();
+		while (rs->next()) {
+			int thread_id = rs->getInt("thread_id");
+			int count = rs->getInt("unread_count");
+			unread_counts.emplace_back(thread_id, count);
+		}
+
+		LOG_DEBUG("GetUnreadCounts success - user_id: " << user_id << ", thread_count: " << unread_counts.size());
+		return true;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("GetUnreadCounts SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::MarkMsgRead(int thread_id, int reader_uid)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		// 将指定会话中 recv_id = reader_uid 且 status = 0(UN_READ) 的消息标记为已读(status = 2 READED)
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"UPDATE chat_message SET status = 2, updated_at = NOW() "
+			"WHERE thread_id = ? AND recv_id = ? AND status = 0"
+		));
+		pstmt->setInt(1, thread_id);
+		pstmt->setInt(2, reader_uid);
+
+		int update_count = pstmt->executeUpdate();
+		LOG_INFO("MarkMsgRead - thread_id: " << thread_id << ", reader_uid: " << reader_uid
+			<< ", updated_count: " << update_count);
+		return true;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("MarkMsgRead SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"SELECT user1_id, user2_id FROM private_chat WHERE thread_id = ? LIMIT 1"
+		));
+		pstmt->setInt(1, thread_id);
+
+		std::unique_ptr<sql::ResultSet> rs(pstmt->executeQuery());
+		if (rs->next()) {
+			int user1 = rs->getInt("user1_id");
+			int user2 = rs->getInt("user2_id");
+			peer_uid = (user1 == self_uid) ? user2 : user1;
+			return true;
+		}
+		return false;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("GetPrivateChatPeer SQLException - error: " << e.what()
 			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
 		return false;
 	}

@@ -302,12 +302,89 @@ ChatDialog::ChatDialog(QWidget *parent)
             UserMgr::GetInstance().get(), &UserMgr::SlotGroupChatCreated);
 
     //连接群聊创建成功信号，更新UI
-    connect(UserMgr::GetInstance().get(), &UserMgr::sig_group_chat_created,
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_group_chat_created,
             this, &ChatDialog::slot_group_chat_created);
+
+    // ========== 好友在线状态相关信号 ==========
+    // 好友在线状态批量查询结果 -> 一次性刷新所有联系人列表的在线状态
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_friend_online_status,
+            UserMgr::GetInstance().get(), [this](QJsonObject online_map){
+        UserMgr::GetInstance()->SetFriendOnlineStatusBatch(online_map);
+    });
+
+    // 批量更新完成 -> 刷新 UI（只遍历一次列表）
+    connect(UserMgr::GetInstance().get(), &UserMgr::sig_friend_online_status_batch,
+            this, [this](){
+        UpdateAllContactOnlineStatus();
+    });
+
+    // 好友上线通知
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_user_online,
+            UserMgr::GetInstance().get(), &UserMgr::SlotFriendOnline);
+
+    // 好友下线通知
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_user_offline,
+            UserMgr::GetInstance().get(), &UserMgr::SlotFriendOffline);
+
+    // 好友状态变更 -> 更新好友列表中的状态指示器
+    connect(UserMgr::GetInstance().get(), &UserMgr::sig_friend_status_changed,
+            this, [this](int uid, bool online){
+        UpdateContactOnlineStatus(uid, online);
+    });
+
+    // 消息已读通知 -> 如果当前正在查看该会话，通知 chatpage 刷新气泡状态
+    connect(this, &ChatDialog::sig_notify_msg_read_for_page,
+            ui->chat_page, &ChatPage::slot_notify_msg_read);
 
     // 连接群公告更新信号到 UserMgr，保持内存数据同步
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_update_group_notice,
             UserMgr::GetInstance().get(), &UserMgr::SlotUpdateGroupNotice);
+
+    // 未读消息数查询响应 -> 更新聊天列表角标
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_unread_counts,
+            this, [this](QJsonObject unread_counts){
+        for(auto it = unread_counts.begin(); it != unread_counts.end(); ++it) {
+            int thread_id = it.key().toInt();
+            int count = it.value().toInt();
+            // 更新 ChatThreadData 中的未读计数
+            auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+            if (chat_data) {
+                chat_data->SetUnreadCount(count);
+            }
+            // 更新聊天列表的角标显示
+            auto item_iter = _chat_thread_items.find(thread_id);
+            if (item_iter != _chat_thread_items.end()) {
+                auto* chat_user_wid = dynamic_cast<ChatUserWid*>(ui->chat_user_list->itemWidget(item_iter.value()));
+                if (chat_user_wid) {
+                    chat_user_wid->UpdateUnreadCount(count);
+                }
+            }
+        }
+    });
+
+    // 消息已读通知 -> 更新聊天页面中的消息气泡状态
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_notify_msg_read,
+            this, [this](int thread_id, int reader_uid){
+        Q_UNUSED(reader_uid);
+        // 更新 ChatThreadData 中的消息状态
+        auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+        if (chat_data) {
+            auto& msg_map = chat_data->GetMsgMapRef();
+            for(auto it = msg_map.begin(); it != msg_map.end(); ++it) {
+                auto msg = it.value();
+                // 只更新自己发送的消息（因为已读回执是对方读了我们的消息）
+                auto self_uid = UserMgr::GetInstance()->GetUid();
+                if (msg->GetSendUid() == self_uid && msg->GetStatus() != MsgStatus::SEND_FAILED) {
+                    msg->SetStatus(MsgStatus::READED);
+                }
+            }
+        }
+        // 如果当前正在查看这个会话，刷新 chatpage 中消息气泡的状态图标
+        if (_cur_chat_thread_id == thread_id) {
+            // 通知 chatpage 刷新已读状态
+            emit sig_notify_msg_read_for_page(thread_id, reader_uid);
+        }
+    });
 }
 
 ChatDialog::~ChatDialog()
@@ -417,27 +494,34 @@ void ChatDialog::SetSelectChatItem(int thread_id)
         return;
     }
 
+    // 临时阻塞信号，防止 setCurrentRow/setCurrentItem 触发 slot_item_clicked
+    ui->chat_user_list->blockSignals(true);
+
     //uid为0，默认取出第一个好友信息
     if(thread_id == 0){
         ui->chat_user_list->setCurrentRow(0);
         QListWidgetItem *firstItem = ui->chat_user_list->item(0);
         if(!firstItem){
+            ui->chat_user_list->blockSignals(false);
             return;
         }
 
         //转为widget
         QWidget *widget = ui->chat_user_list->itemWidget(firstItem);
         if(!widget){
+            ui->chat_user_list->blockSignals(false);
             return;
         }
 
         //根据点击的聊天列表的item获取对方user信息
         auto con_item = qobject_cast<ChatUserWid*>(widget);
         if(!con_item){
+            ui->chat_user_list->blockSignals(false);
             return;
         }
         _cur_chat_thread_id = con_item->GetChatData()->GetThreadId();
 
+        ui->chat_user_list->blockSignals(false);
         return;
     }
 
@@ -447,12 +531,15 @@ void ChatDialog::SetSelectChatItem(int thread_id)
     if(find_iter == _chat_thread_items.end()){
         qDebug() << "[ChatDialog]: thread_id [" << thread_id << "] not found, set curent row 0";
         ui->chat_user_list->setCurrentRow(0);
+        ui->chat_user_list->blockSignals(false);
         return;
     }
     //找到了
     ui->chat_user_list->setCurrentItem(find_iter.value());
 
     _cur_chat_thread_id = thread_id;
+
+    ui->chat_user_list->blockSignals(false);
 }
 
 void ChatDialog::SetSelectChatPage(int thread_id)
@@ -550,6 +637,9 @@ void ChatDialog::LoadMoreConUser()
             auto *chat_user_wid = new ConUserItem();
             chat_user_wid->SetInfo(friend_ele->_uid,friend_ele->_name,
                                    friend_ele->_icon);
+            // 设置在线状态
+            bool online = UserMgr::GetInstance()->IsFriendOnline(friend_ele->_uid);
+            chat_user_wid->SetOnlineStatus(online);
             QListWidgetItem *item = new QListWidgetItem;
             //qDebug()<<"chat_user_wid sizeHint is " << chat_user_wid->sizeHint();
             item->setSizeHint(chat_user_wid->sizeHint());
@@ -561,6 +651,66 @@ void ChatDialog::LoadMoreConUser()
         UserMgr::GetInstance()->UpdateContactLoadedCount();
     }
 
+}
+
+void ChatDialog::UpdateContactOnlineStatus(int uid, bool online)
+{
+    qDebug() << "[ChatDialog]: UpdateContactOnlineStatus, uid=" << uid << ", online=" << online;
+    // 遍历好友列表，找到对应的 ConUserItem 并更新状态
+    int count = ui->con_user_list->count();
+    for (int i = 0; i < count; ++i) {
+        QListWidgetItem* item = ui->con_user_list->item(i);
+        if (!item) continue;
+        ConUserItem* con_item = qobject_cast<ConUserItem*>(ui->con_user_list->itemWidget(item));
+        if (!con_item) continue;
+        // 跳过"新的朋友"等非联系人条目
+        ListItemBase* base = qobject_cast<ListItemBase*>(con_item);
+        if (!base || base->GetItemType() != ListItemType::CONTACT_USER_ITEM) continue;
+        auto info = con_item->GetInfo();
+        if (info && info->_uid == uid) {
+            con_item->SetOnlineStatus(online);
+            break;
+        }
+    }
+}
+
+void ChatDialog::UpdateAllContactOnlineStatus()
+{
+    // 遍历所有好友列表项，更新在线状态
+    int count = ui->con_user_list->count();
+    for (int i = 0; i < count; ++i) {
+        QListWidgetItem* item = ui->con_user_list->item(i);
+        if (!item) continue;
+        ConUserItem* con_item = qobject_cast<ConUserItem*>(ui->con_user_list->itemWidget(item));
+        if (!con_item) continue;
+        // 跳过"新的朋友"等非联系人条目
+        ListItemBase* base = qobject_cast<ListItemBase*>(con_item);
+        if (!base || base->GetItemType() != ListItemType::CONTACT_USER_ITEM) continue;
+        auto info = con_item->GetInfo();
+        if (info) {
+            bool online = UserMgr::GetInstance()->IsFriendOnline(info->_uid);
+            con_item->SetOnlineStatus(online);
+        }
+    }
+}
+
+void ChatDialog::UpdateChatListItem(int thread_id)
+{
+    auto find_iter = _chat_thread_items.find(thread_id);
+    if (find_iter == _chat_thread_items.end()) {
+        return;
+    }
+    QWidget* widget = ui->chat_user_list->itemWidget(find_iter.value());
+    if (!widget) return;
+    auto* chat_wid = qobject_cast<ChatUserWid*>(widget);
+    if (!chat_wid) return;
+    auto chat_data = chat_wid->GetChatData();
+    if (!chat_data) return;
+
+    // 更新最后一条消息显示
+    chat_wid->UpdateLastMsg(chat_data->GetLastMsg());
+    // 更新未读计数角标
+    chat_wid->UpdateUnreadCount(chat_data->GetUnreadCount());
 }
 
 void ChatDialog::UpdateChatMsg(std::vector<std::shared_ptr<TextChatData> > msgdata)
@@ -1221,7 +1371,22 @@ void ChatDialog::slot_item_clicked(QListWidgetItem *item)
         } else {
             qDebug()<< "[ChatDialog]: --- private chat item clicked ---";
         }
-        
+
+        // 清除未读计数
+        chat_data->SetUnreadCount(0);
+        chat_wid->UpdateUnreadCount(0);
+
+        // 上报已读到服务端（通知对方消息已被阅读）
+        {
+            QJsonObject jsonObj;
+            jsonObj["uid"] = UserMgr::GetInstance()->GetUid();
+            jsonObj["thread_id"] = chat_data->GetThreadId();
+            QJsonDocument doc(jsonObj);
+            QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+            emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_MARK_MSG_READ_REQ, jsonData);
+            qDebug() << "[ChatDialog]: sent mark msg read request, thread_id=" << chat_data->GetThreadId();
+        }
+
         //跳转到聊天界面（ChatPage已支持群聊和私聊）
         ui->chat_page->SetChatData(chat_data);
         ui->stackedWidget->setCurrentWidget(ui->chat_page);
@@ -1282,11 +1447,15 @@ void ChatDialog::slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> m
         auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
         //将该对方发来的消息加到会话列表中
         thread_data->AddMsg(msg);
-        //若当前打开的会话不是该thread_id，则跳过，否则刷新一下
+        //若当前打开的会话不是该thread_id，增加未读计数
         if (_cur_chat_thread_id != thread_id) {
-            continue;
+            thread_data->IncrementUnreadCount();
+        } else {
+            // 当前打开的页面直接追加显示
+            ui->chat_page->AppendChatMsg(msg);
         }
-        ui->chat_page->AppendChatMsg(msg);
+        // 更新聊天列表中的显示（最后一条消息 + 未读角标）
+        UpdateChatListItem(thread_id);
     }
 }
 
@@ -1297,9 +1466,12 @@ void ChatDialog::slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat)
     auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
     thread_data->AddMsg(imgchat);
     if (_cur_chat_thread_id != thread_id) {
-        return;
+        thread_data->IncrementUnreadCount();
+    } else {
+        ui->chat_page->AppendOtherMsg(imgchat);
     }
-    ui->chat_page->AppendOtherMsg(imgchat);
+    // 更新聊天列表中的显示
+    UpdateChatListItem(thread_id);
 }
 
 void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
@@ -1309,9 +1481,12 @@ void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
     auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
     thread_data->AddMsg(file_chat);
     if (_cur_chat_thread_id != thread_id) {
-        return;
+        thread_data->IncrementUnreadCount();
+    } else {
+        ui->chat_page->AppendOtherMsg(file_chat);
     }
-    ui->chat_page->AppendOtherMsg(file_chat);
+    // 更新聊天列表中的显示
+    UpdateChatListItem(thread_id);
 }
 
 void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
@@ -1409,6 +1584,30 @@ void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
 
     //继续加载聊天数据
     loadChatMsg();
+
+    // 登录后首次加载完聊天线程，查询好友在线状态
+    UserMgr::GetInstance()->RequestFriendOnlineStatus();
+
+    // 登录后发送获取未读消息数请求
+    {
+        QJsonObject jsonObj;
+        jsonObj["uid"] = UserMgr::GetInstance()->GetUid();
+        QJsonDocument doc(jsonObj);
+        QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+        emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_GET_UNREAD_COUNTS_REQ, jsonData);
+        qDebug() << "[ChatDialog]: sent get unread counts request";
+    }
+
+    // 登录后默认选中的第一个会话也上报已读
+    if (_cur_chat_thread_id > 0) {
+        QJsonObject markJson;
+        markJson["uid"] = UserMgr::GetInstance()->GetUid();
+        markJson["thread_id"] = _cur_chat_thread_id;
+        QJsonDocument markDoc(markJson);
+        QByteArray markData = markDoc.toJson(QJsonDocument::Compact);
+        emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_MARK_MSG_READ_REQ, markData);
+        qDebug() << "[ChatDialog]: sent mark msg read for default thread_id=" << _cur_chat_thread_id;
+    }
 }
 
 void ChatDialog::slot_create_private_chat(int uid, int other_id, int thread_id)
@@ -1476,6 +1675,9 @@ void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_mo
         _cur_load_chat->AppendMsg(chat_msg->GetMsgId(),chat_msg);
     }
 
+    // 更新聊天列表项的 UI（最后消息 + 未读角标）
+    UpdateChatListItem(_cur_load_chat->GetThreadId());
+
     //还有未加载完的消息，就继续加载
     if(load_more){
         //发送请求给服务器
@@ -1530,6 +1732,8 @@ void ChatDialog::slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<Te
         //更新聊天界面信息
         ui->chat_page->UpdateChatStatus(msg);
     }
+    // 更新聊天列表中的最后一条消息显示（自己发的也要更新）
+    UpdateChatListItem(thread_id);
 }
 
 void ChatDialog::slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> img_msg)
@@ -1542,11 +1746,15 @@ void ChatDialog::slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> im
     chat_data->MoveMsg(img_msg);
 
     if (_cur_chat_thread_id != thread_id) {
+        // 更新聊天列表显示
+        UpdateChatListItem(thread_id);
         return;
     }
 
     //更新聊天界面信息
     ui->chat_page->UpdateImgChatStatus(img_msg);
+    // 更新聊天列表中的最后一条消息显示
+    UpdateChatListItem(thread_id);
 }
 
 void ChatDialog::slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> file_msg)
@@ -1559,11 +1767,14 @@ void ChatDialog::slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> 
     chat_data->MoveMsg(file_msg);
 
     if (_cur_chat_thread_id != thread_id) {
+        UpdateChatListItem(thread_id);
         return;
     }
 
     //更新聊天界面信息
     ui->chat_page->UpdateChatStatus(file_msg);
+    // 更新聊天列表中的最后一条消息显示
+    UpdateChatListItem(thread_id);
 }
 
 void ChatDialog::slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info)

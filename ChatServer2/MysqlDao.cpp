@@ -867,6 +867,10 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 			msg.msg_type = rs->getInt("msg_type");
 			page_res->messages.push_back(std::move(msg));
 		}
+		if (page_res->messages.empty()) {
+			// 没有更多消息，直接返回
+			return page_res;
+		}
 		if (page_res->messages.size() > page_size) {
 			page_res->messages.pop_back();
 			page_res->load_more = true;
@@ -1224,6 +1228,233 @@ bool MysqlDao::GetUserGroupChats(int user_id, std::vector<int>& thread_ids)
 	catch (sql::SQLException& e) {
 		LOG_ERROR("GetUserGroupChats SQLException - error: " << e.what()
 			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::GetGroupInfo(int thread_id, GroupInfo& group_info)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"SELECT name, icon, notice, `desc`, owner_id FROM group_chat WHERE thread_id = ?"
+		));
+		pstmt->setInt(1, thread_id);
+
+		std::unique_ptr<sql::ResultSet> rs(pstmt->executeQuery());
+
+		if (rs->next()) {
+			group_info.thread_id = thread_id;
+			group_info.name = rs->getString("name");
+			group_info.icon = rs->getString("icon");
+			group_info.notice = rs->getString("notice");
+			group_info.desc = rs->getString("desc");
+			group_info.owner_id = rs->getInt("owner_id");
+
+			std::unique_ptr<sql::PreparedStatement> count_pstmt(conn->prepareStatement(
+				"SELECT COUNT(*) as count FROM group_chat_member WHERE thread_id = ?"
+			));
+			count_pstmt->setInt(1, thread_id);
+			std::unique_ptr<sql::ResultSet> count_rs(count_pstmt->executeQuery());
+			if (count_rs->next()) {
+				group_info.member_count = count_rs->getInt("count");
+			}
+
+			return true;
+		}
+		return false;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("GetGroupInfo SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::UpdateGroupNotice(int thread_id, const std::string& notice)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"UPDATE group_chat SET notice = ? WHERE thread_id = ?"
+		));
+		pstmt->setString(1, notice);
+		pstmt->setInt(2, thread_id);
+
+		int update_count = pstmt->executeUpdate();
+		return update_count > 0;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("UpdateGroupNotice SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::UpdateGroupMemberSetting(int thread_id, int user_id, const std::string& group_nick, int role, int is_disturb, int is_top)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"UPDATE group_chat_member SET group_nick = ?, role = ?, is_disturb = ?, is_top = ? "
+			"WHERE thread_id = ? AND user_id = ?"
+		));
+		pstmt->setString(1, group_nick);
+		pstmt->setInt(2, role);
+		pstmt->setInt(3, is_disturb);
+		pstmt->setInt(4, is_top);
+		pstmt->setInt(5, thread_id);
+		pstmt->setInt(6, user_id);
+
+		int update_count = pstmt->executeUpdate();
+		return update_count > 0;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("UpdateGroupMemberSetting SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"SELECT cm.thread_id, COUNT(*) AS unread_count "
+			"FROM chat_message cm "
+			"JOIN private_chat pc ON cm.thread_id = pc.thread_id "
+			"WHERE cm.recv_id = ? AND cm.status = 0 "
+			"AND (pc.user1_id = ? OR pc.user2_id = ?) "
+			"GROUP BY cm.thread_id"
+		));
+		pstmt->setInt(1, user_id);
+		pstmt->setInt(2, user_id);
+		pstmt->setInt(3, user_id);
+
+		std::unique_ptr<sql::ResultSet> rs(pstmt->executeQuery());
+
+		unread_counts.clear();
+		while (rs->next()) {
+			int thread_id = rs->getInt("thread_id");
+			int count = rs->getInt("unread_count");
+			unread_counts.emplace_back(thread_id, count);
+		}
+
+		LOG_DEBUG("GetUnreadCounts success - user_id: " << user_id << ", thread_count: " << unread_counts.size());
+		return true;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("GetUnreadCounts SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::MarkMsgRead(int thread_id, int reader_uid)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"UPDATE chat_message SET status = 2, updated_at = NOW() "
+			"WHERE thread_id = ? AND recv_id = ? AND status = 0"
+		));
+		pstmt->setInt(1, thread_id);
+		pstmt->setInt(2, reader_uid);
+
+		int update_count = pstmt->executeUpdate();
+		LOG_INFO("MarkMsgRead - thread_id: " << thread_id << ", reader_uid: " << reader_uid
+			<< ", updated_count: " << update_count);
+		return true;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("MarkMsgRead SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: " << e.getSQLState());
+		return false;
+	}
+}
+
+bool MysqlDao::GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return false;
+	}
+
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+	});
+
+	auto& conn = con->_con;
+
+	try {
+		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
+			"SELECT user1_id, user2_id FROM private_chat WHERE thread_id = ? LIMIT 1"
+		));
+		pstmt->setInt(1, thread_id);
+
+		std::unique_ptr<sql::ResultSet> rs(pstmt->executeQuery());
+		if (rs->next()) {
+			int user1 = rs->getInt("user1_id");
+			int user2 = rs->getInt("user2_id");
+			peer_uid = (user1 == self_uid) ? user2 : user1;
+			return true;
+		}
+		return false;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("GetPrivateChatPeer SQLException - error: " << e.what()
+			<< ", code: " << e.getErrorCode() << ", state: << e.getSQLState());
 		return false;
 	}
 }

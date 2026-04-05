@@ -121,3 +121,20 @@ bool MysqlMgr::UpdateGroupMemberSetting(int thread_id, int user_id, const std::s
 	return _dao.UpdateGroupMemberSetting(thread_id, user_id, group_nick, role, is_disturb, is_top);
 }
 
+bool MysqlMgr::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts)
+{
+	return _dao.GetUnreadCounts(user_id, unread_counts);
+}
+
+bool MysqlMgr::MarkMsgRead(int thread_id, int reader_uid)
+{
+	return _dao.MarkMsgRead(thread_id, reader_uid);
+}
+
+bool MysqlMgr::GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid)
+{
+	return _dao.GetPrivateChatPeer(thread_id, self_uid, peer_uid);
+}
+
+
+

@@ -65,6 +65,18 @@ private:
 	void CreateGroupChatHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	// 获取群成员列表逻辑
 	void GetGroupMembersHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// 查询好友在线状态逻辑
+	void GetFriendOnlineStatusHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+
+	// 已读回执相关逻辑
+	// 获取用户未读消息数
+	void GetUnreadCountsHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// 标记消息已读并通知发送方
+	void MarkMsgReadHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// 通知好友用户上线
+	void NotifyFriendsUserOnline(int uid);
+	// 通知好友用户下线
+	void NotifyFriendsUserOffline(int uid);
 
 	//�ж��ַ����Ƿ�Ϊ�����֣������жϿͻ�����������uid�������֣�
 	bool isPureDigit(const std::string& str);

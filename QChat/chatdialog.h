@@ -45,6 +45,12 @@ public:
     void LoadMoreChatUser();
     //加载更多的好友信息列表
     void LoadMoreConUser();
+    //更新单个好友联系人在线状态
+    void UpdateContactOnlineStatus(int uid, bool online);
+    //更新所有联系人在线状态
+    void UpdateAllContactOnlineStatus();
+    //更新聊天列表中某线程的未读角标和最后一条消息显示
+    void UpdateChatListItem(int thread_id);
     //更新聊天界面显示消息
     void UpdateChatMsg(std::vector<std::shared_ptr<TextChatData>> msgdata);
     //显示加载对话框
@@ -54,6 +60,8 @@ public:
 
 signals:
     void switch_login(); // 切换到登录界面
+    // 消息已读通知，用于转发给 chatpage 更新 UI
+    void sig_notify_msg_read_for_page(int thread_id, int reader_uid);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
