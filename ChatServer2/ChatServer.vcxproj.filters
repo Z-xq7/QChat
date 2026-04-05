@@ -42,9 +42,6 @@
     <ClCompile Include="MsgNode.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MysqlDao.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="MysqlMgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -54,19 +51,22 @@
     <ClCompile Include="StatusGrpcClient.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ChatGrpcClient.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="UserMgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ChatServiceImpl.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ChatGrpcClient.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="DistLock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Logger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MysqlDao.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -101,9 +101,6 @@
     <ClInclude Include="MsgNode.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MysqlDao.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="MysqlMgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -116,19 +113,22 @@
     <ClInclude Include="StatusGrpcClient.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ChatGrpcClient.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="UserMgr.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ChatServiceImpl.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ChatGrpcClient.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="DistLock.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Logger.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MysqlDao.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

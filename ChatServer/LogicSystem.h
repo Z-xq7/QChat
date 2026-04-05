@@ -61,6 +61,13 @@ private:
 	//������Ƶͨ���ܾ����߼�
 	void VideoCallReject(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 
+	// 创建群聊逻辑
+	void CreateGroupChatHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// 获取群成员列表逻辑
+	void GetGroupMembersHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// 更新群公告逻辑：更新DB并通知群内所有在线成员
+	void UpdateGroupNoticeHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+
 	//�ж��ַ����Ƿ�Ϊ�����֣������жϿͻ�����������uid�������֣�
 	bool isPureDigit(const std::string& str);
 	//��ȡ�û���Ϣ�ĺ������ֱ����uid�����ֻ�ȡ

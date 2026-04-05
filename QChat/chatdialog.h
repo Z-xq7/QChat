@@ -160,6 +160,8 @@ public slots:
     void slot_download_finish(std::shared_ptr<MsgInfo> msg_info, QString file_path);
     //文件传输失败
     void slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info);
+    //群聊创建成功，更新UI
+    void slot_group_chat_created(int thread_id, const QString& group_name);
 
 };
 

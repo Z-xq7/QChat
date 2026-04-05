@@ -14,6 +14,7 @@ class ChatItemBase : public QWidget
 public:
     explicit ChatItemBase(ChatRole role,QWidget* parent = nullptr);
     void setUserName(const QString& name);
+    void showUserName(bool show);
     void setUserIcon(const QPixmap& icon);
     void setWidget(QWidget* w);
     void setStatus(int status);

@@ -201,6 +201,22 @@ std::shared_ptr<UserInfo> UserMgr::GetFriendById(int uid)
     return *find_it;
 }
 
+std::vector<std::shared_ptr<UserInfo>> UserMgr::GetAllFriends()
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    return _friend_list;
+}
+
+std::vector<std::shared_ptr<ChatThreadData>> UserMgr::GetAllChatThreadData()
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    std::vector<std::shared_ptr<ChatThreadData>> chat_list;
+    for(auto& chat : _chat_map){
+        chat_list.push_back(chat);
+    }
+    return chat_list;
+}
+
 std::vector<std::shared_ptr<UserInfo>> UserMgr::GetChatListPerPage() {
     std::lock_guard<std::mutex> lock(_mtx);
     //用来存储这次要加载的聊天列表信息
@@ -621,5 +637,130 @@ std::vector<std::shared_ptr<MsgInfo>> UserMgr::GetAllTransFiles()
     return trans_files;
 }
 
+// 群聊相关方法实现
+void UserMgr::AddGroupChat(int thread_id, std::shared_ptr<ChatThreadData> group_data)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    _group_chat_map[thread_id] = group_data;
+    // 同时添加到聊天列表中
+    _chat_map[thread_id] = group_data;
+    _chat_thread_ids.push_back(thread_id);
+}
 
+std::shared_ptr<ChatThreadData> UserMgr::GetGroupChat(int thread_id)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    auto iter = _group_chat_map.find(thread_id);
+    if (iter != _group_chat_map.end()) {
+        return iter.value();
+    }
+    return nullptr;
+}
 
+bool UserMgr::IsGroupChat(int thread_id)
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    auto iter = _group_chat_map.find(thread_id);
+    return iter != _group_chat_map.end();
+}
+
+std::vector<std::shared_ptr<ChatThreadData>> UserMgr::GetAllGroupChats()
+{
+    std::lock_guard<std::mutex> lock(_mtx);
+    std::vector<std::shared_ptr<ChatThreadData>> group_list;
+    for (auto iter = _group_chat_map.begin(); iter != _group_chat_map.end(); ++iter) {
+        group_list.push_back(iter.value());
+    }
+    return group_list;
+}
+
+void UserMgr::SlotCreateGroupChatRsp(int error, int thread_id, const QString& group_name)
+{
+    if (error != 0) {
+        qDebug() << "[UserMgr]: 创建群聊失败, error=" << error;
+        return;
+    }
+
+    qDebug() << "[UserMgr]: 创建群聊成功, thread_id=" << thread_id << ", group_name=" << group_name;
+
+    // 创建群聊数据
+    auto group_data = std::make_shared<ChatThreadData>();
+    group_data->SetThreadId(thread_id);
+    group_data->SetGroupName(group_name);
+    group_data->SetIsGroup(true);
+    group_data->SetOtherId(0);  // 群聊没有特定的对方id
+
+    // 添加到群聊管理
+    AddGroupChat(thread_id, group_data);
+
+    // 通知UI更新聊天列表
+    emit sig_group_chat_created(thread_id, group_name);
+}
+
+void UserMgr::SlotGroupChatCreated(int thread_id, const QString& group_name, int creator_uid,
+                                   const std::vector<std::shared_ptr<GroupMemberInfo>>& members)
+{
+    qDebug() << "[UserMgr]: 收到被加入群聊通知, thread_id=" << thread_id
+             << ", group_name=" << group_name << ", creator_uid=" << creator_uid;
+
+    // 检查是否已存在
+    if (IsGroupChat(thread_id)) {
+        qDebug() << "[UserMgr]: 群聊已存在, 跳过添加";
+        return;
+    }
+
+    // 创建群聊数据
+    auto group_data = std::make_shared<ChatThreadData>();
+    group_data->SetThreadId(thread_id);
+    group_data->SetGroupName(group_name);
+    group_data->SetIsGroup(true);
+    group_data->SetOtherId(0);  // 群聊没有特定的对方id
+    group_data->SetGroupMembers(members);
+
+    // 添加到群聊管理
+    AddGroupChat(thread_id, group_data);
+
+    // 通知UI更新聊天列表
+    emit sig_group_chat_created(thread_id, group_name);
+}
+
+void UserMgr::AppendGroupList(QJsonArray array)
+{
+    for (const QJsonValue& value : array) {
+        int thread_id    = value["thread_id"].toInt();
+        QString name     = value["name"].toString();
+        QString icon     = value["icon"].toString();
+        QString notice   = value["notice"].toString();
+        QString desc     = value["desc"].toString();
+        int owner_id     = value["owner_id"].toInt();
+        int member_count = value["member_count"].toInt();
+
+        auto group_data = std::make_shared<ChatThreadData>();
+        group_data->SetThreadId(thread_id);
+        group_data->SetGroupName(name);
+        group_data->SetGroupIcon(icon);
+        group_data->SetNotice(notice);
+        group_data->SetGroupDesc(desc);
+        group_data->SetOwnerId(owner_id);
+        group_data->SetMemberCount(member_count);
+        group_data->SetIsGroup(true);
+        group_data->SetOtherId(0);
+
+        std::lock_guard<std::mutex> lock(_mtx);
+        _group_chat_map.insert(thread_id, group_data);
+        // 同时加入 _chat_map 和 _chat_thread_ids，使 loadChatMsg 能遍历到群聊去请求历史消息
+        _chat_map.insert(thread_id, group_data);
+        _chat_thread_ids.push_back(thread_id);
+    }
+    qDebug() << "[UserMgr]: AppendGroupList, loaded" << array.size() << "groups";
+}
+
+void UserMgr::SlotUpdateGroupNotice(int thread_id, const QString& notice)
+{
+    // 更新内存中群聊数据的公告字段
+    auto group_data = GetGroupChat(thread_id);
+    if (group_data) {
+        group_data->SetNotice(notice);
+        qDebug() << "[UserMgr]: Updated group notice, thread_id=" << thread_id;
+    }
+}

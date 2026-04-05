@@ -41,6 +41,8 @@ SOURCES += \
     friendinfopage.cpp \
     friendlabel.cpp \
     global.cpp \
+    groupchatdialog.cpp \
+    groupnoticedlg.cpp \
     grouptipitem.cpp \
     httpmgr.cpp \
     emojipopup.cpp \
@@ -73,7 +75,11 @@ SOURCES += \
     qvideooutputwidget.cpp \
     YangRtcWrapper.cpp \
     yang_init_helper.cpp \
-    toolspage.cpp
+    toolspage.cpp \
+    chatsidepage.cpp \
+    groupsidepage.cpp \
+    groupmemberlistpage.cpp \
+    groupnoticedialog.cpp
 
 HEADERS += \
     adduseritem.h \
@@ -98,6 +104,7 @@ HEADERS += \
     conuseritem.h \
     customizeedit.h \
     cute_pet_widget.h \
+    chatsidepage.h \
     filebubble.h \
     fileconfirmdlg.h \
     filetcpmgr.h \
@@ -106,6 +113,8 @@ HEADERS += \
     friendinfopage.h \
     friendlabel.h \
     global.h \
+    groupchatdialog.h \
+    groupnoticedlg.h \
     grouptipitem.h \
     httpmgr.h \
     emojipopup.h \
@@ -138,8 +147,10 @@ HEADERS += \
     videocallwindow.h \
     videopage.h \
     YangRtcWrapper.h \
-    yang_init_helper.h \
-    toolspage.h
+    toolspage.h \
+    groupsidepage.h \
+    groupmemberlistpage.h \
+    groupnoticedialog.h
 
 FORMS += \
     adduseritem.ui \

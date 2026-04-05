@@ -40,6 +40,11 @@ public:
     
     // 配置ICE服务器（TURN/STUN）
     bool configureIceServers(const QJsonArray& iceServers);
+
+    // 初始化 PeerConnection（必须在 configureIceServers 之后调用！）
+    // 因为 yang_create_peerConnection 内部会复制 avinfo->rtc.iceCandidateType，
+    // 如果在设置 ICE 类型之前调用，ICE 会始终走 Host 模式。
+    bool initPeerConnection();
     
     // 创建offer
     QString createOffer();
@@ -61,6 +66,9 @@ public:
     
     // 添加视频轨道
     bool addVideoTrack();
+    
+    // 添加 transceiver（设置流方向，demo 中在 addTrack 之后调用）
+    bool addTransceiver(YangRtcDirection direction = YangSendrecv);
     
     // 向远端发送已经编码好的 I420 视频帧
     void sendVideoI420(uint8_t* data, int len, int64_t timestamp);

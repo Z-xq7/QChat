@@ -9,6 +9,7 @@ ChatItemBase::ChatItemBase(ChatRole role, QWidget *parent):QWidget(parent),m_rol
     font.setPointSize(9);
     m_pNameLabel->setFont(font);
     m_pNameLabel->setFixedHeight(20);
+    m_pNameLabel->hide(); // 默认隐藏，群聊再显示
 
     //设置头像图标
     m_pIconLabel    = new QLabel();
@@ -75,6 +76,15 @@ ChatItemBase::ChatItemBase(ChatRole role, QWidget *parent):QWidget(parent),m_rol
 void ChatItemBase::setUserName(const QString &name)
 {
     m_pNameLabel->setText(name);
+}
+
+void ChatItemBase::showUserName(bool show)
+{
+    if(show){
+        m_pNameLabel->show();
+    }else{
+        m_pNameLabel->hide();
+    }
 }
 
 void ChatItemBase::setUserIcon(const QPixmap &icon)

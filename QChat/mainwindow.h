@@ -49,7 +49,8 @@ private:
     void setupTrayIcon();       // 设置系统托盘
 
 protected:
-    void changeEvent(QEvent *event) override; // 重写改变事件，处理最小化到托盘
+    void changeEvent(QEvent *event) override; // 重写改变事件
+    void closeEvent(QCloseEvent *event) override; // 重写关闭事件，处理退出到托盘 logic
 
 private:
     Ui::MainWindow *ui;

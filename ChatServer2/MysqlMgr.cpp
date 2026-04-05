@@ -30,7 +30,7 @@ bool MysqlMgr::AddFriendApply(const int& from, const int& to, const std::string&
 	return _dao.AddFriendApply(from, to, desc, bakname);
 }
 
-//£¨ÒÑ·ÏÆú£©
+//ï¼ˆå·²åºŸå¼ƒï¼‰
 bool MysqlMgr::AuthFriendApply(const int& from, const int& to) {
 	return _dao.AuthFriendApply(from, to);
 }
@@ -88,5 +88,21 @@ bool MysqlMgr::AddChatMsg(std::shared_ptr<ChatMessage>& chat_datas)
 std::shared_ptr<ChatMessage> MysqlMgr::GetChatMsg(int message_id)
 {
 	return _dao.GetChatMsg(message_id);
+}
+
+bool MysqlMgr::CreateGroupChat(int creator_uid, const std::string& group_name,
+	const std::vector<int>& member_uids, int& thread_id)
+{
+	return _dao.CreateGroupChat(creator_uid, group_name, member_uids, thread_id);
+}
+
+bool MysqlMgr::GetGroupMembers(int thread_id, std::vector<std::shared_ptr<GroupMemberInfo>>& members)
+{
+	return _dao.GetGroupMembers(thread_id, members);
+}
+
+bool MysqlMgr::GetUserGroupChats(int user_id, std::vector<int>& thread_ids)
+{
+	return _dao.GetUserGroupChats(user_id, thread_ids);
 }
 

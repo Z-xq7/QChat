@@ -144,7 +144,6 @@ YangRtcWrapper::YangRtcWrapper(QObject *parent)
 
     m_avInfo.rtc.iceUsingLocalIp = yangfalse;
     m_avInfo.rtc.enableAudioBuffer = yangtrue;
-    m_avInfo.rtc.iceUsingLocalIp = yangtrue;
     m_avInfo.rtc.enableHttpServerSdp = yangfalse;
     m_avInfo.rtc.sessionTimeout = 30;
     m_avInfo.rtc.rtcSocketProtocol = Yang_Socket_Protocol_Udp;
@@ -162,40 +161,43 @@ YangRtcWrapper::YangRtcWrapper(QObject *parent)
     m_avInfo.video.videoEncoderFormat = YangI420;
     m_avInfo.video.videoDecoderFormat = YangI420;
 
+    // ===================================================================
+    // 正确的 YangPeerConnection 初始化顺序（参考 YangPeerConnection2
+    // 构造函数和 YangRtcReceive::init 的 demo 实现）：
+    //
+    // 1. memset 清零结构体
+    // 2. 设置 peer.avinfo 和 peer.streamconfig
+    // 3. 配置 ICE 服务器（configureIceServers）—— 更新 avinfo.rtc 的 ICE 参数
+    // 4. 调用 initPeerConnection() —— 内部调 yang_create_peerConnection，
+    //    此时 avinfo.rtc.iceCandidateType 已正确设置（Turn/Stun/Host），
+    //    yang_create_ice 会正确复制该值
+    // 5. 之后不要再整体 memset，也不要手动调 init(peer)
+    // ===================================================================
+
+    // 步骤1：清零
     memset(&m_peerConnection, 0, sizeof(YangPeerConnection));
-    yang_create_peerConnection(&m_peerConnection);
+
+    // 步骤2：设置 avinfo 和 streamconfig（必须在 yang_create_peerConnection 之前！）
     YangPeer* peer = &m_peerConnection.peer;
-    memset(peer, 0, sizeof(YangPeer));
-    peer->conn = nullptr;
     peer->avinfo = &m_avInfo;
-    memset(&peer->streamconfig, 0, sizeof(YangStreamConfig));
 
-    // 默认双向发送接收，后续在 ready 信令中根据 isInitiator 调整
-    peer->streamconfig.direction = YangSendrecv;
-    peer->streamconfig.isControlled = yangtrue;
+    peer->streamconfig.direction   = YangSendrecv;
+    peer->streamconfig.isControlled = yangfalse;
 
-    // 将音视频接收回调指向静态函数，通过 streamconfig.recvCallback.context 传递 this
-    peer->streamconfig.recvCallback.context = this;
+    // 接收远端音视频帧的回调
+    peer->streamconfig.recvCallback.context      = this;
     peer->streamconfig.recvCallback.receiveAudio = YangRtcWrapper::onRecvAudioFrame;
     peer->streamconfig.recvCallback.receiveVideo = YangRtcWrapper::onRecvVideoFrame;
     peer->streamconfig.recvCallback.receiveMsg   = YangRtcWrapper::onRecvMessageFrame;
 
-    // 可选：配置 ICE 状态/连接状态回调，方便以后调试
-    peer->streamconfig.iceCallback.context = this;
-    peer->streamconfig.iceCallback.onConnectionStateChange = nullptr;
-    peer->streamconfig.iceCallback.onIceStateChange = nullptr;
+    // ICE/连接状态回调
+    peer->streamconfig.iceCallback.context                  = this;
+    peer->streamconfig.iceCallback.onConnectionStateChange  = nullptr;
+    peer->streamconfig.iceCallback.onIceStateChange         = nullptr;
 
-    // 初始化 peerConnection 本身（内部可能会用到 m_peer.avinfo 等）
-    if (m_peerConnection.init) {
-        m_peerConnection.init(peer);
-    }
-
-    // 绑定音视频/消息回调（这些回调函数用于PeerConnection级别的事件）
-    m_peerConnection.on_audio   = YangRtcWrapper::onAudioFrame;
-    m_peerConnection.on_video   = YangRtcWrapper::onVideoFrame;
-    m_peerConnection.on_message = YangRtcWrapper::onMessageFrame;
-    // 将当前实例添加到静态映射中
-    s_wrapperMap.insert(peer, this);
+    // 注意：yang_create_peerConnection 延迟到 initPeerConnection() 中调用！
+    // 必须在 configureIceServers() 之后调用，否则 ICE session 的 candidateType
+    // 会一直是初始值 YangIceHost（因为 yang_create_ice 是复制而非引用 avinfo）。
 
     // 连接状态计时器：周期轮询，超时则关闭，避免 DTLS 死循环导致卡死
     m_connectTimer->setSingleShot(false);
@@ -232,10 +234,34 @@ YangRtcWrapper::YangRtcWrapper(QObject *parent)
 YangRtcWrapper::~YangRtcWrapper()
 {
     closeConnection();
-    yang_destroy_peerConnection(&m_peerConnection);
+    // 只有在 yang_create_peerConnection 被调用过（peer.conn 非 NULL）时才销毁
+    if (m_peerConnection.peer.conn) {
+        yang_destroy_peerConnection(&m_peerConnection);
+        s_wrapperMap.remove(&m_peerConnection.peer);
+    }
+}
 
-    // 从静态映射中移除
-    s_wrapperMap.remove(&m_peerConnection.peer);
+bool YangRtcWrapper::initPeerConnection()
+{
+    if (m_state != YangRtcState::Idle) {
+        qDebug() << "[YangRtcWrapper] initPeerConnection called while not Idle, state=" << static_cast<int>(m_state);
+        return false;
+    }
+
+    // 检查 avinfo 是否已绑定
+    if (m_peerConnection.peer.avinfo == nullptr) {
+        qDebug() << "[YangRtcWrapper] initPeerConnection: avinfo is NULL, cannot create peer connection";
+        return false;
+    }
+
+    // 调用 yang_create_peerConnection —— 内部自动调 yang_pc_init，
+    // 读取 peer->avinfo（包括已更新的 iceCandidateType）和 peer->streamconfig
+    yang_create_peerConnection(&m_peerConnection);
+
+    // 将当前实例注册到静态映射
+    s_wrapperMap.insert(&m_peerConnection.peer, this);
+
+    return true;
 }
 
 bool YangRtcWrapper::configureIceServers(const QJsonArray& iceServers)
@@ -316,7 +342,6 @@ bool YangRtcWrapper::initRtcConnection(const QString &serverUrl, int localPort)
 
     m_serverUrl = serverUrl;
 
-    // 配置 RTC 相关信息
     if (localPort <= 0) {
         localPort = 20000 + QRandomGenerator::global()->bounded(20000);
     }
@@ -324,8 +349,11 @@ bool YangRtcWrapper::initRtcConnection(const QString &serverUrl, int localPort)
     m_avInfo.rtc.rtcLocalPort = localPort;
     m_peerConnection.peer.streamconfig.localPort = localPort;
 
-    // P2P 模式下 remoteIp/remotePort 指向 TURN 服务器（如果已配置）
-    if (m_avInfo.rtc.iceServerIP[0] != '\0' && m_avInfo.rtc.iceServerPort > 0) {
+    // P2P Host 模式：remoteIp/remotePort 不在此处填充。
+    // setRemoteDescription 解析对端 SDP 的 candidate 行时会自动覆盖写入 remoteIp/remotePort，
+    // 所以这里预填 TURN/STUN 服务器地址只对非 Host 模式有意义，Host 模式直接跳过。
+    if (m_avInfo.rtc.iceCandidateType != YangIceHost &&
+        m_avInfo.rtc.iceServerIP[0] != '\0' && m_avInfo.rtc.iceServerPort > 0) {
         strncpy(m_peerConnection.peer.streamconfig.remoteIp,
                 m_avInfo.rtc.iceServerIP,
                 sizeof(m_peerConnection.peer.streamconfig.remoteIp) - 1);
@@ -346,31 +374,54 @@ bool YangRtcWrapper::initRtcConnection(const QString &serverUrl, int localPort)
     m_avInfo.audio.channel = 2;
     m_avInfo.audio.bitrate = 64000;
 
+    // 注意：不要再调用 m_peerConnection.init(peer)！
+    // yang_create_peerConnection 内部已经自动调用了 yang_pc_init，
+    // 而 yang_pc_init 有 conn!=NULL 保护，重复调用会被跳过。
+    // 正确的做法是在构造函数中先设好 avinfo/streamconfig 再调 yang_create_peerConnection。
+
     setState(YangRtcState::Connecting);
     return true;
 }
 
 bool YangRtcWrapper::addAudioTrack()
 {
-    if (!m_peerConnection.addAudioTrack) return false;
+    if (!m_peerConnection.addAudioTrack) {
+        qDebug() << "[YangRtcWrapper] addAudioTrack: function pointer is NULL!";
+        return false;
+    }
     int32_t ret = m_peerConnection.addAudioTrack(&m_peerConnection.peer, Yang_AED_OPUS);
     if (ret != Yang_Ok) {
         qDebug() << "[YangRtcWrapper] addAudioTrack failed, ret=" << ret;
         return false;
     }
-    qDebug() << "[YangRtcWrapper] addAudioTrack success";
     return true;
 }
 
 bool YangRtcWrapper::addVideoTrack()
 {
-    if (!m_peerConnection.addVideoTrack) return false;
+    if (!m_peerConnection.addVideoTrack) {
+        qDebug() << "[YangRtcWrapper] addVideoTrack: function pointer is NULL!";
+        return false;
+    }
     int32_t ret = m_peerConnection.addVideoTrack(&m_peerConnection.peer, Yang_VED_H264);
     if (ret != Yang_Ok) {
         qDebug() << "[YangRtcWrapper] addVideoTrack failed, ret=" << ret;
         return false;
     }
-    qDebug() << "[YangRtcWrapper] addVideoTrack success";
+    return true;
+}
+
+bool YangRtcWrapper::addTransceiver(YangRtcDirection direction)
+{
+    if (!m_peerConnection.addTransceiver) {
+        qDebug() << "[YangRtcWrapper] addTransceiver: function pointer is NULL!";
+        return false;
+    }
+    int32_t ret = m_peerConnection.addTransceiver(&m_peerConnection.peer, direction);
+    if (ret != Yang_Ok) {
+        qDebug() << "[YangRtcWrapper] addTransceiver failed, ret=" << ret;
+        return false;
+    }
     return true;
 }
 
@@ -466,14 +517,17 @@ void YangRtcWrapper::sendVideoI420(uint8_t* data, int len, int64_t timestamp)
                              (m_avInfo.video.videoEncoderFormat == YangI420) ? 1 : 0);
     }
 
-    // 通过 metartc 发送到远端
+    // 通过 metartc 内部发送管道将 I420 帧送入编码器，再打包 RTP 发送到远端。
+    // on_video 是库在 yang_create_peerConnection 时设置的原生发送入口（已不再被覆盖）。
     if (m_peerConnection.on_video) {
         YangFrame frame;
         memset(&frame, 0, sizeof(YangFrame));
         frame.payload = data;
         frame.nb = len;
         frame.pts = timestamp;
-        frame.frametype = YangFrameTypeVideo; // 简单标记为视频帧
+        frame.mediaType = YangFrameTypeVideo;
+        // frametype: 0=P帧, 1=I帧, 9=SPS/PPS；此处传原始 I420，由库内部编码器决定帧类型
+        frame.frametype = YANG_Frametype_P;
 
         int32_t ret = m_peerConnection.on_video(&m_peerConnection.peer, &frame);
         if (ret != Yang_Ok) {
@@ -507,6 +561,16 @@ bool YangRtcWrapper::setLocalDescription(const QString &sdp, const QString &type
         return false;
     }
     qDebug() << "[YangRtcWrapper] setLocalDescription success";
+
+    // P2P 模式：SDP 双方交换完成后 metartc 内部自动触发 ICE/DTLS，
+    // 无需调用 connectSfuServer（它在 P2P 模式下是 NULL）。
+    // Answerer 路径：setLocalDescription(answer) 完成，双端 SDP 都就位，
+    // 开始轮询 isConnected 等待 ICE 握手完成。
+    if (!m_lastRemoteSdp.isEmpty()) {
+        qDebug() << "[YangRtcWrapper] Both SDPs set (answerer path), starting connection poll";
+        m_connectTimer->start(500);
+    }
+
     return true;
 }
 
@@ -559,7 +623,20 @@ bool YangRtcWrapper::setRemoteDescription(const QString &sdp, const QString &typ
     }
 
     qDebug() << "[YangRtcWrapper] setRemoteDescription success";
-    m_connectTimer->start(500);
+
+    // P2P 模式：metartc 在 setRemoteDescription 解析到对端 ICE 候选信息后
+    // 会自动开始 ICE/DTLS 握手，外部无需调用 connectSfuServer（P2P 下为 NULL）。
+    //
+    // Offerer  路径：setRemoteDescription(answer) → 双端 SDP 都已就位，开始轮询
+    // Answerer 路径：setRemoteDescription(offer)  → 还需等 setLocalDescription(answer)，
+    //               轮询会在 setLocalDescription 成功后启动
+    if (!m_lastLocalSdp.isEmpty()) {
+        qDebug() << "[YangRtcWrapper] Both SDPs set (offerer path), starting connection poll";
+        m_connectTimer->start(500);
+    } else {
+        qDebug() << "[YangRtcWrapper] setRemoteDescription done (answerer path), poll will start after setLocalDescription";
+    }
+
     return true;
 }
 
@@ -576,6 +653,17 @@ bool YangRtcWrapper::addIceCandidate(const QString &candidate, int sdpMLineIndex
 
 bool YangRtcWrapper::connectToServer()
 {
+    // P2P 模式（Yang_Server_P2p）说明：
+    //
+    // connectSfuServer 仅供 SRS / ZLM 服务端模式使用（注释 //srs zlm），
+    // 在 P2P 模式下 yang_create_peerConnection 不会填充该函数指针（NULL）。
+    //
+    // P2P 模式下，ICE/DTLS 握手由 metartc 内部在 setRemoteDescription 解析到
+    // 对端 ICE 候选地址（remoteIp/remotePort）之后自动启动，外部无需显式调用
+    // 任何 connect 函数。
+    //
+    // 连接状态通过 isConnected(peer) 轮询感知（connectTimer 每 500ms 轮询一次）。
+    qDebug() << "[YangRtcWrapper] connectToServer called (P2P mode: ICE starts automatically after SDP exchange)";
     return true;
 }
 

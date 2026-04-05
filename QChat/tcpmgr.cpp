@@ -248,6 +248,10 @@ void TcpMgr::initHandlers()
         if (jsonObj.contains("friend_list")) {
             UserMgr::GetInstance()->AppendFriendList(jsonObj["friend_list"].toArray());
         }
+        // 如果有群聊，则加载群聊基本信息
+        if (jsonObj.contains("group_list")) {
+            UserMgr::GetInstance()->AppendGroupList(jsonObj["group_list"].toArray());
+        }
 
         //登录成功，跳转到聊天页面
         emit sig_switch_chatdlg();
@@ -565,6 +569,7 @@ void TcpMgr::initHandlers()
             cti->_type = value["type"].toString();
             cti->_user1_id = value["user1_id"].toInt();
             cti->_user2_id = value["user2_id"].toInt();
+            cti->_group_name = value["group_name"].toString();
             chat_threads.push_back(cti);
         }
         bool load_more = jsonObj["load_more"].toBool();
@@ -643,6 +648,10 @@ void TcpMgr::initHandlers()
         int last_msg_id = jsonObj["last_msg_id"].toInt();
         bool load_more = jsonObj["load_more"].toBool();
 
+        // 通过 thread_id 判断是否群聊
+        bool is_group = UserMgr::GetInstance()->IsGroupChat(thread_id);
+        ChatFormType form_type = is_group ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
         std::vector<std::shared_ptr<ChatDataBase>> chat_datas;
         for(const QJsonValue& data : jsonObj["chat_datas"].toArray()){
             auto send_uid = data["sender"].toInt();
@@ -656,7 +665,7 @@ void TcpMgr::initHandlers()
             int msg_type = data["msg_type"].toInt();
 
             if (msg_type == int(ChatMsgType::TEXT)) {
-                auto chat_data = std::make_shared<TextChatData>(msg_id, thread_id, ChatFormType::PRIVATE,
+                auto chat_data = std::make_shared<TextChatData>(msg_id, thread_id, form_type,
                         ChatMsgType::TEXT, msg_content, send_uid, status, chat_time);
                 chat_datas.push_back(chat_data);
                 continue;
@@ -701,7 +710,7 @@ void TcpMgr::initHandlers()
                 //设置文件传输状态
                 file_info->_transfer_state = TransferState::None;
                 //放入chat_datas列表
-                auto chat_data = std::make_shared<ImgChatData>(file_info,"", thread_id, ChatFormType::PRIVATE,
+                auto chat_data = std::make_shared<ImgChatData>(file_info,"", thread_id, form_type,
                                                                ChatMsgType::PIC, send_uid, status, chat_time);
                 chat_datas.push_back(chat_data);
 
@@ -752,7 +761,7 @@ void TcpMgr::initHandlers()
                 file_info->_transfer_type = TransferType::Download;
                 file_info->_transfer_state = transfer_state;
 
-                auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, ChatFormType::PRIVATE,
+                auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, form_type,
                                                                ChatMsgType::FILE, send_uid, status, chat_time);
                 chat_datas.push_back(chat_data);
 
@@ -815,6 +824,10 @@ void TcpMgr::initHandlers()
 
         qDebug() << "[TcpMgr]: --- Receive Text Chat Rsp Success ---" ;
 
+        // 判断是群聊还是私聊
+        bool is_group = jsonObj["is_group"].toBool(false);
+        ChatFormType form_type = is_group ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
         //ui设置送达等标记 todo...
         //收到消息后转发给页面
         auto thread_id = jsonObj["thread_id"].toInt();
@@ -827,7 +840,7 @@ void TcpMgr::initHandlers()
             auto msg_content = data["content"].toString();
             QString chat_time = data["chat_time"].toString();
             int status = data["status"].toInt();
-            auto chat_data = std::make_shared<TextChatData>(msg_id,unique_id, thread_id, ChatFormType::PRIVATE,
+            auto chat_data = std::make_shared<TextChatData>(msg_id,unique_id, thread_id, form_type,
                                                             ChatMsgType::TEXT, msg_content, sender, status, chat_time);
             chat_datas.push_back(chat_data);
         }
@@ -856,6 +869,9 @@ void TcpMgr::initHandlers()
         int status = jsonObj["status"].toInt();
         auto receiver = jsonObj["touid"].toInt();
 
+        // 通过 thread_id 判断群聊/私聊
+        ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
         auto file_info = UserMgr::GetInstance()->GetTransFileByName(unique_name);
         if (!file_info) return;
 
@@ -866,7 +882,7 @@ void TcpMgr::initHandlers()
         file_info->_sender = sender;
         file_info->_receiver = receiver;
 
-        auto chat_data = std::make_shared<FileChatData>(file_info, unique_id, thread_id, ChatFormType::PRIVATE,
+        auto chat_data = std::make_shared<FileChatData>(file_info, unique_id, thread_id, form_type,
                                                        ChatMsgType::FILE, sender, status, chat_time);
         chat_data->SetMsgId(msg_id);
 
@@ -946,7 +962,10 @@ void TcpMgr::initHandlers()
         // 将文件信息加入管理
         UserMgr::GetInstance()->AddTransFile(unique_name, file_info);
 
-        auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, ChatFormType::PRIVATE,
+        // 通过 thread_id 判断群聊/私聊
+        ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
+        auto chat_data = std::make_shared<FileChatData>(file_info, "", thread_id, form_type,
                                                        ChatMsgType::FILE, from_uid, status, chat_time);
         emit sig_file_chat_msg(chat_data);
 
@@ -1029,7 +1048,10 @@ void TcpMgr::initHandlers()
         file_info->_sender = sender;
         file_info->_receiver = receiver;
 
-        auto chat_data = std::make_shared<ImgChatData>(file_info, unique_id, thread_id, ChatFormType::PRIVATE,
+        // 通过 thread_id 判断群聊/私聊
+        ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
+        auto chat_data = std::make_shared<ImgChatData>(file_info, unique_id, thread_id, form_type,
                                                        ChatMsgType::PIC, sender, status, chat_time);
 
         //更新msg_id,因为最开始构造的chat_data中ImgChatData的msg_id为空
@@ -1112,6 +1134,10 @@ void TcpMgr::initHandlers()
 
         qDebug() << "[TcpMgr]: --- Receive Text Chat Notify Success ---";
 
+        // 判断是群聊还是私聊
+        bool is_group = jsonObj["is_group"].toBool(false);
+        ChatFormType form_type = is_group ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
         auto thread_id = jsonObj["thread_id"].toInt();
         auto sender = jsonObj["fromuid"].toInt();
 
@@ -1124,7 +1150,7 @@ void TcpMgr::initHandlers()
             QString chat_time = data["chat_time"].toString();
             int status = data["status"].toInt();
 
-            auto chat_data = std::make_shared<TextChatData>(msg_id, unique_id, thread_id, ChatFormType::PRIVATE,
+            auto chat_data = std::make_shared<TextChatData>(msg_id, unique_id, thread_id, form_type,
                                                             ChatMsgType::TEXT, content, sender, status, chat_time);
             chat_datas.push_back(chat_data);
         }
@@ -1178,8 +1204,11 @@ void TcpMgr::initHandlers()
         //设置文件传输状态
         file_info->_transfer_state = TransferState::Downloading;
 
+        // 通过 thread_id 判断群聊/私聊
+        ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+
         auto img_chat_data_ptr = std::make_shared<ImgChatData>(file_info, "",
-                thread_id, ChatFormType::PRIVATE, ChatMsgType::PIC, sender_id, MsgStatus::READED);
+                thread_id, form_type, ChatMsgType::PIC, sender_id, MsgStatus::READED);
 
         //通知接收对方发来的图片消息
         emit sig_img_chat_msg(img_chat_data_ptr);
@@ -1280,9 +1309,9 @@ void TcpMgr::initHandlers()
         QString turn_ws_url = jsonObj["turn_ws_url"].toString();
         QJsonArray ice_servers = jsonObj["ice_servers"].toArray();
 
-        // 发送信号到UI层处理通话接受
+        // 发送信号到UI层处理通话接受（被叫方路径：CALL_ACCEPT_RSP）
         emit sig_accept_call(call_id, room_id, turn_ws_url, ice_servers);
-        qDebug() << "[TcpMgr]: Call accepted, room:" << room_id;
+        qDebug() << "[TcpMgr]: CALL_ACCEPT_RSP parsed, room:" << room_id << "call_id:" << call_id;
     });
     
     // 注册通话接受通知处理
@@ -1306,9 +1335,9 @@ void TcpMgr::initHandlers()
         QString turn_ws_url = jsonObj["turn_ws_url"].toString();
         QJsonArray ice_servers = jsonObj["ice_servers"].toArray();
         
-        // 发送信号到UI层处理通话接受
+        // 发送信号到UI层处理通话接受（主叫方路径：CALL_ACCEPT_NOTIFY）
         emit sig_call_accepted(call_id, room_id, turn_ws_url, ice_servers);
-        qDebug() << "[TcpMgr]: Call accepted, room:" << room_id;
+        qDebug() << "[TcpMgr]: CALL_ACCEPT_NOTIFY parsed, room:" << room_id << "call_id:" << call_id;
     });
 
     // 注册通话接受服务器回包
@@ -1363,23 +1392,168 @@ void TcpMgr::initHandlers()
             qDebug() << "[TcpMgr]: Failed to parse CALL_HANGUP_NOTIFY JSON";
             return;
         }
-        
+
         QJsonObject jsonObj = jsonDoc.object();
         if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
             qDebug() << "[TcpMgr]: CALL_HANGUP_NOTIFY Parse Err or Failed";
             return;
         }
-        
+
         QString call_id = jsonObj["call_id"].toString();
-        
+
         // 发送信号到UI层处理通话挂断
         emit sig_call_hangup(call_id);
         qDebug() << "[TcpMgr]: Call hangup received";
+    });
+
+    // 注册创建群聊响应处理
+    _handlers.insert(ID_CREATE_GROUP_CHAT_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle create group chat rsp, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse CREATE_GROUP_CHAT_RSP JSON";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error")) {
+            qDebug() << "[TcpMgr]: CREATE_GROUP_CHAT_RSP Parse Err";
+            return;
+        }
+
+        int error = jsonObj["error"].toInt();
+        int thread_id = jsonObj["thread_id"].toInt();
+        QString group_name = jsonObj["group_name"].toString();
+
+        emit sig_create_group_chat_rsp(error, thread_id, group_name);
+        qDebug() << "[TcpMgr]: Create group chat rsp - error:" << error << "thread_id:" << thread_id;
+    });
+
+    // 注册群聊创建通知处理（被加入群聊）
+    _handlers.insert(ID_NOTIFY_GROUP_CHAT_CREATED, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle notify group chat created, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse NOTIFY_GROUP_CHAT_CREATED JSON";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: NOTIFY_GROUP_CHAT_CREATED Parse Err or Failed";
+            return;
+        }
+
+        int thread_id = jsonObj["thread_id"].toInt();
+        QString group_name = jsonObj["group_name"].toString();
+        int creator_uid = jsonObj["creator_uid"].toInt();
+
+        // 解析成员列表
+        std::vector<std::shared_ptr<GroupMemberInfo>> members;
+        QJsonArray membersArray = jsonObj["members"].toArray();
+        for (const QJsonValue& memberVal : membersArray) {
+            QJsonObject memberObj = memberVal.toObject();
+            auto member = std::make_shared<GroupMemberInfo>();
+            member->_uid = memberObj["uid"].toInt();
+            member->_name = memberObj["name"].toString();
+            member->_icon = memberObj["icon"].toString();
+            member->_role = memberObj["role"].toInt();
+            members.push_back(member);
+        }
+
+        emit sig_group_chat_created(thread_id, group_name, creator_uid, members);
+        qDebug() << "[TcpMgr]: Group chat created notify - thread_id:" << thread_id << "name:" << group_name;
+    });
+
+    // 注册获取群成员列表响应处理
+    _handlers.insert(ID_GET_GROUP_MEMBERS_RSP, [this](ReqId id, int len, QByteArray data) {
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle get group members rsp, id: " << id << " data: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if (jsonDoc.isNull()) {
+            qDebug() << "[TcpMgr]: Failed to parse GET_GROUP_MEMBERS_RSP JSON";
+            return;
+        }
+
+        QJsonObject jsonObj = jsonDoc.object();
+        if (!jsonObj.contains("error") || jsonObj["error"].toInt() != ErrorCodes::SUCCESS) {
+            qDebug() << "[TcpMgr]: GET_GROUP_MEMBERS_RSP failed or error";
+            return;
+        }
+
+        int thread_id = jsonObj["thread_id"].toInt();
+
+        // 解析成员列表
+        std::vector<std::shared_ptr<GroupMemberInfo>> members;
+        QJsonArray membersArray = jsonObj["members"].toArray();
+        for (const QJsonValue& memberVal : membersArray) {
+            QJsonObject memberObj = memberVal.toObject();
+            auto member = std::make_shared<GroupMemberInfo>();
+            member->_uid = memberObj["uid"].toInt();
+            member->_name = memberObj["name"].toString();
+            member->_icon = memberObj["icon"].toString();
+            member->_role = memberObj["role"].toInt();
+            members.push_back(member);
+        }
+
+        qDebug() << "[TcpMgr]: Get group members success - thread_id:" << thread_id << "member_count:" << members.size();
+
+        // 更新群聊数据中的成员列表
+        auto group_data = UserMgr::GetInstance()->GetGroupChat(thread_id);
+        if (group_data) {
+            group_data->SetGroupMembers(members);
+            qDebug() << "[TcpMgr]: Updated group members for thread_id:" << thread_id;
+        } else {
+            qDebug() << "[TcpMgr]: Group data not found for thread_id:" << thread_id;
+        }
+
+        // 发送信号通知UI更新
+        emit sig_group_members_loaded(thread_id, members);
+    });
+
+    // 注册更新群公告响应逻辑（发布者自己的 RSP）
+    _handlers.insert(ReqId::ID_UPDATE_GROUP_NOTICE_RSP, [this](ReqId id,int len,QByteArray data){
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+        if(!jsonObj.contains("error")) return;
+
+        int err = jsonObj["error"].toInt();
+        if(err != ErrorCodes::SUCCESS) return;
+
+        int thread_id = jsonObj["thread_id"].toInt();
+        QString notice = jsonObj["notice"].toString();
+        emit sig_update_group_notice(thread_id, notice);
+    });
+
+    // 注册群公告更新推送逻辑（其他群成员收到的推送通知）
+    _handlers.insert(ReqId::ID_NOTIFY_GROUP_NOTICE_UPDATE, [this](ReqId id,int len,QByteArray data){
+        Q_UNUSED(len);
+        qDebug() << "[TcpMgr]: --- handle id is: " << id << " data is: " << data << " ---";
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(data);
+        if(jsonDoc.isNull()) return;
+        QJsonObject jsonObj = jsonDoc.object();
+
+        int thread_id = jsonObj["thread_id"].toInt();
+        QString notice = jsonObj["notice"].toString();
+        // 复用同一个信号，chatpage 已经监听此信号并更新 UI
+        emit sig_update_group_notice(thread_id, notice);
     });
 }
 
 void TcpMgr::handleMsg(ReqId id, int len, QByteArray data)
 {
+    // 对视频通话相关消息做详细日志
+    if (id == ID_CALL_ACCEPT_NOTIFY || id == ID_CALL_ACCEPT_RSP ||
+        id == ID_CALL_INCOMING_NOTIFY || id == ID_CALL_INVITE_RSP) {
+        qDebug() << "[TcpMgr] >>> handleMsg id=" << id << " len=" << len
+                 << " data=" << (data.size() > 200 ? data.left(200) + "..." : data);
+    }
+
     auto find_iter =  _handlers.find(id);
     if(find_iter == _handlers.end()){
         qDebug()<< "[TcpMgr]: not found id ["<< id << "] to handle";
@@ -1406,7 +1580,8 @@ void TcpMgr::CreatePlaceholderImgMsgL(QString img_path_str, QString msg_content,
     file_info->_transfer_state = TransferState::Downloading;
     file_info->_rsp_size = file_info->_current_size;
     //放入chat_datas列表
-    auto chat_data = std::make_shared<ImgChatData>(file_info, "", thread_id, ChatFormType::PRIVATE,
+    ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
+    auto chat_data = std::make_shared<ImgChatData>(file_info, "", thread_id, form_type,
         ChatMsgType::PIC, send_uid, status, chat_time);
     chat_datas.push_back(chat_data);
     //加入下载列表，并且发送下载请求

@@ -1,22 +1,21 @@
-#pragma once
+﻿#pragma once
 #include <functional>
-
 
 enum ErrorCodes {
 	Success = 0,
-	Error_Json = 1001,  //Json��������
-	RPCFailed = 1002,  //RPC�������
-	VarifyExpired = 1003, //��֤�����
-	VarifyCodeErr = 1004, //��֤�����
-	UserExist = 1005,       //�û��Ѿ�����
-	PasswdErr = 1006,    //�������
-	EmailNotMatch = 1007,  //���䲻ƥ��
-	PasswdUpFailed = 1008,  //��������ʧ��
-	PasswdInvalid = 1009,   //�������ʧ��
-	TokenInvalid = 1010,   //TokenʧЧ
-	UidInvalid = 1011,  //uid��Ч
-	CREATE_CHAT_FAILED = 1012, //���������߳�ʧ��
-	LOAD_CHAT_MSG_FAILED = 1013, //����������Ϣʧ��
+	Error_Json = 1001,  //Json解析错误
+	RPCFailed = 1002,  //RPC调用失败
+	VarifyExpired = 1003, //验证码过期
+	VarifyCodeErr = 1004, //验证码错误
+	UserExist = 1005,       //用户已经存在
+	PasswdErr = 1006,    //密码错误
+	EmailNotMatch = 1007,  //邮箱不匹配
+	PasswdUpFailed = 1008,  //密码更新失败
+	PasswdInvalid = 1009,   //密码无效
+	TokenInvalid = 1010,   //Token失效
+	UidInvalid = 1011,  //uid无效
+	CREATE_CHAT_FAILED = 1012, //创建聊天线程失败
+	LOAD_CHAT_MSG_FAILED = 1013, //加载聊天消息失败
 };
 
 
@@ -93,6 +92,16 @@ enum MSG_IDS {
 	ID_FILE_CHAT_MSG_REQ = 1062,
 	ID_FILE_CHAT_MSG_RSP = 1063,
 	ID_NOTIFY_FILE_CHAT_MSG_REQ = 1064,
+
+	// 群聊相关消息ID
+	ID_CREATE_GROUP_CHAT_REQ = 1070,	// 创建群聊请求
+	ID_CREATE_GROUP_CHAT_RSP = 1071,	// 创建群聊响应
+	ID_NOTIFY_GROUP_CHAT_CREATED = 1072,	// 通知用户被加入群聊
+	ID_GET_GROUP_MEMBERS_REQ = 1073,	// 获取群成员列表请求
+	ID_GET_GROUP_MEMBERS_RSP = 1074,	// 获取群成员列表响应
+	ID_UPDATE_GROUP_NOTICE_REQ = 1075,	// 更新群公告请求
+	ID_UPDATE_GROUP_NOTICE_RSP = 1076,	// 更新群公告响应
+	ID_NOTIFY_GROUP_NOTICE_UPDATE = 1077,	// 通知群成员群公告更新
 };
 
 //��Ϣ״̬

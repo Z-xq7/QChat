@@ -133,14 +133,19 @@ void MainWindow::setupTrayIcon()
 
 void MainWindow::changeEvent(QEvent *event)
 {
-    if (event->type() == QEvent::WindowStateChange) {
-        if (isMinimized()) {
-            // 延迟隐藏窗口，防止任务栏图标闪烁
-            QTimer::singleShot(0, this, &MainWindow::hide);
-            _tray_icon->showMessage("QChat", "程序已最小化到系统托盘", QSystemTrayIcon::Information, 2000);
-        }
-    }
+    // 只保留基础的最小化逻辑，不隐藏窗口到托盘
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (_tray_icon->isVisible()) {
+        hide(); // 隐藏主窗口
+        _tray_icon->showMessage("QChat", "程序已运行在系统托盘", QSystemTrayIcon::Information, 2000);
+        event->ignore(); // 忽略关闭事件，不退出程序
+    } else {
+        event->accept();
+    }
 }
 
 MainWindow::~MainWindow()
@@ -280,7 +285,7 @@ void MainWindow::SlotSwitchChat()
     //连接退出登录信号
     connect(_chat_dlg, &ChatDialog::switch_login, this, &MainWindow::offlineLogin);
 
-    this->setMinimumSize(QSize(970,720)); // 增加高度以适应标题栏
+    this->setMinimumSize(QSize(1020,750)); // 增加高度以适应标题栏
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     //加载聊天列表
     _chat_dlg->loadChatList();

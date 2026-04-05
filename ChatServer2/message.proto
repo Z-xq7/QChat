@@ -151,6 +151,132 @@ message NotifyChatImgRsp{
 	int32 thread_id =7;
 }
 
+message NotifyChatFileReq{
+	int32 from_uid = 1;
+	int32 to_uid = 2;
+	int32 message_id = 3;
+	string file_name = 4;
+	int64 total_size = 5;
+	int32 thread_id =6;
+}
+
+message NotifyChatFileRsp{
+	int32 error = 1;
+	int32 from_uid = 2;
+	int32 to_uid = 3;
+	int32 message_id = 4;
+	string file_name = 5;
+	int64 total_size = 6;
+	int32 thread_id =7;
+}
+
+enum RemoteControlStatus {
+    RC_REQUEST = 0;
+    RC_ACCEPT = 1;
+    RC_REJECT = 2;
+    RC_STOP = 3;
+}
+
+message RemoteControlReq {
+    int32 from_uid = 1;
+    int32 to_uid = 2;
+    RemoteControlStatus status = 3;
+    string session_id = 4;
+}
+
+message RemoteControlRsp {
+    int32 error = 1;
+    int32 from_uid = 2;
+    int32 to_uid = 3;
+    RemoteControlStatus status = 4;
+    string session_id = 5;
+}
+
+message InputEvent {
+    enum EventType {
+        MOUSE_MOVE = 0;
+        MOUSE_PRESS = 1;
+        MOUSE_RELEASE = 2;
+        KEY_PRESS = 3;
+        KEY_RELEASE = 4;
+    }
+    EventType type = 1;
+    double x = 2; // Normalized 0.0-1.0
+    double y = 3; // Normalized 0.0-1.0
+    int32 button = 4; // 1:Left, 2:Right, 3:Middle
+    int32 key_code = 5; // Qt Key code or Windows Virtual-Key code
+}
+
+message RemoteControlInput {
+    int32 from_uid = 1;
+    int32 to_uid = 2;
+    repeated InputEvent events = 3;
+}
+
+// 创建群聊请求
+message CreateGroupChatReq {
+    int32 creator_uid = 1;
+    string group_name = 2;
+    repeated int32 member_uids = 3;
+}
+
+// 创建群聊响应
+message CreateGroupChatRsp {
+    int32 error = 1;
+    int32 thread_id = 2;
+    string group_name = 3;
+    int32 creator_uid = 4;
+    repeated int32 member_uids = 5;
+}
+
+// 通知用户被加入群聊
+message NotifyGroupChatCreated {
+    int32 thread_id = 1;
+    string group_name = 2;
+    int32 creator_uid = 3;
+    repeated GroupMemberInfo members = 4;
+}
+
+// 群成员信息
+message GroupMemberInfo {
+    int32 uid = 1;
+    string name = 2;
+    string icon = 3;
+    int32 role = 4;  // 0=普通成员, 1=管理员, 2=创建者
+}
+
+// 获取群成员列表请求
+message GetGroupMembersReq {
+    int32 thread_id = 1;
+    int32 requester_uid = 2;
+}
+
+// 获取群成员列表响应
+message GetGroupMembersRsp {
+    int32 error = 1;
+    int32 thread_id = 2;
+    repeated GroupMemberInfo members = 3;
+}
+
+// 更新群公告
+message UpdateGroupNoticeReq {
+    int32 thread_id = 1;
+    int32 from_uid = 2;
+    string notice = 3;
+}
+
+message UpdateGroupNoticeRsp {
+    int32 error = 1;
+    int32 thread_id = 2;
+    string notice = 3;
+}
+
+// 通知群公告更新
+message NotifyGroupNotice {
+    int32 thread_id = 1;
+    string notice = 2;
+}
+
 service ChatService {
 	rpc NotifyAddFriend(AddFriendReq) returns (AddFriendRsp) {}
 	rpc RplyAddFriend(RplyFriendReq) returns (RplyFriendRsp) {}
@@ -159,4 +285,12 @@ service ChatService {
 	rpc NotifyTextChatMsg(TextChatMsgReq) returns (TextChatMsgRsp){}
 	rpc NotifyKickUser(KickUserReq) returns (KickUserRsp){}
 	rpc NotifyChatImgMsg(NotifyChatImgReq) returns (NotifyChatImgRsp){}
+	rpc NotifyChatFileMsg(NotifyChatFileReq) returns (NotifyChatFileRsp){}
+    rpc NotifyRemoteControl(RemoteControlReq) returns (RemoteControlRsp) {}
+    rpc SendRemoteInput(RemoteControlInput) returns (RemoteControlRsp) {}
+    rpc CreateGroupChat(CreateGroupChatReq) returns (CreateGroupChatRsp) {}
+    rpc NotifyGroupChatCreated(NotifyGroupChatCreated) returns (CreateGroupChatRsp) {}
+    rpc GetGroupMembers(GetGroupMembersReq) returns (GetGroupMembersRsp) {}
+    rpc UpdateGroupNotice(UpdateGroupNoticeReq) returns (UpdateGroupNoticeRsp) {}
+    rpc NotifyGroupNoticeUpdate(NotifyGroupNotice) returns (UpdateGroupNoticeRsp) {}
 }

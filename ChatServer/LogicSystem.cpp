@@ -140,6 +140,14 @@ void LogicSystem::RegisterCallBacks() {
 
 	_fun_callbacks[ID_CALL_REJECT_REQ] = std::bind(&LogicSystem::VideoCallReject, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
+
+	// 群聊相关回调
+	_fun_callbacks[ID_CREATE_GROUP_CHAT_REQ] = std::bind(&LogicSystem::CreateGroupChatHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+	_fun_callbacks[ID_GET_GROUP_MEMBERS_REQ] = std::bind(&LogicSystem::GetGroupMembersHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+	_fun_callbacks[ID_UPDATE_GROUP_NOTICE_REQ] = std::bind(&LogicSystem::UpdateGroupNoticeHandler, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
 }
 
 //�����û���¼���߼���1.�ȴ�redis�л�ȡ�û�token�Ƿ���ȷ��2.���token��ȷ��˵����¼�ɹ���������ݿ��ȡ�û�������Ϣ��
@@ -226,6 +234,28 @@ void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id
 		obj["back"] = friend_ele->back;
 		rtvalue["friend_list"].append(obj);
 	}
+
+	// 获取用户加入的所有群聊基本信息
+	std::vector<int> group_thread_ids;
+	bool b_group = MysqlMgr::GetInstance()->GetUserGroupChats(uid, group_thread_ids);
+	if (b_group) {
+		for (int thread_id : group_thread_ids) {
+			GroupInfo group_info;
+			bool ok = MysqlMgr::GetInstance()->GetGroupInfo(thread_id, group_info);
+			if (ok) {
+				Json::Value obj;
+				obj["thread_id"] = group_info.thread_id;
+				obj["name"] = group_info.name;
+				obj["icon"] = group_info.icon;
+				obj["notice"] = group_info.notice;
+				obj["desc"] = group_info.desc;
+				obj["owner_id"] = group_info.owner_id;
+				obj["member_count"] = group_info.member_count;
+				rtvalue["group_list"].append(obj);
+			}
+		}
+	}
+	LOG_INFO("Loaded " << group_thread_ids.size() << " group chats for uid: " << uid);
 
 	//��¼����ͳ��
 	auto server_name = ConfigMgr::Inst().GetValue("SelfServer", "Name");
@@ -523,6 +553,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	auto uid = root["fromuid"].asInt();
 	auto touid = root["touid"].asInt();
 	auto thread_id = root["thread_id"].asInt();
+	bool is_group = root.get("is_group", false).asBool();
 
 	const Json::Value  arrays = root["text_array"];
 	
@@ -531,6 +562,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	rtvalue["fromuid"] = uid;
 	rtvalue["touid"] = touid;
 	rtvalue["thread_id"] = thread_id;
+	rtvalue["is_group"] = is_group;
 
 	std::vector <std::shared_ptr<ChatMessage>> chat_datas;
 	auto timestamp = getCurrentTimestamp();
@@ -568,6 +600,67 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 		session->Send(return_str, ID_TEXT_CHAT_MSG_RSP);
 		});
 
+	// ����Ƿ�����Ⱥ��
+	if (is_group) {
+		// Ⱥ��ģʽ��ȡȺ��Ա�б���������ÿ���Ա
+		std::vector<std::shared_ptr<GroupMemberInfo>> members;
+		bool res = MysqlMgr::GetInstance()->GetGroupMembers(thread_id, members);
+		if (!res) {
+			LOG_ERROR("DealChatTextMsg - failed to get group members, thread_id: " << thread_id);
+			return;
+		}
+
+		auto& cfg = ConfigMgr::Inst();
+		auto self_name = cfg["SelfServer"]["Name"];
+
+		// ����ÿ��Ⱥ��Ա�������ͻ���
+		for (const auto& member : members) {
+			int member_uid = member->uid;
+			// �������Լ�
+			if (member_uid == uid) {
+				continue;
+			}
+
+			// ��ѯredis��ȡ��Ա������server ip
+			auto member_str = std::to_string(member_uid);
+			auto member_ip_key = USERIPPREFIX + member_str;
+			std::string member_ip_value = "";
+			bool b_member_ip = RedisMgr::GetInstance()->Get(member_ip_key, member_ip_value);
+			if (!b_member_ip) {
+				LOG_DEBUG("Group chat text msg - member offline, member_uid: " << member_uid);
+				continue;
+			}
+
+			// ֱ��֪ͨ�Է�
+			if (member_ip_value == self_name) {
+				auto member_session = UserMgr::GetInstance()->GetSession(member_uid);
+				if (member_session) {
+					std::string return_str = rtvalue.toStyledString();
+					member_session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+					LOG_DEBUG("Notify group text chat msg locally - member_uid: " << member_uid);
+				}
+			}
+			else {
+				// ͨ��gRPC֪ͨ����������
+				TextChatMsgReq text_msg_req;
+				text_msg_req.set_fromuid(uid);
+				text_msg_req.set_touid(member_uid);
+				text_msg_req.set_thread_id(thread_id);
+				for (const auto& chat_data : chat_datas) {
+					auto* text_msg = text_msg_req.add_textmsgs();
+					text_msg->set_unique_id(chat_data->unique_id);
+					text_msg->set_msgcontent(chat_data->content);
+					text_msg->set_msg_id(chat_data->message_id);
+					text_msg->set_chat_time(chat_data->chat_time);
+				}
+				LOG_DEBUG("Notify group text chat msg via grpc - member_uid: " << member_uid << ", server: " << member_ip_value);
+				ChatGrpcClient::GetInstance()->NotifyTextChatMsg(member_ip_value, text_msg_req, rtvalue);
+			}
+		}
+		return;
+	}
+
+	// ˽��ģʽ�����е�touid����
 	//��ѯredis ��ȡtouid��Ӧ��server ip
 	auto to_str = std::to_string(touid);
 	auto to_ip_key = USERIPPREFIX + to_str;
@@ -584,7 +677,7 @@ void LogicSystem::DealChatTextMsg(std::shared_ptr<CSession> session, const short
 	if (to_ip_value == self_name) {
 		auto session = UserMgr::GetInstance()->GetSession(touid);
 		if (session) {
-			//���ڴ��У�ֱ�ӷ���֪ͨ�Է�
+			//���ڱ���У�ֱ�ӷ���֪ͨ�Է�
 			std::string return_str = rtvalue.toStyledString();
 			session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
 			LOG_DEBUG("Notify text chat msg locally - to_uid: " << touid);
@@ -662,9 +755,10 @@ void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const
 	{
 		Json::Value thread_value;
 		thread_value["thread_id"] = int(thread->_thread_id);
-		thread_value["typr"] = thread->_type;
+		thread_value["type"] = thread->_type;
 		thread_value["user1_id"] = thread->_user1_id;
 		thread_value["user2_id"] = thread->_user2_id;
+		thread_value["group_name"] = thread->_group_name;
 		rtvalue["threads"].append(thread_value);
 	}
 	LOG_DEBUG("Get user threads success - uid: " << uid << ", thread_count: " << threads.size());
@@ -925,22 +1019,56 @@ void LogicSystem::VideoCallAccept(std::shared_ptr<CSession> session, const short
 	Json::Value root;
 	reader.parse(msg_data, root);
 
-	// ���� uid�����������ʹ��
 	auto caller_uid = root["caller_uid"].asInt();
-	// ͨ�� id���������Ըĳ�ȫ��Ψһ�ַ����������Ȱ� int ����
-	auto call_id = root["call_id"].asString();
+	auto call_id    = root["call_id"].asString();
 
-	Json::Value  rtvalue;
-	rtvalue["error"] = ErrorCodes::Success;
+	auto& cfg = ConfigMgr::Inst();
 
-	// ͳһ����Ӧ�����ۺ����Ƿ�ɹ����Զ˷�֪ͨ���Ȱѵ�ǰ�˵���Ӧ����ȥ
+	// Bug#3 Fix: Build WebRTC params BEFORE the Defer, so CALL_ACCEPT_RSP (callee)
+	// always carries complete room/ICE info regardless of which code path is taken.
+	auto turn_ws_url = cfg["TurnServer"]["WsUrl"];
+	if (turn_ws_url.empty())
+	{
+		// Fallback: use the public IP of the server where TurnServer (Node.js signaling) runs.
+		// ws://127.0.0.1 would only work if the client runs on the same machine as the server,
+		// which is never the case in production. Change this to match your actual deployment.
+		turn_ws_url = "ws://127.0.0.1:3000";
+	}
+
+	Json::Value ice_servers(Json::arrayValue);
+	{
+		Json::Value turn_server;
+		Json::Value turn_urls(Json::arrayValue);
+		turn_urls.append("turn:47.108.113.95:3478?transport=udp");
+		turn_urls.append("turn:47.108.113.95:3478?transport=tcp");
+		turn_server["urls"]       = turn_urls;
+		turn_server["username"]   = "webrtc";
+		turn_server["credential"] = "520zxq20050713";
+		ice_servers.append(turn_server);
+
+		Json::Value stun_server;
+		Json::Value stun_urls(Json::arrayValue);
+		stun_urls.append("stun:47.108.113.95:3478");
+		stun_server["urls"] = stun_urls;
+		ice_servers.append(stun_server);
+	}
+
+	Json::Value rtvalue;
+	rtvalue["error"]       = ErrorCodes::Success;
+	rtvalue["call_id"]     = call_id;
+	// room_id == call_id: both sides must join the same signaling room
+	rtvalue["room_id"]     = call_id;
+	rtvalue["turn_ws_url"] = turn_ws_url;
+	rtvalue["ice_servers"] = ice_servers;
+
+	// Defer: send CALL_ACCEPT_RSP to callee on function exit (rtvalue is fully populated above)
 	Defer defer([this, &rtvalue, session]() {
 		std::string return_str = rtvalue.toStyledString();
 		session->Send(return_str, ID_CALL_ACCEPT_RSP);
 		});
 
-	// ��ѯ redis����ȡ���𷽵�ǰ���ڵ� ChatServer ����
-	auto to_str = std::to_string(caller_uid);
+	// Look up which ChatServer the caller is currently on
+	auto to_str    = std::to_string(caller_uid);
 	auto to_ip_key = USERIPPREFIX + to_str;
 	std::string to_ip_value;
 	bool b_ip = RedisMgr::GetInstance()->Get(to_ip_key, to_ip_value);
@@ -951,66 +1079,28 @@ void LogicSystem::VideoCallAccept(std::shared_ptr<CSession> session, const short
 		return;
 	}
 
-	auto& cfg = ConfigMgr::Inst();
 	auto self_name = cfg["SelfServer"]["Name"];
 
-	// ֻ�������Զ��ڱ��� ChatServer�� �ļ����
 	if (to_ip_value == self_name)
 	{
 		auto caller_session = UserMgr::GetInstance()->GetSession(caller_uid);
 		if (!caller_session)
 		{
 			LOG_DEBUG("Video Call Accept - caller session not found, caller_uid: " << caller_uid);
+			// Bug#3 sub-fix: set error so callee knows the call failed, not silent Success
+			rtvalue["error"] = ErrorCodes::UidInvalid;
 			return;
 		}
 
-		// ��֯�����𷽵�֪ͨ����
-		rtvalue["error"] = ErrorCodes::Success;
-		rtvalue["call_id"] = call_id;
-		// ���� caller_uid ��Ϊ room_id����֤����һ�µ� join ͬһ������
-		rtvalue["room_id"] = call_id;
-
-		// WebRTC �����������Node TurnServer���� WebSocket ��ַ
-		// ����ŵ������ļ��У������ȶ�ȡ���ã������������д�����ԣ�
-		auto turn_ws_url = cfg["TurnServer"] ["WsUrl"];
-		if (turn_ws_url.empty())
-		{
-			// �����ʱû���ã���ʹ��һ��ռλֵ������ͻ��˵���
-			turn_ws_url = "ws://127.0.0.1:3000";
-		}
-		rtvalue["turn_ws_url"] = turn_ws_url;
-
-		// ��װ ICE ���������ã����ͻ��˴��� WebRTC PeerConnection ʹ��
-		Json::Value ice_servers(Json::arrayValue);
-
-		// TURN ��������ʹ�������Ʒ������ϲ���� coturn ���ã�
-		Json::Value turn_server;
-		Json::Value turn_urls(Json::arrayValue);
-		// ����ĵ�ַ�Ͷ˿����� coturn��external-ip=47.113.108.95, listening-port=3478
-		turn_urls.append("turn:47.113.108.95:3478?transport=udp");
-		turn_urls.append("turn:47.113.108.95:3478?transport=tcp");
-		turn_server["urls"] = turn_urls;
-		// ��Ӧ coturn ���ã�user=webrtc:520zxq20050713
-		turn_server["username"] = "webrtc";
-		turn_server["credential"] = "520zxq20050713";
-		ice_servers.append(turn_server);
-
-		// ��ѡ���ټ�һ�� STUN��������ͨ��̽��
-		Json::Value stun_server;
-		Json::Value stun_urls(Json::arrayValue);
-		stun_urls.append("stun:47.113.108.95:3478");
-		stun_server["urls"] = stun_urls;
-		ice_servers.append(stun_server);
-
-		rtvalue["ice_servers"] = ice_servers;
-
-		std::string rtvalue_str = rtvalue.toStyledString();
-		caller_session->Send(rtvalue_str, ID_CALL_ACCEPT_NOTIFY);
+		// Push CALL_ACCEPT_NOTIFY to caller with the same fully-populated rtvalue
+		std::string notify_str = rtvalue.toStyledString();
+		caller_session->Send(notify_str, ID_CALL_ACCEPT_NOTIFY);
 		LOG_DEBUG("Notify Call Accept locally - caller_uid: " << caller_uid);
 		return;
 	}
 
-	// todo: �Զ������� ChatServer ��ʱ��ͨ�� gRPC ת�� CALL_ACCEPT_NOTIFY
+	// TODO: caller on remote ChatServer - forward CALL_ACCEPT_NOTIFY via gRPC
+	// callee CALL_ACCEPT_RSP will still be sent by Defer with complete WebRTC params
 	LOG_DEBUG("Video Call Accept - caller on remote server, caller_uid: " << caller_uid << ", target_server: " << to_ip_value);
 }
 
@@ -1061,6 +1151,226 @@ void LogicSystem::VideoCallReject(std::shared_ptr<CSession> session, const short
 	}
 
 	//todo...����ͬһ������������ͨ��grpc֪ͨ��Ӧ�����������ı���Ϣ
+}
+
+// 创建群聊逻辑
+void LogicSystem::CreateGroupChatHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	auto creator_uid = root["creator_uid"].asInt();
+	auto group_name = root["group_name"].asString();
+	LOG_INFO("Create group chat - creator_uid: " << creator_uid << ", group_name: " << group_name);
+
+	// 解析成员列表
+	std::vector<int> member_uids;
+	const Json::Value members = root["member_uids"];
+	for (const auto& member : members) {
+		member_uids.push_back(member.asInt());
+	}
+
+	Json::Value rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["creator_uid"] = creator_uid;
+	rtvalue["group_name"] = group_name;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_CREATE_GROUP_CHAT_RSP);
+		});
+
+	// 创建群聊
+	int thread_id = 0;
+	bool res = MysqlMgr::GetInstance()->CreateGroupChat(creator_uid, group_name, member_uids, thread_id);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::CREATE_CHAT_FAILED;
+		LOG_ERROR("Create group chat failed - creator_uid: " << creator_uid);
+		return;
+	}
+
+	rtvalue["thread_id"] = thread_id;
+	LOG_INFO("Create group chat success - thread_id: " << thread_id);
+
+	// 获取群成员信息
+	std::vector<std::shared_ptr<GroupMemberInfo>> group_members;
+	MysqlMgr::GetInstance()->GetGroupMembers(thread_id, group_members);
+
+	// 构建成员信息JSON
+	for (const auto& member : group_members) {
+		Json::Value member_json;
+		member_json["uid"] = member->uid;
+		member_json["name"] = member->name;
+		member_json["icon"] = member->icon;
+		member_json["role"] = member->role;
+		rtvalue["members"].append(member_json);
+	}
+
+	// 通知所有成员被加入群聊
+	auto& cfg = ConfigMgr::Inst();
+	auto self_name = cfg["SelfServer"]["Name"];
+
+	for (int member_uid : member_uids) {
+		if (member_uid == creator_uid) continue;  // 跳过创建者
+
+		// 查询redis获取成员所在服务器
+		auto member_str = std::to_string(member_uid);
+		auto member_ip_key = USERIPPREFIX + member_str;
+		std::string member_ip_value = "";
+		bool b_ip = RedisMgr::GetInstance()->Get(member_ip_key, member_ip_value);
+
+		if (!b_ip) {
+			LOG_DEBUG("Member offline, skip notify - uid: " << member_uid);
+			continue;
+		}
+
+		// 构建通知消息
+		Json::Value notify;
+		notify["error"] = ErrorCodes::Success;
+		notify["thread_id"] = thread_id;
+		notify["group_name"] = group_name;
+		notify["creator_uid"] = creator_uid;
+
+		// 添加所有成员信息
+		for (const auto& member : group_members) {
+			Json::Value member_json;
+			member_json["uid"] = member->uid;
+			member_json["name"] = member->name;
+			member_json["icon"] = member->icon;
+			member_json["role"] = member->role;
+			notify["members"].append(member_json);
+		}
+
+		// 如果成员在本服务器，直接发送通知
+		if (member_ip_value == self_name) {
+			auto member_session = UserMgr::GetInstance()->GetSession(member_uid);
+			if (member_session) {
+				std::string notify_str = notify.toStyledString();
+				member_session->Send(notify_str, ID_NOTIFY_GROUP_CHAT_CREATED);
+				LOG_DEBUG("Notify group chat created locally - member_uid: " << member_uid);
+			}
+		}
+		else {
+			// TODO: 通过gRPC通知其他服务器
+			LOG_DEBUG("Notify group chat created via grpc - member_uid: " << member_uid << ", server: " << member_ip_value);
+		}
+	}
+}
+
+// 获取群成员列表逻辑
+void LogicSystem::GetGroupMembersHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	auto thread_id = root["thread_id"].asInt();
+	auto requester_uid = root["requester_uid"].asInt();
+	LOG_INFO("Get group members - thread_id: " << thread_id << ", requester_uid: " << requester_uid);
+
+	Json::Value rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["thread_id"] = thread_id;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_GET_GROUP_MEMBERS_RSP);
+		});
+
+	// 获取群成员列表
+	std::vector<std::shared_ptr<GroupMemberInfo>> members;
+	bool res = MysqlMgr::GetInstance()->GetGroupMembers(thread_id, members);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::UidInvalid;
+		LOG_ERROR("Get group members failed - thread_id: " << thread_id);
+		return;
+	}
+
+	// 构建成员信息JSON
+	for (const auto& member : members) {
+		Json::Value member_json;
+		member_json["uid"] = member->uid;
+		member_json["name"] = member->name;
+		member_json["icon"] = member->icon;
+		member_json["role"] = member->role;
+		rtvalue["members"].append(member_json);
+	}
+
+	LOG_DEBUG("Get group members success - thread_id: " << thread_id << ", member_count: " << members.size());
+}
+
+// 更新群公告逻辑：更新DB，然后通知群内所有在线成员（除发布者外）
+void LogicSystem::UpdateGroupNoticeHandler(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+
+	auto thread_id = root["thread_id"].asInt();
+	auto from_uid  = root["from_uid"].asInt();
+	auto notice    = root["notice"].asString();
+	LOG_INFO("Update group notice - thread_id: " << thread_id << ", from_uid: " << from_uid);
+
+	Json::Value rtvalue;
+	rtvalue["error"]     = ErrorCodes::Success;
+	rtvalue["thread_id"] = thread_id;
+	rtvalue["notice"]    = notice;
+
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_UPDATE_GROUP_NOTICE_RSP);
+	});
+
+	// 1. 更新数据库
+	bool ok = MysqlMgr::GetInstance()->UpdateGroupNotice(thread_id, notice);
+	if (!ok) {
+		rtvalue["error"] = ErrorCodes::UidInvalid;
+		LOG_ERROR("UpdateGroupNotice DB failed - thread_id: " << thread_id);
+		return;
+	}
+
+	// 2. 获取群所有成员
+	std::vector<std::shared_ptr<GroupMemberInfo>> members;
+	MysqlMgr::GetInstance()->GetGroupMembers(thread_id, members);
+
+	// 3. 构建通知消息
+	Json::Value notify;
+	notify["thread_id"] = thread_id;
+	notify["notice"]    = notice;
+	std::string notify_str = notify.toStyledString();
+
+	auto& cfg       = ConfigMgr::Inst();
+	auto self_name  = cfg["SelfServer"]["Name"];
+
+	for (const auto& member : members) {
+		int member_uid = member->uid;
+		if (member_uid == from_uid) continue;  // 跳过发布者
+
+		// 查询 redis 获取成员所在服务器
+		auto member_uid_str = std::to_string(member_uid);
+		auto member_ip_key  = USERIPPREFIX + member_uid_str;
+		std::string member_ip_value;
+		bool b_ip = RedisMgr::GetInstance()->Get(member_ip_key, member_ip_value);
+		if (!b_ip) {
+			LOG_DEBUG("Member offline, skip notify group notice - uid: " << member_uid);
+			continue;
+		}
+
+		if (member_ip_value == self_name) {
+			// 在本服务器，直接推送
+			auto member_session = UserMgr::GetInstance()->GetSession(member_uid);
+			if (member_session) {
+				member_session->Send(notify_str, ID_NOTIFY_GROUP_NOTICE_UPDATE);
+				LOG_DEBUG("Notify group notice update locally - member_uid: " << member_uid);
+			}
+		} else {
+			// TODO: 通过 gRPC 通知其他服务器节点
+			LOG_DEBUG("Notify group notice update via grpc - member_uid: " << member_uid << ", server: " << member_ip_value);
+		}
+	}
+
+	LOG_INFO("Update group notice success - thread_id: " << thread_id << ", notified members: " << members.size() - 1);
 }
 
 bool LogicSystem::isPureDigit(const std::string& str)
@@ -1276,3 +1586,4 @@ bool LogicSystem::GetUserThreads(int64_t userId, int64_t last_id, int page_size,
 {
 	return MysqlMgr::GetInstance()->GetUserThreads(userId,last_id,page_size,threads,load_more,next_last_id);
 }
+

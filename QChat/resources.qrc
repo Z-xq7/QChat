@@ -86,5 +86,27 @@
         <file>images/video_hover.png</file>
         <file>images/video_press.png</file>
         <file>images/test.png</file>
+        <file>images/group_chat.png</file>
+        <file>images/group_chat_hover.png</file>
+        <file>images/group_chat_press.png</file>
+        <file>images/more_chatpage.png</file>
+        <file>images/more_chatpage_hover.png</file>
+        <file>images/more_chatpage_press.png</file>
+        <file>images/remote_control.png</file>
+        <file>images/remote_control_hover.png</file>
+        <file>images/remote_control_press.png</file>
+        <file>images/screen_share.png</file>
+        <file>images/screen_share_hover.png</file>
+        <file>images/screen_share_press.png</file>
+        <file>images/video_chatpage.png</file>
+        <file>images/video_chatpage_hover.png</file>
+        <file>images/video_chatpage_press.png</file>
+        <file>images/voice_chatpage.png</file>
+        <file>images/voice_chatpage_hover.png</file>
+        <file>images/voice_chatpage_press.png</file>
+        <file>images/group.png</file>
+        <file>images/group_notice.png</file>
+        <file>images/group_notice_hover.png</file>
+        <file>images/group_notice_press.png</file>
     </qresource>
 </RCC>

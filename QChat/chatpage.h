@@ -6,7 +6,14 @@
 #include "userdata.h"
 #include "ChatItemBase.h"
 #include <QMap>
+#include <QSet>
 #include <QPixmap>
+#include "chatsidepage.h"
+#include "groupsidepage.h"
+#include "groupmemberlistpage.h"
+#include <QPropertyAnimation>
+
+class GroupNoticeViewDialog;
 
 namespace Ui {
 class ChatPage;
@@ -62,9 +69,40 @@ private slots:
     void on_emoji_selected(const QString& emoji);
     // 搜索聊天记录
     void slot_chat_search(const QString& text);
+    void slot_group_update_notice(int thread_id, const QString& notice);
+    // 更多设置按钮点击
+    void on_more_clicked();
+    // 视频通话按钮点击
+    void on_video_chat_clicked();
+    // 发起群聊按钮点击
+    void on_group_chat_clicked();
+    
+    // 群聊侧边栏信号处理
+    void on_group_view_members(int thread_id);
+    void on_group_invite_friend(int thread_id);
+    void on_group_clear_history(int thread_id);
+    void on_group_dismiss(int thread_id);
+    void on_group_exit(int thread_id);
+    void on_group_report(int thread_id);
+    void on_group_update_notice(int thread_id, const QString& notice);
+
+    // 群公告按钮点击（查看公告）
+    void on_group_notice_clicked();
 
 private:
+    // 初始化侧边栏
+    void initSidePage();
+    // 切换侧边栏显示
+    void toggleSidePage();
+    // 显示群成员列表
+    void showGroupMemberList(int thread_id);
+    // 显示群公告弹窗
+    void showGroupNoticeDialog(int thread_id);
     Ui::ChatPage *ui;
+    ChatSidePage* m_sidePage;
+    GroupSidePage* m_groupSidePage;
+    GroupMemberListPage* m_memberListPage;
+    QPropertyAnimation* m_sideAnim;
     QMap<QString, QWidget*>  _bubble_map;
     EmojiPopup* _emoji_popup;
 
@@ -73,6 +111,14 @@ private:
     QMap<QString, ChatItemBase*> _unrsp_item_map;
     //管理已经回复的消息
     QHash<qint64, ChatItemBase*> _base_item_map;
+    
+    // 当前侧边栏类型: 0=私聊, 1=群聊
+    int m_currentSideType;
+
+    // 记录有待弹出公告的群聊 thread_id 集合（用户不在该群页面时收到公告更新，延迟弹出）
+    QSet<int> m_pendingNoticeThreadIds;
+    // 记录自己正在编辑公告的 thread_id（编辑完成收到 RSP 后不弹窗）
+    int m_selfEditingNoticeThreadId;
 
 // signals:
 //     void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);

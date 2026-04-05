@@ -117,6 +117,11 @@ QString ChatThreadData::GetGroupName()
     return _group_name;
 }
 
+void ChatThreadData::SetGroupName(const QString& name)
+{
+    _group_name = name;
+}
+
 QMap<int, std::shared_ptr<ChatDataBase>> ChatThreadData::GetMsgMap() {
     return _msg_map;
 }
@@ -124,6 +129,11 @@ QMap<int, std::shared_ptr<ChatDataBase>> ChatThreadData::GetMsgMap() {
 int ChatThreadData::GetThreadId()
 {
     return _thread_id;
+}
+
+void ChatThreadData::SetThreadId(int thread_id)
+{
+    _thread_id = thread_id;
 }
 
 QMap<int, std::shared_ptr<ChatDataBase>>& ChatThreadData::GetMsgMapRef()

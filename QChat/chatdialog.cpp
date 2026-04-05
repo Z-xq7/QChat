@@ -292,6 +292,22 @@ ChatDialog::ChatDialog(QWidget *parent)
     //接收tcp返回的传输失败信息
     connect(FileTcpMgr::GetInstance().get(), &FileTcpMgr::sig_file_transfer_failed,
             this, &ChatDialog::slot_file_transfer_failed);
+
+    //连接群聊创建响应信号
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_create_group_chat_rsp,
+            UserMgr::GetInstance().get(), &UserMgr::SlotCreateGroupChatRsp);
+
+    //连接被加入群聊通知信号
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_group_chat_created,
+            UserMgr::GetInstance().get(), &UserMgr::SlotGroupChatCreated);
+
+    //连接群聊创建成功信号，更新UI
+    connect(UserMgr::GetInstance().get(), &UserMgr::sig_group_chat_created,
+            this, &ChatDialog::slot_group_chat_created);
+
+    // 连接群公告更新信号到 UserMgr，保持内存数据同步
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_update_group_notice,
+            UserMgr::GetInstance().get(), &UserMgr::SlotUpdateGroupNotice);
 }
 
 ChatDialog::~ChatDialog()
@@ -353,9 +369,7 @@ void ChatDialog::loadChatList()
     QJsonObject jsonObj;
     auto uid = UserMgr::GetInstance()->GetUid();
     jsonObj["uid"] = uid;
-
-    // int last_chat_thread_id = UserMgr::GetInstance()->GetLastChatThreadId();
-    // jsonObj["thread_id"] = last_chat_thread_id;
+    jsonObj["thread_id"] = 0;  // 首次加载，从0开始
 
     QJsonDocument doc(jsonObj);
     QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
@@ -1200,8 +1214,17 @@ void ChatDialog::slot_item_clicked(QListWidgetItem *item)
 
         auto chat_wid = qobject_cast<ChatUserWid*>(customItem);
         auto chat_data = chat_wid->GetChatData();
-        //跳转到聊天界面
+
+        //判断是否是群聊
+        if (chat_data->IsGroup()) {
+            qDebug()<< "[ChatDialog]: --- group chat item clicked ---";
+        } else {
+            qDebug()<< "[ChatDialog]: --- private chat item clicked ---";
+        }
+        
+        //跳转到聊天界面（ChatPage已支持群聊和私聊）
         ui->chat_page->SetChatData(chat_data);
+        ui->stackedWidget->setCurrentWidget(ui->chat_page);
         _cur_chat_thread_id = chat_data->GetThreadId();
         return;
     }
@@ -1276,7 +1299,6 @@ void ChatDialog::slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat)
     if (_cur_chat_thread_id != thread_id) {
         return;
     }
-
     ui->chat_page->AppendOtherMsg(imgchat);
 }
 
@@ -1289,7 +1311,6 @@ void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
     if (_cur_chat_thread_id != thread_id) {
         return;
     }
-
     ui->chat_page->AppendOtherMsg(file_chat);
 }
 
@@ -1297,11 +1318,53 @@ void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
      std::vector<std::shared_ptr<ChatThreadInfo>> chat_threads)
 {
     for (auto& cti : chat_threads) {
-        //先处理单聊，群聊跳过，以后添加
+        //处理群聊
         if (cti->_type == "group") {
+            // 以 _chat_thread_items 判重：UI item 已经存在就跳过
+            if (_chat_thread_items.contains(cti->_thread_id)) {
+                continue;
+            }
+
+            // 优先使用登录时 AppendGroupList 已加载的完整数据（含公告、图标等）
+            auto group_data = UserMgr::GetInstance()->GetGroupChat(cti->_thread_id);
+            if (!group_data) {
+                // 登录响应中没有该群（理论上不应发生），兜底创建
+                group_data = std::make_shared<ChatThreadData>();
+                group_data->SetThreadId(cti->_thread_id);
+                group_data->SetIsGroup(true);
+                group_data->SetOtherId(0);
+                group_data->SetGroupName(cti->_group_name);
+                //添加到群聊管理
+                UserMgr::GetInstance()->AddGroupChat(cti->_thread_id, group_data);
+            } else {
+                // 已有数据：确保群名以 ChatThreadInfo 中的为准（更新本地可能陈旧的名称）
+                if (!cti->_group_name.isEmpty()) {
+                    group_data->SetGroupName(cti->_group_name);
+                }
+            }
+
+            //创建聊天列表项
+            auto* chat_user_wid = new ChatUserWid();
+            chat_user_wid->SetChatData(group_data);
+
+            QListWidgetItem* item = new QListWidgetItem;
+            item->setSizeHint(chat_user_wid->sizeHint());
+            ui->chat_user_list->addItem(item);
+            ui->chat_user_list->setItemWidget(item, chat_user_wid);
+            _chat_thread_items.insert(cti->_thread_id, item);
+
+            //发送获取群成员请求
+            QJsonObject jsonObj;
+            jsonObj["requester_uid"] = UserMgr::GetInstance()->GetUid();
+            jsonObj["thread_id"] = cti->_thread_id;
+            QJsonDocument doc(jsonObj);
+            QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+            emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_GET_GROUP_MEMBERS_REQ, jsonData);
+
             continue;
         }
 
+        //处理单聊
         auto uid = UserMgr::GetInstance()->GetUid();
         auto other_uid = 0;
         if (uid == cti->_user1_id) {
@@ -1397,6 +1460,15 @@ void ChatDialog::slot_create_private_chat(int uid, int other_id, int thread_id)
 void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more,
                 std::vector<std::shared_ptr<ChatDataBase> > chat_datas)
 {
+    // 安全检查：确保服务端返回的 thread_id 与当前请求的匹配
+    if (!_cur_load_chat || _cur_load_chat->GetThreadId() != thread_id) {
+        // thread_id 不匹配，可能是乱序响应，跳过
+        qWarning() << "[ChatDialog]: slot_load_chat_msg thread_id mismatch, expected="
+                   << (_cur_load_chat ? _cur_load_chat->GetThreadId() : -1)
+                   << ", got=" << thread_id;
+        return;
+    }
+
     //设置最后的msg_id到内存，后续会加到本地数据库
     _cur_load_chat->SetLastMsgId(last_msg_id);
     //加载聊天信息
@@ -1568,6 +1640,43 @@ void ChatDialog::slot_download_finish(std::shared_ptr<MsgInfo> msg_info, QString
 
     //更新聊天界面信息
     ui->chat_page->DownloadFileFinished(msg_info, file_path);
+}
+
+void ChatDialog::slot_group_chat_created(int thread_id, const QString& group_name)
+{
+    qDebug() << "[ChatDialog]: --- slot_group_chat_created thread_id:" << thread_id << "group_name:" << group_name;
+
+    //获取群聊数据
+    auto group_data = UserMgr::GetInstance()->GetGroupChat(thread_id);
+    if (group_data == nullptr) {
+        qDebug() << "[ChatDialog]: *** group data is nullptr ***";
+        return;
+    }
+
+    //检查是否已经在聊天列表中
+    auto iter = _chat_thread_items.find(thread_id);
+    if (iter != _chat_thread_items.end()) {
+        qDebug() << "[ChatDialog]: group chat already exists in list";
+        return;
+    }
+
+    //创建聊天列表项
+    auto* chat_user_wid = new ChatUserWid();
+    chat_user_wid->SetChatData(group_data);
+
+    QListWidgetItem* item = new QListWidgetItem;
+    item->setSizeHint(chat_user_wid->sizeHint());
+    ui->chat_user_list->insertItem(0, item);
+    ui->chat_user_list->setItemWidget(item, chat_user_wid);
+    _chat_thread_items.insert(thread_id, item);
+
+    //切换到聊天列表
+    ui->side_chat_lb->SetSelected(true);
+    slot_side_chat();
+
+    //选中新创建的群聊
+    SetSelectChatItem(thread_id);
+    SetSelectChatPage(thread_id);
 }
 
 

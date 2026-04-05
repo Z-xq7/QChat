@@ -110,6 +110,16 @@ enum ReqId{
     ID_NOTIFY_FILE_CHAT_MSG_REQ = 1064, //通知用户文件聊天信息
     ID_FILE_CHAT_DOWN_REQ  =  1065,    //聊天文件下载请求
     ID_FILE_CHAT_DOWN_RSP  =  1066,    //聊天文件下载回复
+
+    // 群聊相关协议ID
+    ID_CREATE_GROUP_CHAT_REQ = 1070,    // 创建群聊请求
+    ID_CREATE_GROUP_CHAT_RSP = 1071,    // 创建群聊响应
+    ID_NOTIFY_GROUP_CHAT_CREATED = 1072, // 通知用户被加入群聊
+    ID_GET_GROUP_MEMBERS_REQ = 1073,    // 获取群成员列表请求
+    ID_GET_GROUP_MEMBERS_RSP = 1074,    // 获取群成员列表响应
+    ID_UPDATE_GROUP_NOTICE_REQ = 1075,  // 更新群公告请求
+    ID_UPDATE_GROUP_NOTICE_RSP = 1076,  // 更新群公告响应
+    ID_NOTIFY_GROUP_NOTICE_UPDATE = 1077, // 通知群成员群公告更新
 };
 Q_DECLARE_METATYPE(ReqId)
 

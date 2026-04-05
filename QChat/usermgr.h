@@ -50,6 +50,10 @@ public:
     void AddFriend(std::shared_ptr<AuthInfo> auth_info);
     //通过uid搜索好友
     std::shared_ptr<UserInfo> GetFriendById(int uid);
+    //获取所有好友列表
+    std::vector<std::shared_ptr<UserInfo>> GetAllFriends();
+    //获取所有会话列表
+    std::vector<std::shared_ptr<ChatThreadData>> GetAllChatThreadData();
     //根据每一页加载好友列表（聊天列表）
     std::vector<std::shared_ptr<UserInfo>> GetChatListPerPage();
     //更新已经加载的好友数量（聊天列表）
@@ -124,6 +128,31 @@ public:
     //获取所有传输中的文件
     std::vector<std::shared_ptr<MsgInfo>> GetAllTransFiles();
 
+    // 群聊相关方法
+    // 添加群聊到管理
+    void AddGroupChat(int thread_id, std::shared_ptr<ChatThreadData> group_data);
+    // 根据thread_id获取群聊数据
+    std::shared_ptr<ChatThreadData> GetGroupChat(int thread_id);
+    // 检查是否是群聊
+    bool IsGroupChat(int thread_id);
+    // 获取所有群聊列表
+    std::vector<std::shared_ptr<ChatThreadData>> GetAllGroupChats();
+    // 登录时批量追加群聊基本信息
+    void AppendGroupList(QJsonArray array);
+
+signals:
+    // 群聊创建成功信号，通知UI更新聊天列表
+    void sig_group_chat_created(int thread_id, const QString& group_name);
+
+public slots:
+    // 处理创建群聊响应
+    void SlotCreateGroupChatRsp(int error, int thread_id, const QString& group_name);
+    // 处理被加入群聊通知
+    void SlotGroupChatCreated(int thread_id, const QString& group_name, int creator_uid,
+                              const std::vector<std::shared_ptr<GroupMemberInfo>>& members);
+    // 处理群公告更新通知（来自服务器推送）
+    void SlotUpdateGroupNotice(int thread_id, const QString& notice);
+
 private:
     UserMgr();
 
@@ -165,6 +194,8 @@ private:
     std::mutex _trans_mtx;
     // 头像缓存
     QMap<QString, QPixmap> _icon_cache;
+    // 群聊数据映射 thread_id -> ChatThreadData
+    QMap<int, std::shared_ptr<ChatThreadData>> _group_chat_map;
 
 public slots:
     void SlotAddFriendRsp(std::shared_ptr<AuthRsp> rsp);

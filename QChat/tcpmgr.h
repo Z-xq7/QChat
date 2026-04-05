@@ -122,6 +122,15 @@ signals:
     void sig_call_accepted(const QString& call_id, const QString& room_id, const QString& turn_ws_url, const QJsonArray& ice_servers);
     void sig_call_rejected(const QString& call_id, const QString& reason);
     void sig_call_hangup(const QString& call_id);
+
+    // 群聊相关信号
+    void sig_group_chat_created(int thread_id, const QString& group_name, int creator_uid, 
+                                const std::vector<std::shared_ptr<GroupMemberInfo>>& members);
+    void sig_create_group_chat_rsp(int error, int thread_id, const QString& group_name);
+    // 更新群公告
+    void sig_update_group_notice(int thread_id, const QString& notice);
+    // 群成员列表加载完成
+    void sig_group_members_loaded(int thread_id, const std::vector<std::shared_ptr<GroupMemberInfo>>& members);
 };
 
 #endif // TCPMGR_H

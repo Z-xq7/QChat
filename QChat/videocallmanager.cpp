@@ -195,8 +195,10 @@ void VideoCallManager::initMetartc()
             this, [this](YangRtcState newState) {
         switch (newState) {
         case YangRtcState::Connected:
+            // ICE/DTLS 握手完成，进入通话状态
+            // 注意：startLocalVideo() 已在 handleAcceptCall/handleCallAccept 里调用过，
+            // 这里不再重复调用，避免摄像头二次初始化（第二次 new QCamera 会导致设备冲突崩溃）
             setState(VideoCallState::InCall);
-            startLocalVideo();
             break;
         case YangRtcState::Disconnected:
         case YangRtcState::Failed:
@@ -238,7 +240,8 @@ void VideoCallManager::initWebSocket()
     _signaling_socket = new QWebSocket();
 
     connect(_signaling_socket, &QWebSocket::connected, this, [this]() {
-        qDebug() << "[VideoCallManager]: Signaling server connected";
+        qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                           << "]: Signaling server connected";
 
         QJsonObject joinMsg;
         joinMsg["type"] = "join";
@@ -269,12 +272,11 @@ void VideoCallManager::initWebSocket()
             if (obj.contains("isInitiator")) {
                 isInitiator = obj.value("isInitiator").toBool();
             } else if (type == "joined") {
+                // Bug#6 修复：joined 消息中 isInitiator 由服务端在 ready 消息下发，
+                // 此处的 peers 计数逻辑只是备用推断（先加入者 peers==0 时不是 initiator）。
+                // 原代码两个分支赋值完全相同是死代码，此处修正逻辑以备万一服务端不发 isInitiator 时使用。
                 int peers = obj.value("peers").toInt();
-                if (peers == 0) {
-                    isInitiator = _isCaller;
-                } else {
-                    isInitiator = _isCaller;
-                }
+                isInitiator = (peers > 0); // 后加入者（房间里已有人）才是 initiator（发 offer）
             }
 
             handleSignalingMessage(type, sdp, candidate, sdpMLineIndex, sdpMid, isInitiator);
@@ -314,7 +316,8 @@ void VideoCallManager::startCall(int callee_uid)
     _current_peer_uid = callee_uid;
     _isCaller = true;
     startLocalVideo();
-    qDebug() << "[VideoCallManager]: Sent call invite request to user" << callee_uid;
+    qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                       << "]: Sent call invite request to user" << callee_uid;
 }
 
 void VideoCallManager::sendAcceptCallRequest(const QString &call_id, int caller_uid)
@@ -437,7 +440,8 @@ void VideoCallManager::handleSignalingMessage(const QString &type,
                                               bool isInitiator)
 {
     if (type == "joined") {
-        qDebug() << "[VideoCallManager]: Joined room, waiting for ready";
+        qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                           << "]: Joined room, waiting for ready";
         return;
     }
 
@@ -446,32 +450,55 @@ void VideoCallManager::handleSignalingMessage(const QString &type,
         // 你这边希望先加入者(=isInitiator=false)负责发 Offer。
         const bool isOfferer = !isInitiator;
 
+        qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                           << "]: Received ready, isInitiator=" << isInitiator
+                           << " isOfferer=" << isOfferer
+                           << " role=" << (_isCaller ? "caller" : "callee")
+                           << " state=" << static_cast<int>(_state);
+
         if (_rtcWrapper) {
             _rtcWrapper->setDirection(YangSendrecv);
-            // ICE controlling 一般由 Offerer 承担更稳妥
-            _rtcWrapper->setControlled(isOfferer ? true : false);
+            // WebRTC 标准：Offerer = ICE controlling (isControlled=false)
+            //               Answerer = ICE controlled  (isControlled=true)
+            // 原来写反了！这里修正。
+            _rtcWrapper->setControlled(isOfferer ? false : true);
+        } else {
+            qDebug() << "[VideoCallManager]: WARNING - _rtcWrapper is NULL when ready received!";
         }
 
         if (isOfferer) {
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: Acting as offerer, calling createOffer...";
+            fflush(stdout);
             QString offerSdp = createOffer();
+            fflush(stdout);
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: createOffer returned, len=" << offerSdp.size();
             if (offerSdp.isEmpty()) {
                 emit sigError("生成 Offer SDP 失败");
                 endCall();
                 return;
             }
 
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: Setting local description (offer)...";
             if (!setLocalDescription(offerSdp, "offer")) {
                 emit sigError("设置本地 Offer SDP 失败");
                 endCall();
                 return;
             }
 
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: Sending offer via signaling...";
             QJsonObject offerMsg;
             offerMsg["type"] = "offer";
             offerMsg["sdp"] = offerSdp;
             sendSignalingMessage(offerMsg);
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: Offer sent successfully";
         } else {
-            qDebug() << "[VideoCallManager]: Ready as answerer, waiting for offer";
+            qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                               << "]: Ready as answerer, waiting for offer";
         }
         return;
     }
@@ -492,7 +519,8 @@ void VideoCallManager::handleSignalingMessage(const QString &type,
     }
 
     if (type == "peer-left" || type == "left") {
-        qDebug() << "[VideoCallManager]: Remote peer left room, ending call";
+        qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                           << "]: Remote peer left room, ending call (type=" << type << ")";
         endCall();
         return;
     }
@@ -682,6 +710,9 @@ void VideoCallManager::handleAcceptCall(const QString &call_id,
                                         const QJsonArray &ice_servers)
 {
     // 被叫方：服务器回包 CALL_ACCEPT_RSP
+    qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                       << "]: handleAcceptCall (callee) called, call_id=" << call_id
+                       << " room_id=" << room_id;
     if (_current_call_id == call_id && !_room_id.isEmpty() && _state == VideoCallState::Connecting) {
         qDebug() << "[VideoCallManager]: handleAcceptCall called twice, ignore";
         return;
@@ -692,25 +723,66 @@ void VideoCallManager::handleAcceptCall(const QString &call_id,
     _turn_ws_url = turn_ws_url;
     _ice_servers = ice_servers;
 
+    // 立即切换状态（避免 initMetartc 内部的 Connected 回调误触发 endCall）
+    setState(VideoCallState::Connecting);
+
+    // 创建 RTC wrapper 和 WebSocket（先建对象，暂不连接）
     initMetartc();
     initWebSocket();
 
-    setState(VideoCallState::Connecting);
+    qDebug() << "[VideoCallManager]: handleAcceptCall -> initMetartc done, _rtcWrapper =" << (void*)_rtcWrapper;
 
     if (_rtcWrapper) {
-        _rtcWrapper->initRtcConnection(_turn_ws_url);
+        // 先配置 ICE 服务器（coturn TURN relay），再 init 连接参数
+        qDebug() << "[VideoCallManager]: Calling configureIceServers...";
         _rtcWrapper->configureIceServers(_ice_servers);
-        if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
-            emit sigError("初始化音视频轨道失败");
+        qDebug() << "[VideoCallManager]: configureIceServers returned, calling initPeerConnection...";
+        if (!_rtcWrapper->initPeerConnection()) {
+            qDebug() << "[VideoCallManager]: initPeerConnection FAILED";
+            emit sigError("初始化 PeerConnection 失败");
             endCall();
             return;
         }
+        qDebug() << "[VideoCallManager]: initPeerConnection returned, calling initRtcConnection...";
+        _rtcWrapper->initRtcConnection(_turn_ws_url);
+        qDebug() << "[VideoCallManager]: initRtcConnection returned, calling addAudioTrack...";
+        // addTrack 必须在 WebSocket 连接之前完成（SDP 协商需要 track 信息）
+        if (!_rtcWrapper->addAudioTrack()) {
+            qDebug() << "[VideoCallManager]: addAudioTrack FAILED";
+            emit sigError("初始化音频轨道失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addAudioTrack OK, calling addVideoTrack...";
+        if (!_rtcWrapper->addVideoTrack()) {
+            qDebug() << "[VideoCallManager]: addVideoTrack FAILED";
+            emit sigError("初始化视频轨道失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addVideoTrack OK";
+        if (!_rtcWrapper->addTransceiver()) {
+            qDebug() << "[VideoCallManager]: addTransceiver FAILED";
+            emit sigError("初始化 transceiver 失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addTransceiver OK";
     }
 
+    // 开启本地摄像头预览（仅调用一次，不会在 Connected 回调里重复调用）
+    qDebug() << "[VideoCallManager]: Calling startLocalVideo...";
     startLocalVideo();
+    qDebug() << "[VideoCallManager]: startLocalVideo returned";
 
+    // 所有初始化完毕后，才打开 WebSocket 连接信令服务器
     if (_signaling_socket && _signaling_socket->state() == QAbstractSocket::UnconnectedState && !_turn_ws_url.isEmpty()) {
+        qDebug() << "[VideoCallManager]: Connecting to signaling server:" << _turn_ws_url;
         _signaling_socket->open(QUrl(_turn_ws_url));
+    } else {
+        qDebug() << "[VideoCallManager]: WebSocket skip - socket=" << (void*)_signaling_socket
+                 << " state=" << (_signaling_socket ? _signaling_socket->state() : -1)
+                 << " url=" << _turn_ws_url;
     }
 
     if (_incomingCallDialog) {
@@ -730,6 +802,13 @@ void VideoCallManager::handleCallAccept(const QString &call_id,
                                         const QJsonArray &ice_servers)
 {
     // 主叫方：服务器通知 CALL_ACCEPT_NOTIFY
+    qDebug().noquote() << "[VideoCallManager][uid=" << UserMgr::GetInstance()->GetUid()
+                       << "]: handleCallAccept (caller) called, call_id=" << call_id
+                       << " room_id=" << room_id
+                       << " _current_call_id=" << _current_call_id
+                       << " _room_id=" << _room_id
+                       << " state=" << static_cast<int>(_state);
+
     if (_current_call_id == call_id && !_room_id.isEmpty() && _state == VideoCallState::Connecting) {
         qDebug() << "[VideoCallManager]: handleCallAccept called twice, ignore";
         return;
@@ -740,25 +819,68 @@ void VideoCallManager::handleCallAccept(const QString &call_id,
     _turn_ws_url = turn_ws_url;
     _ice_servers = ice_servers;
 
-    initMetartc();
-    initWebSocket();
-
+    // 立即切换状态
     setState(VideoCallState::Connecting);
 
+    qDebug() << "[VideoCallManager]: handleCallAccept -> calling initMetartc...";
+    initMetartc();
+    qDebug() << "[VideoCallManager]: handleCallAccept -> initMetartc done, _rtcWrapper =" << (void*)_rtcWrapper;
+
+    qDebug() << "[VideoCallManager]: handleCallAccept -> calling initWebSocket...";
+    initWebSocket();
+    qDebug() << "[VideoCallManager]: handleCallAccept -> initWebSocket done";
+
     if (_rtcWrapper) {
-        _rtcWrapper->initRtcConnection(_turn_ws_url);
+        qDebug() << "[VideoCallManager]: handleCallAccept (caller) -> Calling configureIceServers...";
         _rtcWrapper->configureIceServers(_ice_servers);
-        if (!_rtcWrapper->addAudioTrack() || !_rtcWrapper->addVideoTrack()) {
-            emit sigError("初始化音视频轨道失败");
+        qDebug() << "[VideoCallManager]: configureIceServers returned, calling initPeerConnection...";
+        if (!_rtcWrapper->initPeerConnection()) {
+            qDebug() << "[VideoCallManager]: initPeerConnection FAILED";
+            emit sigError("初始化 PeerConnection 失败");
             endCall();
             return;
         }
+        qDebug() << "[VideoCallManager]: initPeerConnection returned, calling initRtcConnection...";
+        _rtcWrapper->initRtcConnection(_turn_ws_url);
+        qDebug() << "[VideoCallManager]: initRtcConnection returned, calling addTracks...";
+        if (!_rtcWrapper->addAudioTrack()) {
+            qDebug() << "[VideoCallManager]: addAudioTrack FAILED";
+            emit sigError("初始化音频轨道失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addAudioTrack OK, calling addVideoTrack...";
+        if (!_rtcWrapper->addVideoTrack()) {
+            qDebug() << "[VideoCallManager]: addVideoTrack FAILED";
+            emit sigError("初始化视频轨道失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addVideoTrack OK, calling addTransceiver...";
+        if (!_rtcWrapper->addTransceiver()) {
+            qDebug() << "[VideoCallManager]: addTransceiver FAILED";
+            emit sigError("初始化 transceiver 失败");
+            endCall();
+            return;
+        }
+        qDebug() << "[VideoCallManager]: addTransceiver OK";
+    } else {
+        qDebug() << "[VideoCallManager]: handleCallAccept (caller) -> _rtcWrapper is NULL!";
     }
 
+    // 开启本地摄像头预览（主叫方在 startCall 时已启动，这里的 startLocalVideo 内部有 if (_camera) return 保护）
+    qDebug() << "[VideoCallManager]: handleCallAccept (caller) -> Calling startLocalVideo...";
     startLocalVideo();
+    qDebug() << "[VideoCallManager]: startLocalVideo returned";
 
+    // 所有初始化完毕后，才打开 WebSocket 连接信令服务器
     if (_signaling_socket && _signaling_socket->state() == QAbstractSocket::UnconnectedState && !_turn_ws_url.isEmpty()) {
+        qDebug() << "[VideoCallManager]: Connecting to signaling server:" << _turn_ws_url;
         _signaling_socket->open(QUrl(_turn_ws_url));
+    } else {
+        qDebug() << "[VideoCallManager]: WebSocket skip - socket=" << (void*)_signaling_socket
+                 << " state=" << (_signaling_socket ? _signaling_socket->state() : -1)
+                 << " url=" << _turn_ws_url;
     }
 
     emit sigCallAccepted(call_id, room_id, turn_ws_url, ice_servers);

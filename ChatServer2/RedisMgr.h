@@ -19,7 +19,7 @@ public:
 				continue;
 			}
 
-			auto reply = (redisReply*)redisCommand(context, "AUTH %s", pwd);
+			auto reply = (redisReply*)redisCommand(context, "AUTH %s", pwd_);
 			if (reply->type == REDIS_REPLY_ERROR) {
 				std::cout << "认证失败" << std::endl;
 				//执行成功 释放redisCommand执行后返回的redisReply所占用的内存
@@ -44,7 +44,6 @@ public:
 				std::this_thread::sleep_for(std::chrono::seconds(1)); // 每隔 30 秒发送一次 PING 命令
 			}	
 		});
-
 	}
 
 	~RedisConPool() {
@@ -189,6 +188,8 @@ private:
 				fail_count_++;
 			}
 		}
+
+		std::cout << "[*** Redis Connection check completed, " << fail_count_ << " connections failed ***]" << std::endl;
 
 		//执行重连操作
 		while (fail_count_ > 0) {

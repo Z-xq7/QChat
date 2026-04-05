@@ -39,13 +39,17 @@ public:
 	Status NotifyTextChatMsg(::grpc::ServerContext* context,
 		const TextChatMsgReq* request, TextChatMsgRsp* response) override;
 
-	// ´¦ÀíÌßÈËÇëÇó
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	Status NotifyKickUser(grpc::ServerContext* context,
 		const message::KickUserReq* request, message::KickUserRsp* response) override;
 
-	//½ÓÊÕResource·þÎñÆ÷·¢ËÍµÄÍ¼Æ¬ÁÄÌìÍ¨Öª
+	//ï¿½ï¿½ï¿½ï¿½Resourceï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½Í¨Öª
 	Status NotifyChatImgMsg(::grpc::ServerContext* context, 
 		const ::message::NotifyChatImgReq* request, ::message::NotifyChatImgRsp* response) override;
+
+	//ï¿½ï¿½ï¿½ï¿½Resourceï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½Í¨Öª
+	Status NotifyChatFileMsg(::grpc::ServerContext* context,
+		const ::message::NotifyChatFileReq* request, ::message::NotifyChatFileRsp* response) override;
 
 	void RegisterServer(std::shared_ptr<CServer> pServer);
 

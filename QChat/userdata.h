@@ -158,6 +158,10 @@ public:
 
     virtual ~ChatDataBase() {}  // 添加虚析构函数
 
+public:
+    //群聊还是私聊
+    ChatFormType _form_type;
+
 protected:
     //客户端本地唯一标识
     QString _unique_id;
@@ -165,8 +169,6 @@ protected:
     int _msg_id;
     //会话id
     int _thread_id;
-    //群聊还是私聊
-    ChatFormType _form_type;
     //文本信息为0，图片为1，文件为2
     ChatMsgType _msg_type;
     //消息内容
@@ -237,21 +239,36 @@ Q_DECLARE_METATYPE(std::shared_ptr<FileChatData>)
 //聊天列表信息
 struct ChatThreadInfo{
     ChatThreadInfo() = default;
-    ChatThreadInfo(int thread_id,QString type,int user1_id,int user2_id):
-        _thread_id(thread_id),_type(type),_user1_id(user1_id),_user2_id(user2_id){}
+    ChatThreadInfo(int thread_id,QString type,int user1_id,int user2_id,QString group_name = ""):
+        _thread_id(thread_id),_type(type),_user1_id(user1_id),_user2_id(user2_id),_group_name(group_name){}
 
     int _thread_id;
     QString _type;
     int _user1_id;
     int _user2_id;
+    QString _group_name;  // 群聊名称，私聊时为空
 };
 Q_DECLARE_METATYPE(std::vector<std::shared_ptr<ChatThreadInfo>>)
+
+// 群成员信息
+struct GroupMemberInfo {
+    int _uid;
+    QString _name;
+    QString _icon;
+    int _role;  // 0=普通成员, 1=管理员, 2=创建者
+
+    GroupMemberInfo() : _uid(0), _name(""), _icon(""), _role(0) {}
+    GroupMemberInfo(int uid, const QString& name, const QString& icon, int role)
+        : _uid(uid), _name(name), _icon(icon), _role(role) {}
+};
+Q_DECLARE_METATYPE(std::shared_ptr<GroupMemberInfo>)
+Q_DECLARE_METATYPE(std::vector<std::shared_ptr<GroupMemberInfo>>)
 
 //客户端本地存储的聊天线程数据结构
 class ChatThreadData {
 public:
     ChatThreadData(int other_id, int thread_id, int last_msg_id):
-        _other_id(other_id), _thread_id(thread_id), _last_msg_id(last_msg_id){}
+        _other_id(other_id), _thread_id(thread_id), _last_msg_id(last_msg_id), _is_group(false){}
 
     ChatThreadData() = default;
 
@@ -266,8 +283,26 @@ public:
     void SetOtherId(int other_id);
     int  GetOtherId();
     QString GetGroupName();
+    void SetGroupName(const QString& name);
+    QString GetNotice() const { return _notice; }
+    void SetNotice(const QString& notice) { _notice = notice; }
+    bool IsGroup() const { return _is_group; }
+    void SetIsGroup(bool is_group) { _is_group = is_group; }
+    QString GetGroupIcon() const { return _group_icon; }
+    void SetGroupIcon(const QString& icon) { _group_icon = icon; }
+    QString GetGroupDesc() const { return _group_desc; }
+    void SetGroupDesc(const QString& desc) { _group_desc = desc; }
+    int GetOwnerId() const { return _owner_id; }
+    void SetOwnerId(int owner_id) { _owner_id = owner_id; }
+    int GetMemberCount() const { return _member_count; }
+    void SetMemberCount(int count) { _member_count = count; }
+    // 获取群成员列表
+    std::vector<std::shared_ptr<GroupMemberInfo>> GetGroupMembers() const { return _group_members; }
+    void SetGroupMembers(const std::vector<std::shared_ptr<GroupMemberInfo>>& members) { _group_members = members; }
+    void AddGroupMember(std::shared_ptr<GroupMemberInfo> member) { _group_members.push_back(member); }
     QMap<int, std::shared_ptr<ChatDataBase>> GetMsgMap();
     int  GetThreadId();
+    void SetThreadId(int thread_id);
     QMap<int, std::shared_ptr<ChatDataBase>>&  GetMsgMapRef();
     void AppendMsg(int msg_id, std::shared_ptr<ChatDataBase> base_msg);
     QString GetLastMsg();
@@ -281,10 +316,22 @@ private:
     int _last_msg_id;
     int _thread_id;
     QString _last_msg;
+    //是否是群聊
+    bool _is_group;
     //群聊信息,成员列表
-    std::vector<int> _group_members;
+    std::vector<std::shared_ptr<GroupMemberInfo>> _group_members;
     //群聊名称
     QString _group_name;
+    //群聊头像
+    QString _group_icon;
+    //群聊描述
+    QString _group_desc;
+    //群主uid
+    int _owner_id = 0;
+    //群成员数量
+    int _member_count = 0;
+    //群公告
+    QString _notice;
     //缓存消息map，抽象为基类，因为会有图片等其他类型消息
     QMap<int, std::shared_ptr<ChatDataBase>>  _msg_map;
     //缓存未回复的消息（已发送，但还未收到服务器回应的消息）

@@ -22,6 +22,22 @@ void ChatUserWid::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     _chat_data = chat_data;
     auto other_id = _chat_data->GetOtherId();
 
+    //处理群聊
+    if (_chat_data->IsGroup()) {
+        //群聊头像使用默认群聊图标
+        QPixmap pixmap(":/images/group.png");
+        if (pixmap.isNull()) {
+            //如果群聊图标不存在，使用默认头像
+            pixmap = QPixmap(":/images/head_default.png");
+        }
+        QPixmap scaledPixmap = pixmap.scaled(ui->icon_lb->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        ui->icon_lb->setPixmap(scaledPixmap);
+        ui->icon_lb->setScaledContents(true);
+        ui->user_name_lb->setText(_chat_data->GetGroupName().isEmpty() ? "群聊" : _chat_data->GetGroupName());
+        ui->user_chat_lb->setText(chat_data->GetLastMsg().isEmpty() ? "" : chat_data->GetLastMsg());
+        return;
+    }
+
     if (other_id == 0) {
         // AI 助手特殊处理
         QPixmap pixmap(":/images/doubao.png");
@@ -34,6 +50,11 @@ void ChatUserWid::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     }
 
     auto other_info = UserMgr::GetInstance()->GetFriendById(other_id);
+    if (other_info == nullptr) {
+        qWarning() << "[ChatUserWid]: other_info is nullptr, other_id=" << other_id;
+        return;
+    }
+
     // 加载头像图片
     QString head_icon = UserMgr::GetInstance()->GetIcon();
 

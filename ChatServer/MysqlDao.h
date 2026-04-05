@@ -18,7 +18,7 @@ using message::TextChatData;
 
 class SqlConnection {
 public:
-	SqlConnection(sql::Connection* con, int64_t lasttime):_con(con), _last_oper_time(lasttime){}
+	SqlConnection(sql::Connection* con, int64_t lasttime) :_con(con), _last_oper_time(lasttime) {}
 	std::unique_ptr<sql::Connection> _con;
 	int64_t _last_oper_time;
 };
@@ -26,21 +26,21 @@ public:
 class MySqlPool {
 public:
 	MySqlPool(const std::string& url, const std::string& user, const std::string& pass, const std::string& schema, int poolSize)
-		: url_(url), user_(user), pass_(pass), schema_(schema), poolSize_(poolSize), b_stop_(false), _fail_count(0){
+		: url_(url), user_(user), pass_(pass), schema_(schema), poolSize_(poolSize), b_stop_(false), _fail_count(0) {
 		try {
 			for (int i = 0; i < poolSize_; ++i) {
 				sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
-				auto*  con = driver->connect(url_, user_, pass_);
+				auto* con = driver->connect(url_, user_, pass_);
 				con->setSchema(schema_);
-				// »ñÈ¡µ±Ç°Ê±¼ä´Á
+				// ï¿½ï¿½È¡ï¿½ï¿½Ç°Ê±ï¿½ï¿½ï¿½
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
-				// ½«Ê±¼ä´Á×ª»»ÎªÃë
+				// ï¿½ï¿½Ê±ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½ï¿½
 				long long timestamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
 				pool_.push(std::make_unique<SqlConnection>(con, timestamp));
 				std::cout << "--- Mysql Connection Init Success ---" << std::endl;
 			}
 
-			_check_thread = 	std::thread([this]() {
+			_check_thread = std::thread([this]() {
 				int count = 0;
 				while (!b_stop_) {
 					if (count >= 60) {
@@ -50,28 +50,28 @@ public:
 					std::this_thread::sleep_for(std::chrono::seconds(1));
 					count++;
 				}
-			});
+				});
 
 			_check_thread.detach();
 		}
 		catch (sql::SQLException& e) {
-			// ´¦ÀíÒì³£
-			std::cout << "[*** mysql pool init failed, error is " << e.what()<< " ***]" << std::endl;
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ì³£
+			std::cout << "[*** mysql pool init failed, error is " << e.what() << " ***]" << std::endl;
 		}
 	}
 
 	void checkConnectionPro() {
-		//ÏÈ¶ÁÈ¡¡°Ä¿±ê´¦ÀíÊı¡±
+		//ï¿½È¶ï¿½È¡ï¿½ï¿½Ä¿ï¿½ê´¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		size_t targetCount;
 		{
 			std::lock_guard<std::mutex> guard(mutex_);
 			targetCount = pool_.size();
 		}
 
-		//µ±Ç°ÒÑ¾­´¦ÀíµÄÊıÁ¿
+		//ï¿½ï¿½Ç°ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		size_t processed = 0;
 
-		//Ê±¼ä´Á
+		//Ê±ï¿½ï¿½ï¿½
 		auto now = std::chrono::system_clock::now().time_since_epoch();
 		long long timestamp = std::chrono::duration_cast<std::chrono::seconds>(now).count();
 
@@ -87,7 +87,7 @@ public:
 			}
 
 			bool healthy = true;
-			//½âËøºó×ö¼ì²é/ÖØÁ¬Âß¼­
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½
 			if (timestamp - con->_last_oper_time >= 5) {
 				try {
 					std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
@@ -112,7 +112,7 @@ public:
 
 		std::cout << "*** Mysql: Connection check completed, " << _fail_count << " connections failed ***" << std::endl;
 
-		//ÖØĞÂÁ¬½Ómysql
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½mysql
 		while (_fail_count > 0) {
 			auto b_res = reconnect(timestamp);
 			if (b_res) {
@@ -147,21 +147,21 @@ public:
 	void checkConnection() {
 		std::lock_guard<std::mutex> guard(mutex_);
 		int poolsize = pool_.size();
-		// »ñÈ¡µ±Ç°Ê±¼ä´Á
+		// ï¿½ï¿½È¡ï¿½ï¿½Ç°Ê±ï¿½ï¿½ï¿½
 		auto currentTime = std::chrono::system_clock::now().time_since_epoch();
-		// ½«Ê±¼ä´Á×ª»»ÎªÃë
+		// ï¿½ï¿½Ê±ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½ï¿½
 		long long timestamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
 		for (int i = 0; i < poolsize; i++) {
 			auto con = std::move(pool_.front());
 			pool_.pop();
 			Defer defer([this, &con]() {
 				pool_.push(std::move(con));
-			});
+				});
 
 			if (timestamp - con->_last_oper_time < 5) {
 				continue;
 			}
-			
+
 			try {
 				std::unique_ptr<sql::Statement> stmt(con->_con->createStatement());
 				stmt->executeQuery("SELECT 1");
@@ -170,7 +170,7 @@ public:
 			}
 			catch (sql::SQLException& e) {
 				std::cout << "Error keeping connection alive: " << e.what() << std::endl;
-				// ÖØĞÂ´´½¨Á¬½Ó²¢Ìæ»»¾ÉµÄÁ¬½Ó
+				// ï¿½ï¿½ï¿½Â´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½æ»»ï¿½Éµï¿½ï¿½ï¿½ï¿½ï¿½
 				sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
 				auto* newcon = driver->connect(url_, user_, pass_);
 				newcon->setSchema(schema_);
@@ -182,10 +182,10 @@ public:
 
 	std::unique_ptr<SqlConnection> getConnection() {
 		std::unique_lock<std::mutex> lock(mutex_);
-		cond_.wait(lock, [this] { 
+		cond_.wait(lock, [this] {
 			if (b_stop_) {
 				return true;
-			}		
+			}
 			return !pool_.empty(); });
 		if (b_stop_) {
 			return nullptr;
@@ -236,16 +236,16 @@ public:
 	MysqlDao();
 	~MysqlDao();
 	int RegUser(const std::string& name, const std::string& email, const std::string& pwd);
-	bool CheckEmail(const std::string& name, const std::string & email);
+	bool CheckEmail(const std::string& name, const std::string& email);
 	bool UpdatePwd(const std::string& name, const std::string& newpwd);
 	bool CheckPwd(const std::string& name, const std::string& pwd, UserInfo& userInfo);
 	bool AddFriendApply(const int& from, const int& to, const std::string& desc, const std::string& bakname);
-	//(ÓÅ»¯ºóÒÑ·ÏÆú£¬ÉèÖÃ×´Ì¬Í³Ò»ÔÚAddFriendÖĞÍê³É¼´¿É)
+	//(ï¿½Å»ï¿½ï¿½ï¿½ï¿½Ñ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬Í³Ò»ï¿½ï¿½AddFriendï¿½ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½)
 	bool AuthFriendApply(const int& from, const int& to);
 	bool AddFriend(const int& from, const int& to, std::string back_name, std::vector<std::shared_ptr<AddFriendMsg>>& msg_list);
 	std::shared_ptr<UserInfo> GetUser(int uid);
 	std::shared_ptr<UserInfo> GetUser(std::string name);
-	bool GetApplyList(int touid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, int offset, int limit );
+	bool GetApplyList(int touid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, int offset, int limit);
 	bool GetFriendList(int self_id, std::vector<std::shared_ptr<UserInfo> >& user_info);
 	bool GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
 		std::vector<std::shared_ptr<ChatThreadInfo>>& threads, bool& loadMore, int& nextLastId);
@@ -254,6 +254,21 @@ public:
 	bool AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
 	bool AddChatMsg(std::shared_ptr<ChatMessage>& chat_data);
 	std::shared_ptr<ChatMessage> GetChatMsg(int message_id);
+
+	// Èºï¿½ï¿½ï¿½ï¿½Ø²ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½Èºï¿½Ä£ï¿½ï¿½ï¿½ï¿½ï¿½ thread_id
+	bool CreateGroupChat(int creator_uid, const std::string& group_name,
+		const std::vector<int>& member_uids, int& thread_id);
+	// ï¿½ï¿½È¡Èºï¿½ï¿½Ô±ï¿½Ğ±ï¿½// è·å–ç¾¤èŠæˆå‘˜åˆ—è¡¨
+	bool GetGroupMembers(int thread_id, std::vector<std::shared_ptr<GroupMemberInfo>>& members);
+	// è·å–ç”¨æˆ·åŠ å…¥çš„æ‰€æœ‰ç¾¤èŠID
+	bool GetUserGroupChats(int user_id, std::vector<int>& thread_ids);
+	// è·å–å•ä¸ªç¾¤èŠåŸºæœ¬ä¿¡æ¯
+	bool GetGroupInfo(int thread_id, GroupInfo& group_info);
+	// æ›´æ–°ç¾¤å…¬å‘Š
+	bool UpdateGroupNotice(int thread_id, const std::string& notice);
+	// æ›´æ–°ç”¨æˆ·åœ¨ç¾¤å†…çš„ä¸ªæ€§åŒ–è®¾ç½® (æ˜µç§°ã€å…æ‰“æ‰°ã€ç½®é¡¶ç­‰)
+	bool UpdateGroupMemberSetting(int thread_id, int user_id, const std::string& group_nick, int role, int is_disturb, int is_top);
 
 private:
 	std::unique_ptr<MySqlPool> pool_;

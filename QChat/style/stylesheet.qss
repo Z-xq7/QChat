@@ -500,6 +500,11 @@ LoadingDialog{
 }
 
 /* 搜索框列表*/
+#chat_user_name {
+    color: #888888;
+    font-size: 12px;
+}
+
 #search_list, #ai_user_list {
     background-color: rgba(232,255,255, 180); /* 浅蓝透明 */
     border: 1px solid rgba(176,224,230, 100); /* 浅蓝色边框 */
@@ -1003,6 +1008,90 @@ background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
 
 #voice_chat[state='press'] {
  border-image: url(:/images/voice_chat_press.png);
+}
+
+#voice_chat_lb[state='normal'] {
+ border-image: url(:/images/voice_chatpage.png);
+}
+
+#voice_chat_lb[state='hover'] {
+ border-image: url(:/images/voice_chatpage_hover.png);
+}
+
+#voice_chat_lb[state='press'] {
+ border-image: url(:/images/voice_chatpage_press.png);
+}
+
+#video_chat_lb[state='normal'] {
+ border-image: url(:/images/video_chatpage.png);
+}
+
+#video_chat_lb[state='hover'] {
+ border-image: url(:/images/video_chatpage_hover.png);
+}
+
+#video_chat_lb[state='press'] {
+ border-image: url(:/images/video_chatpage_press.png);
+}
+
+#screen_share_lb[state='normal'] {
+ border-image: url(:/images/screen_share.png);
+}
+
+#screen_share_lb[state='hover'] {
+ border-image: url(:/images/screen_share_hover.png);
+}
+
+#screen_share_lb[state='press'] {
+ border-image: url(:/images/screen_share_press.png);
+}
+
+#remote_control_lb[state='normal'] {
+ border-image: url(:/images/remote_control.png);
+}
+
+#remote_control_lb[state='hover'] {
+ border-image: url(:/images/remote_control_hover.png);
+}
+
+#remote_control_lb[state='press'] {
+ border-image: url(:/images/remote_control_press.png);
+}
+
+#group_notice_lb[state='normal'] {
+ border-image: url(:/images/group_notice.png);
+}
+
+#group_notice_lb[state='hover'] {
+ border-image: url(:/images/group_notice_hover.png);
+}
+
+#group_notice_lb[state='press'] {
+ border-image: url(:/images/group_notice_press.png);
+}
+
+#group_chat_lb[state='normal'] {
+ border-image: url(:/images/group_chat.png);
+}
+
+#group_chat_lb[state='hover'] {
+ border-image: url(:/images/group_chat_hover.png);
+}
+
+#group_chat_lb[state='press'] {
+ border-image: url(:/images/group_chat_press.png);
+}
+
+#more_lb[state='normal'] {
+ border-image: url(:/images/more_chatpage.png);
+}
+
+#more_lb[state='hover'] {
+ border-image: url(:/images/more_chatpage_hover.png);
+}
+
+#more_lb[state='press'] {
+ border-image: url(:/images/more_chatpage_press.png);
 }
 
 /* 用户信息页面样式 */
