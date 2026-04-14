@@ -20,6 +20,7 @@ NotifyChatImgRsp  ChatServerGrpcClient::NotifyChatImgMsg(int message_id, std::st
 	request.set_from_uid(chat_msg->sender_id);
 	request.set_to_uid(chat_msg->recv_id);
 	request.set_thread_id(chat_msg->thread_id);
+	request.set_chat_time(chat_msg->chat_time);
 	// ��Դ�ļ�·��
 	auto file_dir = ConfigMgr::Inst().GetFileOutPath();
 	//消息是接收端从发送端获取资源,所以资源存储在发送者的文件夹下
@@ -76,6 +77,7 @@ message::NotifyChatFileRsp ChatServerGrpcClient::NotifyChatFileMsg(int message_i
 	request.set_from_uid(chat_msg->sender_id);
 	request.set_to_uid(chat_msg->recv_id);
 	request.set_thread_id(chat_msg->thread_id);
+	request.set_chat_time(chat_msg->chat_time);
 
 	auto file_dir = ConfigMgr::Inst().GetFileOutPath();
 	auto uid_str = std::to_string(chat_msg->sender_id);

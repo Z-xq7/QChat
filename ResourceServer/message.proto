@@ -139,6 +139,7 @@ message NotifyChatImgReq{
 	string file_name = 4;
 	int64 total_size = 5;
 	int32 thread_id =6;
+	string chat_time = 7;
 }
 
 message NotifyChatImgRsp{
@@ -158,6 +159,7 @@ message NotifyChatFileReq{
 	string file_name = 4;
 	int64 total_size = 5;
 	int32 thread_id =6;
+	string chat_time = 7;
 }
 
 message NotifyChatFileRsp{

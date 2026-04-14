@@ -282,6 +282,8 @@ void CSession::NotifyChatImgRecv(const message::NotifyChatImgReq* request)
 	rtvalue["img_name"] = request->file_name();
 	rtvalue["total_size"] = std::to_string(request->total_size());
 	rtvalue["thread_id"] = request->thread_id();
+	rtvalue["status"] = MsgStatus::UN_READ;
+	rtvalue["chat_time"] = request->chat_time();
 
 	std::string return_str = rtvalue.toStyledString();
 	Send(return_str, ID_NOTIFY_IMG_CHAT_MSG_REQ);
@@ -298,6 +300,8 @@ void CSession::NotifyChatFileRecv(const message::NotifyChatFileReq* request)
 	rtvalue["name"] = request->file_name();
 	rtvalue["total_size"] = std::to_string(request->total_size());
 	rtvalue["thread_id"] = request->thread_id();
+	rtvalue["status"] = MsgStatus::UN_READ;
+	rtvalue["chat_time"] = request->chat_time();
 	// �����Ը�����Ҫ���� md5 ����Ϣ����������Ϣ���㹻
 
 	std::string return_str = rtvalue.toStyledString();

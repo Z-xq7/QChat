@@ -3,6 +3,7 @@
 #include "usermgr.h"
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QDateTime>
 #include "filetcpmgr.h"
 
 ChatUserWid::ChatUserWid(QWidget *parent) :
@@ -12,6 +13,13 @@ ChatUserWid::ChatUserWid(QWidget *parent) :
     ui->setupUi(this);
     SetItemType(ListItemType::CHAT_USER_ITEM);
     ui->unread_badge->hide();
+    // 强制设置时间标签及其父容器的宽度，确保日期能完整显示
+    ui->user_info_wid->setMaximumWidth(105);
+    ui->user_info_wid->setMinimumWidth(105);
+    ui->time_lb->setMinimumWidth(55);
+    ui->time_lb->setMaximumWidth(55);
+    ui->time_wid->setMinimumWidth(60);
+    ui->time_wid->setMaximumWidth(60);
 }
 
 ChatUserWid::~ChatUserWid()
@@ -22,6 +30,9 @@ ChatUserWid::~ChatUserWid()
 void ChatUserWid::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     _chat_data = chat_data;
     auto other_id = _chat_data->GetOtherId();
+
+    // 设置最后消息时间
+    SetLastMsgTime(chat_data->GetLastMsgTime());
 
     //处理群聊
     if (_chat_data->IsGroup()) {
@@ -171,4 +182,47 @@ void ChatUserWid::LoadHeadIcon(QString avatarPath, QLabel* icon_label, QString f
         //发送消息
         FileTcpMgr::GetInstance()->SendDownloadInfo(download_info, req_type);
     }
+}
+
+void ChatUserWid::SetLastMsgTime(const QString& timeStr)
+{
+    if (timeStr.isEmpty()) {
+        ui->time_lb->setText("");
+        return;
+    }
+
+    // 解析服务器返回的时间字符串 (格式: "2026-04-12 21:15:30")
+    QDateTime msgDateTime = QDateTime::fromString(timeStr, "yyyy-MM-dd hh:mm:ss");
+    if (!msgDateTime.isValid()) {
+        // 尝试其他可能的格式
+        msgDateTime = QDateTime::fromString(timeStr, "yyyy-MM-dd HH:mm:ss");
+    }
+    if (!msgDateTime.isValid()) {
+        ui->time_lb->setText(timeStr);
+        return;
+    }
+
+    QDateTime now = QDateTime::currentDateTime();
+    QDate msgDate = msgDateTime.date();
+    QDate today = now.date();
+    QDate yesterday = today.addDays(-1);
+
+    QString displayText;
+    if (msgDate == today) {
+        // 今天：显示 HH:mm
+        displayText = msgDateTime.toString("hh:mm");
+    } else if (msgDate == yesterday) {
+        // 昨天：显示"昨天"
+        displayText = "昨天";
+    } else if (msgDate.daysTo(today) < 7) {
+        // 一周内：显示周几
+        QStringList weekDays = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        int dayOfWeek = msgDate.dayOfWeek(); // 1=周一, 7=周日
+        displayText = weekDays[dayOfWeek - 1];
+    } else {
+        // 更早：显示月日 (如"5月12日")
+        displayText = msgDate.toString("M月d日");
+    }
+
+    ui->time_lb->setText(displayText);
 }

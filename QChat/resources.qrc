@@ -108,5 +108,14 @@
         <file>images/group_notice.png</file>
         <file>images/group_notice_hover.png</file>
         <file>images/group_notice_press.png</file>
+        <file>resources/knowledge_base/01_overview.md</file>
+        <file>resources/knowledge_base/02_architecture.md</file>
+        <file>resources/knowledge_base/03_protocol.md</file>
+        <file>resources/knowledge_base/04_database.md</file>
+        <file>resources/knowledge_base/05_deployment.md</file>
+        <file>resources/knowledge_base/06_coding_standards.md</file>
+        <file>images/check_mark.png</file>
+        <file>images/check_mark_hover.png</file>
+        <file>images/check_mark_press.png</file>
     </qresource>
 </RCC>

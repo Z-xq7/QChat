@@ -662,6 +662,7 @@ bool MysqlDao::GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
 	try {
 		// ׼����ҳ��ѯ��CTE + UNION ALL + ORDER + LIMIT N+1
 		// ����Ⱥ�ģ�ͨ�� JOIN group_chat ����ȡȺ������
+		// �ͨ�� LEFT JOIN chat_message ��ȡÿ�����е����Ϣʱ��
 		std::string sql =
 			"WITH all_threads AS ( "
 			"  SELECT thread_id, 'private' AS type, user1_id, user2_id, '' AS group_name "
@@ -675,9 +676,15 @@ bool MysqlDao::GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
 			"   WHERE gcm.user_id = ? "
 			"     AND gcm.thread_id > ? "
 			") "
-			"SELECT thread_id, type, user1_id, user2_id, group_name "
-			"  FROM all_threads "
-			" ORDER BY thread_id "
+			"SELECT t.thread_id, t.type, t.user1_id, t.user2_id, t.group_name, "
+			"       COALESCE(lm.updated_at, t.thread_id) AS last_msg_time "
+			"  FROM all_threads t "
+			"  LEFT JOIN ("
+			"    SELECT thread_id, MAX(updated_at) AS updated_at "
+			"    FROM chat_message "
+			"    GROUP BY thread_id"
+			"  ) lm ON t.thread_id = lm.thread_id "
+			" ORDER BY COALESCE(lm.updated_at, 0) DESC, t.thread_id DESC "
 			" LIMIT ?;";
 		std::unique_ptr<sql::PreparedStatement> pstmt(
 			conn->prepareStatement(sql));
@@ -700,6 +707,8 @@ bool MysqlDao::GetUserThreads(int64_t userId, int64_t lastId, int pageSize,
 			cti->_user1_id = res->getInt64("user1_id");
 			cti->_user2_id = res->getInt64("user2_id");
 			cti->_group_name = res->getString("group_name");
+			// ��ȡ������Ϣʱ�䣨ת��Ϊ�ַ���
+			cti->_last_msg_time = res->getString("last_msg_time").asStdString();
 			tmp.push_back(cti);
 		}
 		// �ж��Ƿ��ȡ��һ��
@@ -1394,7 +1403,7 @@ bool MysqlDao::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& un
 	}
 }
 
-bool MysqlDao::MarkMsgRead(int thread_id, int reader_uid)
+bool MysqlDao::MarkMsgRead(int thread_id, int reader_uid, std::string update_time)
 {
 	auto con = pool_->getConnection();
 	if (!con) {
@@ -1410,11 +1419,12 @@ bool MysqlDao::MarkMsgRead(int thread_id, int reader_uid)
 	try {
 		// 将指定会话中 recv_id = reader_uid 且 status = 0(UN_READ) 的消息标记为已读(status = 2 READED)
 		std::unique_ptr<sql::PreparedStatement> pstmt(conn->prepareStatement(
-			"UPDATE chat_message SET status = 2, updated_at = NOW() "
+			"UPDATE chat_message SET status = 2, updated_at = ? "
 			"WHERE thread_id = ? AND recv_id = ? AND status = 0"
 		));
-		pstmt->setInt(1, thread_id);
-		pstmt->setInt(2, reader_uid);
+		pstmt->setString(1, update_time);
+		pstmt->setInt(2, thread_id);
+		pstmt->setInt(3, reader_uid);
 
 		int update_count = pstmt->executeUpdate();
 		LOG_INFO("MarkMsgRead - thread_id: " << thread_id << ", reader_uid: " << reader_uid

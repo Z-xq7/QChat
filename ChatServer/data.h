@@ -38,6 +38,7 @@ struct ChatThreadInfo
 	int _user1_id;
 	int _user2_id;
 	std::string _group_name;  // 群聊名称，私聊时为空
+	std::string _last_msg_time;  // 最后一条消息的时间
 };
 
 enum class ChatMsgType {

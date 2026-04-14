@@ -126,9 +126,9 @@ bool MysqlMgr::GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& un
 	return _dao.GetUnreadCounts(user_id, unread_counts);
 }
 
-bool MysqlMgr::MarkMsgRead(int thread_id, int reader_uid)
+bool MysqlMgr::MarkMsgRead(int thread_id, int reader_uid, std::string update_time)
 {
-	return _dao.MarkMsgRead(thread_id, reader_uid);
+	return _dao.MarkMsgRead(thread_id, reader_uid, update_time);
 }
 
 bool MysqlMgr::GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid)

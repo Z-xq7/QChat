@@ -1,4 +1,4 @@
-QT       += core gui network websockets multimedia multimediawidgets
+QT       += core gui network websockets multimedia multimediawidgets concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -12,7 +12,17 @@ DESTDIR = ./bin
 
 SOURCES += \
     adduseritem.cpp \
+    agentmemory.cpp \
+    agenttools_impl.cpp \
     aipage.cpp \
+    contextmanager.cpp \
+    executiontracer.cpp \
+    knowledgebase.cpp \
+    paralleltoolexecutor.cpp \
+    ragretriever.cpp \
+    safetyguard.cpp \
+    toolregistry.cpp \
+    voiceinputmanager.cpp \
     applyfriend.cpp \
     applyfrienditem.cpp \
     applyfriendlist.cpp \
@@ -83,7 +93,18 @@ SOURCES += \
 
 HEADERS += \
     adduseritem.h \
+    agentmemory.h \
+    agenttools_impl.h \
     aipage.h \
+    contextmanager.h \
+    executiontracer.h \
+    itoolagent.h \
+    knowledgebase.h \
+    paralleltoolexecutor.h \
+    ragretriever.h \
+    safetyguard.h \
+    toolregistry.h \
+    voiceinputmanager.h \
     applyfriend.h \
     applyfrienditem.h \
     applyfriendlist.h \

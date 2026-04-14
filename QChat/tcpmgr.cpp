@@ -570,6 +570,7 @@ void TcpMgr::initHandlers()
             cti->_user1_id = value["user1_id"].toInt();
             cti->_user2_id = value["user2_id"].toInt();
             cti->_group_name = value["group_name"].toString();
+            cti->_last_msg_time = value["last_msg_time"].toString();
             chat_threads.push_back(cti);
         }
         bool load_more = jsonObj["load_more"].toBool();
@@ -1183,6 +1184,7 @@ void TcpMgr::initHandlers()
         auto total_size_str = jsonObj["total_size"].toString();
         auto total_size = total_size_str.toLongLong();
         auto uid = UserMgr::GetInstance()->GetUid();
+        QString chat_time = jsonObj["chat_time"].toString();
 
         //客户端存储聊天记录，按照如下格式存储C:\Users\hp\AppData\Roaming\qchat\chatimg\uid, uid为对方uid
         QString storageDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -1208,7 +1210,7 @@ void TcpMgr::initHandlers()
         ChatFormType form_type = UserMgr::GetInstance()->IsGroupChat(thread_id) ? ChatFormType::GROUP : ChatFormType::PRIVATE;
 
         auto img_chat_data_ptr = std::make_shared<ImgChatData>(file_info, "",
-                thread_id, form_type, ChatMsgType::PIC, sender_id, MsgStatus::READED);
+                thread_id, form_type, ChatMsgType::PIC, sender_id, MsgStatus::UN_READ, chat_time);
 
         //通知接收对方发来的图片消息
         emit sig_img_chat_msg(img_chat_data_ptr);

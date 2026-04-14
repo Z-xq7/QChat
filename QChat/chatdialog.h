@@ -51,6 +51,8 @@ public:
     void UpdateAllContactOnlineStatus();
     //更新聊天列表中某线程的未读角标和最后一条消息显示
     void UpdateChatListItem(int thread_id);
+    //将更新的聊天项移到列表顶部（模仿微信：最新消息的会话排在最前面）
+    void MoveChatItemToTop(int thread_id);
     //更新聊天界面显示消息
     void UpdateChatMsg(std::vector<std::shared_ptr<TextChatData>> msgdata);
     //显示加载对话框

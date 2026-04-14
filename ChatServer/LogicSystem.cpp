@@ -770,6 +770,7 @@ void LogicSystem::GetUserThreadsHandler(std::shared_ptr<CSession> session, const
 		thread_value["user1_id"] = thread->_user1_id;
 		thread_value["user2_id"] = thread->_user2_id;
 		thread_value["group_name"] = thread->_group_name;
+		thread_value["last_msg_time"] = thread->_last_msg_time;
 		rtvalue["threads"].append(thread_value);
 	}
 	LOG_DEBUG("Get user threads success - uid: " << uid << ", thread_count: " << threads.size());
@@ -879,9 +880,8 @@ void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,
 	rtvalue["md5"] = md5;
 	rtvalue["unique_name"] = unique_name;
 	rtvalue["unique_id"] = unique_id;
-	rtvalue["chat_time"] = chat_time;
 	//����ͼƬ�ļ�״̬Ϊδ�ϴ������ļ��ϴ��ɹ����ٸ���״̬��֪ͨ�Է�
-	rtvalue["status"] = MsgStatus::UN_UPLOAD;
+	rtvalue["status"] = MsgStatus::UN_READ;
 
 	auto timestamp = getCurrentTimestamp();
 	auto chat_msg = std::make_shared<ChatMessage>();
@@ -891,13 +891,14 @@ void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,
 	chat_msg->unique_id = unique_id;
 	chat_msg->thread_id = thread_id;
 	chat_msg->content = unique_name;
-	chat_msg->status = MsgStatus::UN_UPLOAD;
+	chat_msg->status = MsgStatus::UN_READ;
 	chat_msg->msg_type = int(ChatMsgType::PIC);
 
 	//�������ݿ�
 	MysqlMgr::GetInstance()->AddChatMsg(chat_msg);
 
 	rtvalue["message_id"] = chat_msg->message_id;
+	rtvalue["chat_time"] = chat_msg->chat_time;
 	//������Բ���defer���ƣ���Ϊ����û����Ҫ�������߼��ˣ�ֱ�ӷ�����Ӧ����
 	Defer defer([this, &rtvalue, session]() {
 		std::string return_str = rtvalue.toStyledString();
@@ -936,8 +937,7 @@ void LogicSystem::DealChatFileMsg(std::shared_ptr<CSession> session,
 	rtvalue["unique_name"] = unique_name;
 	rtvalue["origin_name"] = origin_name;
 	rtvalue["unique_id"] = unique_id;
-	rtvalue["chat_time"] = chat_time;
-	rtvalue["status"] = MsgStatus::UN_UPLOAD;
+	rtvalue["status"] = MsgStatus::UN_READ;
 
 	auto timestamp = getCurrentTimestamp();
 	auto chat_msg = std::make_shared<ChatMessage>();
@@ -947,12 +947,13 @@ void LogicSystem::DealChatFileMsg(std::shared_ptr<CSession> session,
 	chat_msg->unique_id = unique_id;
 	chat_msg->thread_id = thread_id;
 	chat_msg->content = unique_name + "|" + origin_name;
-	chat_msg->status = MsgStatus::UN_UPLOAD;
+	chat_msg->status = MsgStatus::UN_READ;
 	chat_msg->msg_type = int(ChatMsgType::FILE);
 
 	MysqlMgr::GetInstance()->AddChatMsg(chat_msg);
 
 	rtvalue["message_id"] = chat_msg->message_id;
+	rtvalue["chat_time"] = chat_msg->chat_time;
 
 	Defer defer([this, &rtvalue, session]() {
 		std::string return_str = rtvalue.toStyledString();
@@ -1739,8 +1740,9 @@ void LogicSystem::MarkMsgReadHandler(std::shared_ptr<CSession> session, const sh
 		session->Send(return_str, ID_MARK_MSG_READ_RSP);
 	});
 
+	auto update_time = getCurrentTimestamp();
 	// 1. 更新数据库中该会话的消息状态为已读
-	bool res = MysqlMgr::GetInstance()->MarkMsgRead(thread_id, uid);
+	bool res = MysqlMgr::GetInstance()->MarkMsgRead(thread_id, uid, update_time);
 	if (!res) {
 		rtvalue["error"] = ErrorCodes::RPCFailed;
 		LOG_ERROR("MarkMsgRead failed - uid: " << uid << ", thread_id: " << thread_id);

@@ -139,6 +139,7 @@ message NotifyChatImgReq{
 	string file_name = 4;
 	int64 total_size = 5;
 	int32 thread_id =6;
+	string chat_time = 7;
 }
 
 message NotifyChatImgRsp{
@@ -158,6 +159,7 @@ message NotifyChatFileReq{
 	string file_name = 4;
 	int64 total_size = 5;
 	int32 thread_id =6;
+	string chat_time = 7;
 }
 
 message NotifyChatFileRsp{
@@ -230,7 +232,7 @@ message CreateGroupChatRsp {
 }
 
 // 通知用户被加入群聊
-message NotifyGroupChatCreated {
+message NotifyGroupChatCreatedReq {
     int32 thread_id = 1;
     string group_name = 2;
     int32 creator_uid = 3;
@@ -289,7 +291,7 @@ service ChatService {
     rpc NotifyRemoteControl(RemoteControlReq) returns (RemoteControlRsp) {}
     rpc SendRemoteInput(RemoteControlInput) returns (RemoteControlRsp) {}
     rpc CreateGroupChat(CreateGroupChatReq) returns (CreateGroupChatRsp) {}
-    rpc NotifyGroupChatCreated(NotifyGroupChatCreated) returns (CreateGroupChatRsp) {}
+    rpc NotifyGroupChatCreated(NotifyGroupChatCreatedReq) returns (CreateGroupChatRsp) {}
     rpc GetGroupMembers(GetGroupMembersReq) returns (GetGroupMembersRsp) {}
     rpc UpdateGroupNotice(UpdateGroupNoticeReq) returns (UpdateGroupNoticeRsp) {}
     rpc NotifyGroupNoticeUpdate(NotifyGroupNotice) returns (UpdateGroupNoticeRsp) {}

@@ -28,6 +28,8 @@ public:
     void UpdateUnreadCount(int count);
     //更新聊天列表显示的最后一条聊天消息
     void UpdateLastMsg(const QString& msg);
+    //设置最后消息时间（模仿微信格式）
+    void SetLastMsgTime(const QString& time);
     // //设置聊天列表用户item信息（由用户信息）
     // void SetInfo(std::shared_ptr<UserInfo> user_info);
     // //设置聊天列表用户item信息(由好友信息)

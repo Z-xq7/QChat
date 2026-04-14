@@ -77,6 +77,12 @@ void ChatThreadData::AddMsg(std::shared_ptr<ChatDataBase> msg)
         _last_msg = msg->GetMsgContent();
         break;
     }
+
+    // 更新最后消息时间
+    QString time = msg->GetCreateTime();
+    if (!time.isEmpty()) {
+        _last_msg_time = time;
+    }
 }
 
 void ChatThreadData::MoveMsg(std::shared_ptr<ChatDataBase> msg)
@@ -158,6 +164,8 @@ QMap<int, std::shared_ptr<ChatDataBase>>& ChatThreadData::GetMsgMapRef()
 void ChatThreadData::AppendMsg(int msg_id, std::shared_ptr<ChatDataBase> base_msg) {
     _msg_map.insert(msg_id, base_msg);
     _last_msg_id = msg_id;
+
+    // 更新最后一条消息的显示文本
     switch (base_msg->GetMsgType()) {
     case ChatMsgType::PIC:
         _last_msg = "[图片]";
@@ -168,6 +176,12 @@ void ChatThreadData::AppendMsg(int msg_id, std::shared_ptr<ChatDataBase> base_ms
     default:
         _last_msg = base_msg->GetMsgContent();
         break;
+    }
+
+    // 更新最后消息时间（按时间倒序加载时，每条都会覆盖为更新的时间）
+    QString time = base_msg->GetCreateTime();
+    if (!time.isEmpty()) {
+        _last_msg_time = time;
     }
 }
 

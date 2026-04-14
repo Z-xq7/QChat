@@ -1,5 +1,6 @@
 #include "chatpage.h"
 #include "ui_chatpage.h"
+#include <QDateTime>
 #include <QStyleOption>
 #include <QPainter>
 #include <QPaintEvent>
@@ -827,29 +828,40 @@ void ChatPage::UpdateFileProgress(std::shared_ptr<MsgInfo> msg_info) {
 
 void ChatPage::DownloadFileFinished(std::shared_ptr<MsgInfo> msg_info, QString file_path)
 {
-    auto iter = _base_item_map.find(msg_info->_msg_id);
-    if (iter == _base_item_map.end()) {
-        return;
-    }
-
     if (msg_info->_msg_type == MsgType::IMG_MSG) {
-        auto bubble = iter.value()->getBubble();
-        PictureBubble* pic_bubble = dynamic_cast<PictureBubble*>(bubble);
-        pic_bubble->setDownloadFinish(msg_info, file_path);
+        // 无论 bubble 是否已经 append，先把 msg_info 中的数据更新好。
+        // msg_info 与 ImgChatData._msg_info 是同一个 shared_ptr，
+        // 若下载完成比 AppendOtherMsg 更早到达主线程（竞态），
+        // AppendOtherMsg 在后续执行时就能直接拿到真实图片。
+        QPixmap picture(file_path);
+        msg_info->_preview_pix     = picture;
+        msg_info->_transfer_state  = TransferState::Completed;
+        msg_info->_current_size    = msg_info->_total_size;
+        msg_info->_text_or_url     = file_path;
 
-        auto chat_data_base = _chat_data->GetChatDataBase(msg_info->_msg_id);
-        if (chat_data_base == nullptr) {
+        auto iter = _base_item_map.find(msg_info->_msg_id);
+        if (iter == _base_item_map.end()) {
+            // bubble 尚未 append（竞态），数据已更新，AppendOtherMsg 会用正确图片创建 bubble
             return;
         }
-        auto img_data = std::dynamic_pointer_cast<ImgChatData>(chat_data_base);
-        img_data->_msg_info->_preview_pix =  QPixmap(file_path);
-        img_data->_msg_info->_transfer_state = TransferState::Completed;
-        img_data->_msg_info->_current_size = img_data->_msg_info->_total_size;
+
+        // bubble 已存在，直接刷新显示
+        auto bubble = iter.value()->getBubble();
+        PictureBubble* pic_bubble = dynamic_cast<PictureBubble*>(bubble);
+        if (pic_bubble) {
+            pic_bubble->setDownloadFinish(msg_info, file_path);
+        }
     }
     else if (msg_info->_msg_type == MsgType::FILE_MSG) {
+        auto iter = _base_item_map.find(msg_info->_msg_id);
+        if (iter == _base_item_map.end()) {
+            return;
+        }
         auto bubble = iter.value()->getBubble();
         FileBubble* file_bubble = dynamic_cast<FileBubble*>(bubble);
-        file_bubble->setDownloadFinish(msg_info, file_path);
+        if (file_bubble) {
+            file_bubble->setDownloadFinish(msg_info, file_path);
+        }
     }
 }
 
@@ -1216,8 +1228,9 @@ void ChatPage::on_send_btn_clicked()
             textArray.append(obj);
 
             //根据是否是群聊选择消息类型
+            QString currentTimeTxt = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
             auto txt_msg = std::make_shared<TextChatData>(uuidString, thread_id, form_type,
-                ChatMsgType::TEXT, content, user_info->_uid, 0);
+                ChatMsgType::TEXT, content, user_info->_uid, 0, currentTimeTxt);
             //将未回复的消息加入到未回复列表中，以便后续处理
             _chat_data->AppendUnRspMsg(uuidString, txt_msg);
         }
@@ -1244,8 +1257,9 @@ void ChatPage::on_send_btn_clicked()
             pic_bubble->setMsgInfo(msgList[i]);
             pBubble = pic_bubble;
             //需要组织成文件发送，具体参考头像上传
+            QString currentTimeImg = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
             auto img_msg = std::make_shared<ImgChatData>(msgList[i],uuidString, thread_id, form_type,
-                    ChatMsgType::PIC, user_info->_uid, 0);
+                    ChatMsgType::PIC, user_info->_uid, 0, currentTimeImg);
             //将未回复的消息加入到未回复列表中，以便后续处理
             _chat_data->AppendUnRspMsg(uuidString, img_msg);
             textObj["fromuid"] = user_info->_uid;
@@ -1299,8 +1313,9 @@ void ChatPage::on_send_btn_clicked()
             file_bubble->setMsgInfo(msgList[i]);
             pBubble = file_bubble;
 
+            QString currentTimeFile = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
             auto file_msg = std::make_shared<FileChatData>(msgList[i], uuidString, thread_id, form_type,
-                    ChatMsgType::FILE, user_info->_uid, 0);
+                    ChatMsgType::FILE, user_info->_uid, 0, currentTimeFile);
             _chat_data->AppendUnRspMsg(uuidString, file_msg);
 
             textObj["fromuid"] = user_info->_uid;

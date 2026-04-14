@@ -709,8 +709,41 @@ void ChatDialog::UpdateChatListItem(int thread_id)
 
     // 更新最后一条消息显示
     chat_wid->UpdateLastMsg(chat_data->GetLastMsg());
+    // 更新时间显示
+    chat_wid->SetLastMsgTime(chat_data->GetLastMsgTime());
     // 更新未读计数角标
     chat_wid->UpdateUnreadCount(chat_data->GetUnreadCount());
+}
+
+/**
+ * @brief 将指定 thread_id 对应的聊天项移到列表顶部
+ *
+ * ★ 使用 QAbstractItemModel::moveRow() 在模型层面移动整行，
+ *   widget 自动跟随移动，不需要 takeItem/setItemWidget 等危险操作。
+ *   这是 Qt 5.10+ 官方推荐的安全移动方式。
+ */
+void ChatDialog::MoveChatItemToTop(int thread_id)
+{
+    auto find_iter = _chat_thread_items.find(thread_id);
+    if (find_iter == _chat_thread_items.end()) {
+        return;
+    }
+
+    QListWidgetItem* item = find_iter.value();
+
+    int currentRow = ui->chat_user_list->row(item);
+    if (currentRow <= 0) {
+        return;  // 已在顶部
+    }
+
+    // ★ 核心：用 model 层的 moveRow 直接移动整行
+    //   - 不触碰 widget 生命周期 → 不会消失
+    //   - 不触发 setParent → 不会死锁
+    //   - widget 自动跟随 item 移动 → 安全可靠
+    QAbstractItemModel* model = ui->chat_user_list->model();
+    model->moveRow(QModelIndex(), currentRow, QModelIndex(), 0);
+
+    qDebug() << "[ChatDialog] Moved thread" << thread_id << "from row" << currentRow << "to top (via moveRow)";
 }
 
 void ChatDialog::UpdateChatMsg(std::vector<std::shared_ptr<TextChatData> > msgdata)
@@ -1447,6 +1480,8 @@ void ChatDialog::slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> m
         auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
         //将该对方发来的消息加到会话列表中
         thread_data->AddMsg(msg);
+        // 更新时间
+        thread_data->SetLastMsgTime(msg->GetCreateTime());
         //若当前打开的会话不是该thread_id，增加未读计数
         if (_cur_chat_thread_id != thread_id) {
             thread_data->IncrementUnreadCount();
@@ -1454,8 +1489,9 @@ void ChatDialog::slot_text_chat_msg(std::vector<std::shared_ptr<TextChatData>> m
             // 当前打开的页面直接追加显示
             ui->chat_page->AppendChatMsg(msg);
         }
-        // 更新聊天列表中的显示（最后一条消息 + 未读角标）
+        // 更新聊天列表中的显示（最后一条消息 + 未读角标）+ 排序到顶部
         UpdateChatListItem(thread_id);
+        MoveChatItemToTop(thread_id);
     }
 }
 
@@ -1465,13 +1501,16 @@ void ChatDialog::slot_img_chat_msg(std::shared_ptr<ImgChatData> imgchat)
     auto thread_id = imgchat->GetThreadId();
     auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
     thread_data->AddMsg(imgchat);
+    // 更新时间
+    thread_data->SetLastMsgTime(imgchat->GetCreateTime());
     if (_cur_chat_thread_id != thread_id) {
         thread_data->IncrementUnreadCount();
     } else {
         ui->chat_page->AppendOtherMsg(imgchat);
     }
-    // 更新聊天列表中的显示
+    // 更新聊天列表中的显示 + 排序到顶部
     UpdateChatListItem(thread_id);
+    MoveChatItemToTop(thread_id);
 }
 
 void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
@@ -1480,13 +1519,16 @@ void ChatDialog::slot_file_chat_msg(std::shared_ptr<FileChatData> file_chat)
     auto thread_id = file_chat->GetThreadId();
     auto thread_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
     thread_data->AddMsg(file_chat);
+    // 更新时间
+    thread_data->SetLastMsgTime(file_chat->GetCreateTime());
     if (_cur_chat_thread_id != thread_id) {
         thread_data->IncrementUnreadCount();
     } else {
         ui->chat_page->AppendOtherMsg(file_chat);
     }
-    // 更新聊天列表中的显示
+    // 更新聊天列表中的显示 + 排序到顶部
     UpdateChatListItem(thread_id);
+    MoveChatItemToTop(thread_id);
 }
 
 void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
@@ -1516,6 +1558,11 @@ void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
                 if (!cti->_group_name.isEmpty()) {
                     group_data->SetGroupName(cti->_group_name);
                 }
+            }
+
+            // 设置最后消息时间
+            if (!cti->_last_msg_time.isEmpty()) {
+                group_data->SetLastMsgTime(cti->_last_msg_time);
             }
 
             //创建聊天列表项
@@ -1549,6 +1596,10 @@ void ChatDialog::slot_load_chat_thread(bool load_more,int last_thread_id,
         }
 
         auto chat_thread_data = std::make_shared<ChatThreadData>(other_uid, cti->_thread_id, 0);
+        // 设置最后消息时间
+        if (!cti->_last_msg_time.isEmpty()) {
+            chat_thread_data->SetLastMsgTime(cti->_last_msg_time);
+        }
         UserMgr::GetInstance()->AddChatThreadData(chat_thread_data, other_uid);
 
         auto* chat_user_wid = new ChatUserWid();
@@ -1678,6 +1729,13 @@ void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_mo
     // 更新聊天列表项的 UI（最后消息 + 未读角标）
     UpdateChatListItem(_cur_load_chat->GetThreadId());
 
+    // 注意：此处不调用 MoveChatItemToTop！
+    // 原因：
+    //   1. 服务器 GetUserThreads 已按 last_msg_time 降序返回，初始顺序正确
+    //   2. 加载历史消息只更新 time_lb 的显示文字，不会改变各聊天的先后关系
+    //   3. 每页加载完都排序会导致列表反复跳动，体验差
+    // 排序只在用户收发实时消息时触发（通过其他回调路径）
+
     //还有未加载完的消息，就继续加载
     if(load_more){
         //发送请求给服务器
@@ -1726,14 +1784,17 @@ void ChatDialog::slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<Te
     //将消息放入数据中管理
     for (auto& msg : msglists) {
         chat_data->MoveMsg(msg);
+        // 更新最后消息时间
+        chat_data->SetLastMsgTime(msg->GetCreateTime());
         if (_cur_chat_thread_id != thread_id) {
             continue;
         }
         //更新聊天界面信息
         ui->chat_page->UpdateChatStatus(msg);
     }
-    // 更新聊天列表中的最后一条消息显示（自己发的也要更新）
+    // 更新聊天列表中的最后一条消息显示 + 排序到顶部
     UpdateChatListItem(thread_id);
+    MoveChatItemToTop(thread_id);
 }
 
 void ChatDialog::slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> img_msg)
@@ -1744,17 +1805,21 @@ void ChatDialog::slot_add_img_msg(int thread_id, std::shared_ptr<ImgChatData> im
     }
 
     chat_data->MoveMsg(img_msg);
+    // 更新最后消息时间
+    chat_data->SetLastMsgTime(img_msg->GetCreateTime());
 
     if (_cur_chat_thread_id != thread_id) {
-        // 更新聊天列表显示
+        // 更新聊天列表显示 + 排序到顶部
         UpdateChatListItem(thread_id);
+        MoveChatItemToTop(thread_id);
         return;
     }
 
     //更新聊天界面信息
     ui->chat_page->UpdateImgChatStatus(img_msg);
-    // 更新聊天列表中的最后一条消息显示
+    // 更新聊天列表中的最后一条消息显示 + 排序到顶部
     UpdateChatListItem(thread_id);
+    MoveChatItemToTop(thread_id);
 }
 
 void ChatDialog::slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> file_msg)
@@ -1765,16 +1830,20 @@ void ChatDialog::slot_add_file_msg(int thread_id, std::shared_ptr<FileChatData> 
     }
 
     chat_data->MoveMsg(file_msg);
+    // 更新最后消息时间
+    chat_data->SetLastMsgTime(file_msg->GetCreateTime());
 
     if (_cur_chat_thread_id != thread_id) {
         UpdateChatListItem(thread_id);
+        MoveChatItemToTop(thread_id);
         return;
     }
 
     //更新聊天界面信息
     ui->chat_page->UpdateChatStatus(file_msg);
-    // 更新聊天列表中的最后一条消息显示
+    // 更新聊天列表中的最后一条消息显示 + 排序到顶部
     UpdateChatListItem(thread_id);
+    MoveChatItemToTop(thread_id);
 }
 
 void ChatDialog::slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info)

@@ -155,6 +155,7 @@ public:
     int GetStatus() { return _status; }
     void SetMsgId(int msg_id) { _msg_id = msg_id; }
     void SetStatus(int status) { _status = status; }
+    QString GetCreateTime() { return _chat_time; }
 
     virtual ~ChatDataBase() {}  // 添加虚析构函数
 
@@ -247,6 +248,7 @@ struct ChatThreadInfo{
     int _user1_id;
     int _user2_id;
     QString _group_name;  // 群聊名称，私聊时为空
+    QString _last_msg_time;  // 最后一条消息的时间
 };
 Q_DECLARE_METATYPE(std::vector<std::shared_ptr<ChatThreadInfo>>)
 
@@ -314,6 +316,9 @@ public:
     QMap<QString, std::shared_ptr<ChatDataBase>>& GetMsgUnRspRef();
     void AppendUnRspMsg(QString unique_id, std::shared_ptr<ChatDataBase> base_msg);
     std::shared_ptr<ChatDataBase> GetChatDataBase(int msg_id);
+    // 最后消息时间
+    QString GetLastMsgTime() const { return _last_msg_time; }
+    void SetLastMsgTime(const QString& time) { _last_msg_time = time; }
 
 private:
     //如果是私聊，则为对方的id；如果是群聊，则为0
@@ -339,6 +344,8 @@ private:
     int _member_count = 0;
     //群公告
     QString _notice;
+    // 最后消息时间
+    QString _last_msg_time;
     //缓存消息map，抽象为基类，因为会有图片等其他类型消息
     QMap<int, std::shared_ptr<ChatDataBase>>  _msg_map;
     //缓存未回复的消息（已发送，但还未收到服务器回应的消息）

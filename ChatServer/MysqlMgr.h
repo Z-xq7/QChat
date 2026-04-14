@@ -42,7 +42,7 @@ public:
 	// 获取用户所有私聊会话的未读消息数
 	bool GetUnreadCounts(int user_id, std::vector<std::pair<int, int>>& unread_counts);
 	// 标记指定会话的消息为已读
-	bool MarkMsgRead(int thread_id, int reader_uid);
+	bool MarkMsgRead(int thread_id, int reader_uid, std::string update_time);
 	bool GetPrivateChatPeer(int thread_id, int self_uid, int& peer_uid);
 
 private:
