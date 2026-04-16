@@ -101,6 +101,8 @@ signals:
     void sig_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天界面chatpage的聊天对话消息
     void sig_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
+    // 滚动到顶部时请求更早的历史消息（反向分页）
+    void sig_load_chat_history(int thread_id, int first_message_id, bool has_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
     //发送文本消息后服务器回传接收到消息的信号后的通知
     void sig_chat_msg_rsp(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
     //发送图片消息后服务器回传接收到消息的信号后的通知

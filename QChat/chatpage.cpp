@@ -34,11 +34,12 @@
 #include <QScreen>
 #include <QLineEdit>
 #include "groupnoticedlg.h"
-
 #include "filebubble.h"
 #include "fileconfirmdlg.h"
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <limits>
+#include <QScrollBar>
 
 ChatPage::ChatPage(QWidget *parent)
     : QWidget(parent)
@@ -113,6 +114,15 @@ ChatPage::ChatPage(QWidget *parent)
     // 连接批量状态更新信号，刷新当前聊天页面的在线状态
     connect(UserMgr::GetInstance().get(), &UserMgr::sig_friend_online_status_batch, this, [this](){
         slot_friend_status_changed(_chat_data ? _chat_data->GetOtherId() : 0, true);
+    });
+
+    // 连接滚动条信号：滚动到顶部时触发历史消息加载
+    connect(ui->chat_data_list->scrollArea()->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, [this](int value) {
+        // 滚动到顶端附近（距离 top 50px 以内）触发加载
+        if (value <= ui->chat_data_list->scrollArea()->verticalScrollBar()->minimum() + 50) {
+            slot_load_more_history();
+        }
     });
 
     // 初始化侧边栏
@@ -263,12 +273,40 @@ ChatPage::~ChatPage()
 
 void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     _chat_data = chat_data;
-    
-    // 清空聊天列表
+
+    // 如果已加载过历史（m_history_loaded=true），从 _msg_map 重建列表
+    // _msg_map 包含初始消息(ASC) + 历史消息(DESC)
+    // 排序后：历史最新在顶部，初始消息在底部（正确的视觉顺序）
+    if (m_history_loaded) {
+        _base_item_map.clear();
+        _unrsp_item_map.clear();
+        ui->chat_data_list->removeAllItem();
+
+        auto& msg_map = _chat_data->GetMsgMapRef();
+        std::vector<std::shared_ptr<ChatDataBase>> sorted_msgs;
+        for (auto& msg : msg_map) sorted_msgs.push_back(msg);
+        std::sort(sorted_msgs.begin(), sorted_msgs.end(),
+                  [](auto& a, auto& b) { return a->GetMsgId() < b->GetMsgId(); });
+
+        const int INITIAL_RENDER_COUNT = 20;
+        int startIdx = 0;
+        if ((int)sorted_msgs.size() > INITIAL_RENDER_COUNT) {
+            startIdx = sorted_msgs.size() - INITIAL_RENDER_COUNT;
+        }
+
+        ui->chat_data_list->beginBatchAppend();
+        for (int i = startIdx; i < (int)sorted_msgs.size(); ++i) {
+            AppendChatMsg(sorted_msgs[i], true);
+        }
+        ui->chat_data_list->endBatchAppend(true);
+        return;
+    }
+
+    // 切换到新聊天：清空并重建
     ui->chat_data_list->removeAllItem();
     _unrsp_item_map.clear();
     _base_item_map.clear();
-    
+
     // 判断是否是群聊
     if(_chat_data->IsGroup()) {
         //群聊
@@ -320,15 +358,43 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
                       return a->GetMsgId() < b->GetMsgId();
                   });
         
-        // 按排序后的顺序添加消息
-        for(auto& msg : sorted_msgs) {
-            AppendChatMsg(msg, true);
+        // ── 虚拟滚动：只渲染最近 20 条，其余等滚动到顶再加载 ──
+        const int INITIAL_RENDER_COUNT = 20;
+        int startIdx = 0;
+        if (sorted_msgs.size() > INITIAL_RENDER_COUNT) {
+            startIdx = sorted_msgs.size() - INITIAL_RENDER_COUNT;
+            _chat_data->SetHasMoreHistory(true);                  // map 中还有更早消息
+            m_oldest_rendered_msg_id = sorted_msgs[startIdx]->GetMsgId();
+        }
+
+    // 如果已经加载过历史消息（m_history_loaded=true），直接返回
+    // 因为 slot_load_more_history_rsp 已经通过 PrependChatMsg 渲染了历史消息
+    // SetChatData 重建列表会丢失这些已渲染的历史
+    if (m_history_loaded) {
+        // 仍然需要将 _msg_map 中新增的消息渲染到 UI（仅追加，不清空）
+        // 注意：此时 _base_item_map 已被清空，但 _msg_map 包含所有消息
+        // 因为 _msg_map 中历史消息是 DESC 存储，排序后 H_newest 在顶部
+        // 这与 PrependChatMsg 的视觉效果一致（newest 在上）
+        ui->chat_data_list->beginBatchAppend();
+        for (auto& msg : sorted_msgs) {
+            if (!_base_item_map.contains(msg->GetMsgId())) {
+                AppendChatMsg(msg, true);
+            }
+        }
+        ui->chat_data_list->endBatchAppend(true);
+        return;
+    }
+
+        ui->chat_data_list->beginBatchAppend();
+        for (int i = startIdx; i < sorted_msgs.size(); ++i) {
+            AppendChatMsg(sorted_msgs[i], true);
         }
 
         // 添加未响应的消息
         for(auto& msg : chat_data->GetMsgUnRspRef()){
             AppendChatMsg(msg, false);
         }
+        ui->chat_data_list->endBatchAppend(true);
         return;
     }
 
@@ -364,28 +430,38 @@ void ChatPage::SetChatData(std::shared_ptr<ChatThreadData> chat_data) {
     
     // （已修改）加载缓存的聊天信息 - 先将消息按 msg_id 排序
     auto msg_map = chat_data->GetMsgMapRef();
-    
+
     // 创建一个向量来存储消息，并按 msg_id 排序
     std::vector<std::shared_ptr<ChatDataBase>> sorted_msgs;
     for(auto& msg : msg_map) {
         sorted_msgs.push_back(msg);
     }
-    
+
     // 按 msg_id 排序
-    std::sort(sorted_msgs.begin(), sorted_msgs.end(), 
+    std::sort(sorted_msgs.begin(), sorted_msgs.end(),
               [](const std::shared_ptr<ChatDataBase>& a, const std::shared_ptr<ChatDataBase>& b) {
                   return a->GetMsgId() < b->GetMsgId();
               });
-    
-    // 按排序后的顺序添加消息
-    for(auto& msg : sorted_msgs) {
-        AppendChatMsg(msg, true);
+
+    // ── 虚拟滚动：只渲染最近 20 条，其余等滚动到顶再加载 ──
+    const int INITIAL_RENDER_COUNT = 20;
+    int startIdx = 0;
+    if (sorted_msgs.size() > INITIAL_RENDER_COUNT) {
+        startIdx = sorted_msgs.size() - INITIAL_RENDER_COUNT;
+        _chat_data->SetHasMoreHistory(true);                  // map 中还有更早消息
+        m_oldest_rendered_msg_id = sorted_msgs[startIdx]->GetMsgId();
+    }
+
+    ui->chat_data_list->beginBatchAppend();
+    for (int i = startIdx; i < sorted_msgs.size(); ++i) {
+        AppendChatMsg(sorted_msgs[i], true);
     }
 
     // 添加未响应的消息（这些通常是用户自己发送的未确认消息）
     for(auto& msg : chat_data->GetMsgUnRspRef()){
         AppendChatMsg(msg, false);
     }
+    ui->chat_data_list->endBatchAppend(true);
 }
 
 void ChatPage::LoadHeadIcon(QString avatarPath, QLabel *icon_label, QString file_name, QString req_type)
@@ -1573,4 +1649,171 @@ void ChatPage::on_emoji_selected(const QString& emoji)
     if (emoji.isEmpty()) return;
     ui->chatEdit->insertPlainText(emoji);
     ui->chatEdit->setFocus();
+}
+
+void ChatPage::slot_load_more_history()
+{
+    // 没有聊天数据、没有更多历史，或者正在加载中时，直接返回
+    if (!_chat_data) return;
+    if (!_chat_data->HasMoreHistory()) return;
+    if (m_loading_history) return;
+
+    m_loading_history = true;
+
+    // 找到当前已渲染的最旧 msg_id
+    // _base_item_map key 是 msg_id（qint64），取最小值即为最旧
+    if (_base_item_map.isEmpty()) {
+        m_loading_history = false;
+        return;
+    }
+
+    // QHash 无序，需要遍历找最小 key
+    qint64 oldest_id = std::numeric_limits<qint64>::max();
+    for (auto it = _base_item_map.cbegin(); it != _base_item_map.cend(); ++it) {
+        if (it.key() < oldest_id) {
+            oldest_id = it.key();
+        }
+    }
+
+    qDebug() << "[ChatPage]: slot_load_more_history - thread_id=" << _chat_data->GetThreadId()
+             << "oldest_rendered_msg_id=" << oldest_id;
+
+    // 发出信号，让 ChatDialog 负责发 TCP 请求
+    emit sig_request_load_history(_chat_data->GetThreadId(), static_cast<int>(oldest_id));
+}
+
+void ChatPage::slot_load_more_history_rsp(int thread_id, bool has_more,
+                                           std::vector<std::shared_ptr<ChatDataBase>> chat_datas)
+{
+    // 释放加载锁
+    m_loading_history = false;
+
+    // 标记已加载过历史，防止 SetChatData 重建列表时丢失已头插的消息
+    m_history_loaded = true;
+
+    // 验证 thread_id 是否仍是当前显示的聊天
+    if (!_chat_data || _chat_data->GetThreadId() != thread_id) {
+        return;
+    }
+
+    if (chat_datas.empty()) {
+        return;
+    }
+
+    // 按 msg_id 升序排列（服务端已排序，但以防万一）
+    std::sort(chat_datas.begin(), chat_datas.end(),
+              [](const std::shared_ptr<ChatDataBase>& a, const std::shared_ptr<ChatDataBase>& b) {
+                  return a->GetMsgId() < b->GetMsgId();
+              });
+
+    // 批量头插：先暂停 repaint，锁定滚动位置
+    // 注意：PrependChatMsg 插入到位置 0，所以需要反向迭代
+    // 这样 oldest 消息最终在底部，newest 在顶部
+    ui->chat_data_list->beginBatchPrepend();
+    for (auto it = chat_datas.rbegin(); it != chat_datas.rend(); ++it) {
+        // 已经在 _base_item_map 中的消息不重复渲染
+        if (_base_item_map.contains((*it)->GetMsgId())) {
+            continue;
+        }
+        PrependChatMsg(*it);
+    }
+    ui->chat_data_list->endBatchPrepend();
+
+    qDebug() << "[ChatPage]: slot_load_more_history_rsp - prepended" << chat_datas.size()
+             << "msgs, has_more=" << has_more;
+}
+
+void ChatPage::PrependChatMsg(std::shared_ptr<ChatDataBase> msg)
+{
+    auto self_info = UserMgr::GetInstance()->GetUserInfo();
+    ChatRole role = (msg->GetSendUid() == self_info->_uid) ? ChatRole::Self : ChatRole::Other;
+
+    ChatItemBase* pChatItem = new ChatItemBase(role);
+
+    if (role == ChatRole::Self) {
+        pChatItem->setUserName(self_info->_name);
+        if (_chat_data && _chat_data->IsGroup()) {
+            pChatItem->showUserName(true);
+        }
+        SetChatIcon(pChatItem, self_info->_uid, self_info->_icon, "self_icon");
+    } else {
+        int sender_uid = msg->GetSendUid();
+        QString sender_name;
+        QString sender_icon;
+
+        if (_chat_data && _chat_data->IsGroup()) {
+            auto members = _chat_data->GetGroupMembers();
+            bool found = false;
+            for (const auto& member : members) {
+                if (member->_uid == sender_uid) {
+                    sender_name = member->_name;
+                    sender_icon = member->_icon;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                auto friend_info = UserMgr::GetInstance()->GetFriendById(sender_uid);
+                if (friend_info) {
+                    sender_name = friend_info->_name;
+                    sender_icon = friend_info->_icon;
+                } else {
+                    sender_name = QString("用户%1").arg(sender_uid);
+                }
+            }
+        } else {
+            auto friend_info = UserMgr::GetInstance()->GetFriendById(sender_uid);
+            if (!friend_info) {
+                delete pChatItem;
+                return;
+            }
+            sender_name = friend_info->_name;
+            sender_icon = friend_info->_icon;
+        }
+
+        pChatItem->setUserName(sender_name);
+        if (_chat_data && _chat_data->IsGroup()) {
+            pChatItem->showUserName(true);
+        }
+        SetChatIcon(pChatItem, msg->GetSendUid(), sender_icon, "other_icon");
+    }
+
+    QWidget* pBubble = nullptr;
+    if (msg->GetMsgType() == ChatMsgType::TEXT) {
+        pBubble = new TextBubble(role, msg->GetMsgContent());
+    } else if (msg->GetMsgType() == ChatMsgType::PIC) {
+        auto img_msg = std::dynamic_pointer_cast<ImgChatData>(msg);
+        auto pic_bubble = new PictureBubble(img_msg->_msg_info->_preview_pix, role, img_msg->_msg_info->_total_size);
+        pic_bubble->setMsgInfo(img_msg->_msg_info);
+        pBubble = pic_bubble;
+        connect(pic_bubble, &PictureBubble::pauseRequested,  this, &ChatPage::on_clicked_paused);
+        connect(pic_bubble, &PictureBubble::resumeRequested, this, &ChatPage::on_clicked_resume);
+        connect(pic_bubble, &PictureBubble::viewRequested,   this, &ChatPage::on_view_picture);
+    } else if (msg->GetMsgType() == ChatMsgType::FILE) {
+        auto file_msg = std::dynamic_pointer_cast<FileChatData>(msg);
+        auto file_bubble = new FileBubble(role, file_msg->_msg_info->_text_or_url, file_msg->_msg_info->_total_size);
+        file_bubble->setMsgInfo(file_msg->_msg_info);
+        pBubble = file_bubble;
+        connect(file_bubble, &FileBubble::pauseRequested,  this, &ChatPage::on_clicked_paused);
+        connect(file_bubble, &FileBubble::resumeRequested, this, &ChatPage::on_clicked_resume);
+    }
+
+    if (!pBubble) {
+        delete pChatItem;
+        return;
+    }
+
+    connect(dynamic_cast<BubbleFrame*>(pBubble), &BubbleFrame::sig_delete_msg,
+            this, [this, pChatItem, msg]() {
+        ui->chat_data_list->layout()->removeWidget(pChatItem);
+        pChatItem->deleteLater();
+        _base_item_map.remove(msg->GetMsgId());
+    });
+
+    pChatItem->setWidget(pBubble);
+    pChatItem->setStatus(msg->GetStatus());
+
+    // 头插到 layout 顶部
+    ui->chat_data_list->prependChatItem(pChatItem);
+    _base_item_map[msg->GetMsgId()] = pChatItem;
 }

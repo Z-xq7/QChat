@@ -265,6 +265,9 @@ ChatDialog::ChatDialog(QWidget *parent)
     //连接加载聊天页面chatpage聊天对话消息
     connect(TcpMgr::GetInstance().get(),&TcpMgr::sig_load_chat_msg,this,&ChatDialog::slot_load_chat_msg);
 
+    // 连接滚动到顶部加载历史消息的响应
+    connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_load_chat_history, this, &ChatDialog::slot_load_chat_history);
+
     //连接发送消息后服务器回传接收到消息的信号后的通知
     connect(TcpMgr::GetInstance().get(),&TcpMgr::sig_chat_msg_rsp,this,&ChatDialog::slot_add_chat_msg);
 
@@ -335,6 +338,14 @@ ChatDialog::ChatDialog(QWidget *parent)
     // 消息已读通知 -> 如果当前正在查看该会话，通知 chatpage 刷新气泡状态
     connect(this, &ChatDialog::sig_notify_msg_read_for_page,
             ui->chat_page, &ChatPage::slot_notify_msg_read);
+
+    // 历史消息（头插）通知 -> 通知 chatpage 头部插入这批更早的消息
+    connect(this, &ChatDialog::sig_prepend_chat_msg,
+            ui->chat_page, &ChatPage::slot_load_more_history_rsp);
+
+    // ChatPage 请求加载历史 -> ChatDialog 负责发 TCP 请求
+    connect(ui->chat_page, &ChatPage::sig_request_load_history,
+            this, &ChatDialog::slot_request_load_history);
 
     // 连接群公告更新信号到 UserMgr，保持内存数据同步
     connect(TcpMgr::GetInstance().get(), &TcpMgr::sig_update_group_notice,
@@ -544,6 +555,9 @@ void ChatDialog::SetSelectChatItem(int thread_id)
 
 void ChatDialog::SetSelectChatPage(int thread_id)
 {
+    // 切换聊天时重置 ChatPage 的历史加载标志
+    ui->chat_page->m_history_loaded = false;
+
     //没有好友则什么都不做
     if( ui->chat_user_list->count() <= 0){
         return;
@@ -1421,6 +1435,7 @@ void ChatDialog::slot_item_clicked(QListWidgetItem *item)
         }
 
         //跳转到聊天界面（ChatPage已支持群聊和私聊）
+        ui->chat_page->m_history_loaded = false;  // 切换聊天时重置
         ui->chat_page->SetChatData(chat_data);
         ui->stackedWidget->setCurrentWidget(ui->chat_page);
         _cur_chat_thread_id = chat_data->GetThreadId();
@@ -1710,18 +1725,47 @@ void ChatDialog::slot_create_private_chat(int uid, int other_id, int thread_id)
 void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more,
                 std::vector<std::shared_ptr<ChatDataBase> > chat_datas)
 {
+    // ── 路径 A：用户手动滚动触发的历史加载（_cur_load_chat 为空，登录后链式加载已结束）──
+    if (!_cur_load_chat) {
+        if (thread_id != _cur_chat_thread_id) {
+            // 不是当前显示的聊天，忽略
+            qWarning() << "[ChatDialog]: slot_load_chat_msg(prepend) thread_id mismatch, cur="
+                       << _cur_chat_thread_id << ", got=" << thread_id;
+            return;
+        }
+
+        auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+        if (!chat_data) return;
+
+        // 更新 has_more 标志（服务端返回 false 表示已无更早消息）
+        chat_data->SetHasMoreHistory(load_more);
+
+        // 把新取到的更早消息写入内存 map
+        for (auto& chat_msg : chat_datas) {
+            chat_data->AppendMsg(chat_msg->GetMsgId(), chat_msg);
+        }
+
+        // 通知 ChatPage 头插这批消息，并告知是否还有更多
+        emit sig_prepend_chat_msg(thread_id, load_more, chat_datas);
+        return;
+    }
+
+    // ── 路径 B：登录时初始链式加载 ──────────────────────────────────────────────────────
     // 安全检查：确保服务端返回的 thread_id 与当前请求的匹配
-    if (!_cur_load_chat || _cur_load_chat->GetThreadId() != thread_id) {
-        // thread_id 不匹配，可能是乱序响应，跳过
+    if (_cur_load_chat->GetThreadId() != thread_id) {
         qWarning() << "[ChatDialog]: slot_load_chat_msg thread_id mismatch, expected="
-                   << (_cur_load_chat ? _cur_load_chat->GetThreadId() : -1)
+                   << _cur_load_chat->GetThreadId()
                    << ", got=" << thread_id;
         return;
     }
 
     //设置最后的msg_id到内存，后续会加到本地数据库
     _cur_load_chat->SetLastMsgId(last_msg_id);
-    //加载聊天信息
+    // 同步更新"是否还有更早历史"标志
+    _cur_load_chat->SetHasMoreHistory(load_more);
+    // 服务器返回 DESC（最新在前），直接存入 _msg_map
+    // SetChatData 渲染时按 msg_id 排序，顺序正确
+    // PrependChatMsg 插入位置 0，forward 迭代会把 DESC 变成正确顺序
     for(auto& chat_msg : chat_datas){
         _cur_load_chat->AppendMsg(chat_msg->GetMsgId(),chat_msg);
     }
@@ -1736,20 +1780,9 @@ void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_mo
     //   3. 每页加载完都排序会导致列表反复跳动，体验差
     // 排序只在用户收发实时消息时触发（通过其他回调路径）
 
-    //还有未加载完的消息，就继续加载
-    if(load_more){
-        //发送请求给服务器
-        QJsonObject jsonObj;
-        jsonObj["thread_id"] = _cur_load_chat->GetThreadId();
-        jsonObj["message_id"] = _cur_load_chat->GetLastMsgId();
-
-        QJsonDocument doc(jsonObj);
-        QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
-
-        //发送tcp请求给chatserver
-        emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_LOAD_CHAT_MSG_REQ,jsonData);
-        return;
-    }
+    // 注意：不再链式加载全部历史消息！
+    // 服务器返回最新消息（DESC 排序），渲染最近 20 条即可
+    // 滚动到顶部时用 ID_LOAD_CHAT_HISTORY_REQ 单独请求更早消息
 
     //获取下一个chat_thread
     _cur_load_chat = UserMgr::GetInstance()->GetNextLoadData();
@@ -1773,6 +1806,40 @@ void ChatDialog::slot_load_chat_msg(int thread_id, int last_msg_id, bool load_mo
 
     //发送tcp请求给chatserver
     emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_LOAD_CHAT_MSG_REQ,jsonData);
+}
+
+void ChatDialog::slot_load_chat_history(int thread_id, int first_message_id, bool has_more,
+                                        std::vector<std::shared_ptr<ChatDataBase>> chat_datas)
+{
+    // 验证 thread_id 是否仍是当前显示的聊天
+    if (thread_id != _cur_chat_thread_id) {
+        qDebug() << "[ChatDialog]: slot_load_chat_history thread_id mismatch, cur="
+                 << _cur_chat_thread_id << ", got=" << thread_id;
+        return;
+    }
+
+    auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+    if (!chat_data) return;
+
+    if (chat_datas.empty()) {
+        chat_data->SetHasMoreHistory(false);
+        return;
+    }
+
+    // 更新"是否还有更早历史"标志
+    chat_data->SetHasMoreHistory(has_more);
+
+    // 服务器返回 DESC（最新在前），直接存入 _msg_map
+    // slot_load_more_history_rsp 中反向迭代 PrependChatMsg 会把顺序变正确
+    for (auto& chat_msg : chat_datas) {
+        chat_data->AppendMsg(chat_msg->GetMsgId(), chat_msg);
+    }
+
+    // 通知 ChatPage 头插这批历史消息（ChatPage 会检查 _base_item_map 避免重复渲染）
+    emit sig_prepend_chat_msg(thread_id, has_more, chat_datas);
+
+    qDebug() << "[ChatDialog]: slot_load_chat_history - thread_id=" << thread_id
+             << ", loaded=" << chat_datas.size() << ", has_more=" << has_more;
 }
 
 void ChatDialog::slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData> > msglists)
@@ -1957,6 +2024,39 @@ void ChatDialog::slot_group_chat_created(int thread_id, const QString& group_nam
     //选中新创建的群聊
     SetSelectChatItem(thread_id);
     SetSelectChatPage(thread_id);
+}
+
+void ChatDialog::slot_request_load_history(int thread_id, int oldest_msg_id)
+{
+    // 验证 thread_id 是否是当前正在显示的聊天
+    if (thread_id != _cur_chat_thread_id) {
+        return;
+    }
+
+    auto chat_data = UserMgr::GetInstance()->GetChatThreadByThreadId(thread_id);
+    if (!chat_data) {
+        return;
+    }
+
+    // 如果没有更多历史，不发请求
+    if (!chat_data->HasMoreHistory()) {
+        qDebug() << "[ChatDialog]: slot_request_load_history - no more history for thread" << thread_id;
+        return;
+    }
+
+    // 以当前已渲染的最旧 msg_id 为游标，向服务器请求更早的消息
+    // 服务器使用 WHERE message_id < cursor ORDER BY message_id DESC
+    QJsonObject jsonObj;
+    jsonObj["thread_id"] = thread_id;
+    jsonObj["cursor"] = oldest_msg_id;
+
+    QJsonDocument doc(jsonObj);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
+
+    qDebug() << "[ChatDialog]: slot_request_load_history - thread_id=" << thread_id
+             << "cursor=" << oldest_msg_id;
+
+    emit TcpMgr::GetInstance()->sig_send_data(ReqId::ID_LOAD_CHAT_HISTORY_REQ, jsonData);
 }
 
 

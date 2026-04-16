@@ -54,6 +54,8 @@ private:
 	void CreatePrivateChat(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//��������������Ϣ���߼���1.�ȴ����ݿ��ȡ������Ϣ��2.��������Ϣ���ظ��ͻ���
 	void LoadChatMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
+	// ���ز���Ϣ����Ϣ��̧��ͷ��ת��ϵͳ
+	void LoadChatHistory(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//��������ͼƬ��Ϣ���߼�
 	void DealChatImgMsg(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data);
 	//���������ļ���Ϣ���߼�

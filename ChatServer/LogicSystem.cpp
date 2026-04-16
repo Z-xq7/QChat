@@ -126,6 +126,9 @@ void LogicSystem::RegisterCallBacks() {
 	_fun_callbacks[ID_LOAD_CHAT_MSG_REQ] = std::bind(&LogicSystem::LoadChatMsg, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
 
+	_fun_callbacks[ID_LOAD_CHAT_HISTORY_REQ] = std::bind(&LogicSystem::LoadChatHistory, this,
+		placeholders::_1, placeholders::_2, placeholders::_3);
+
 	_fun_callbacks[ID_IMG_CHAT_MSG_REQ] = std::bind(&LogicSystem::DealChatImgMsg, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
 
@@ -824,7 +827,7 @@ void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& ms
 		session->Send(return_str, ID_LOAD_CHAT_MSG_RSP);
 		});
 
-	int page_size = 10;
+	int page_size = 20;
 	std::shared_ptr<PageResult> res = MysqlMgr::GetInstance()->LoadChatMsg(thread_id, message_id, page_size);
 	if (!res)
 	{
@@ -851,6 +854,49 @@ void LogicSystem::LoadChatMsg(std::shared_ptr<CSession> session, const short& ms
 		rtvalue["chat_datas"].append(chat_data);
 	}
 	LOG_DEBUG("Load chat messages success - message_count: " << res->messages.size());
+}
+
+void LogicSystem::LoadChatHistory(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
+{
+	Json::Reader reader;
+	Json::Value root;
+	reader.parse(msg_data, root);
+	auto thread_id = root["thread_id"].asInt();
+	auto cursor = root["cursor"].asInt();
+	LOG_INFO("Load chat history - thread_id: " << thread_id << ", cursor: " << cursor);
+
+	Json::Value rtvalue;
+	rtvalue["error"] = ErrorCodes::Success;
+	rtvalue["thread_id"] = thread_id;
+	Defer defer([this, &rtvalue, session]() {
+		std::string return_str = rtvalue.toStyledString();
+		session->Send(return_str, ID_LOAD_CHAT_HISTORY_RSP);
+		});
+
+	int page_size = 20;
+	std::shared_ptr<PageResult> res = MysqlMgr::GetInstance()->LoadChatHistory(thread_id, cursor, page_size);
+	if (!res) {
+		rtvalue["error"] = ErrorCodes::LOAD_CHAT_MSG_FAILED;
+		LOG_ERROR("Load chat history failed - thread_id: " << thread_id);
+		return;
+	}
+
+	rtvalue["first_message_id"] = res->next_cursor;  // 最旧消息的 ID，作为下次分页游标
+	rtvalue["has_more"] = res->load_more;
+	for (auto& msg : res->messages) {
+		Json::Value chat_data;
+		chat_data["sender"] = msg.sender_id;
+		chat_data["msg_id"] = msg.message_id;
+		chat_data["thread_id"] = msg.thread_id;
+		chat_data["unique_id"] = 0;
+		chat_data["msg_content"] = msg.content;
+		chat_data["chat_time"] = msg.chat_time;
+		chat_data["status"] = msg.status;
+		chat_data["msg_type"] = msg.msg_type;
+		chat_data["receiver"] = msg.recv_id;
+		rtvalue["chat_datas"].append(chat_data);
+	}
+	LOG_DEBUG("Load chat history success - message_count: " << res->messages.size());
 }
 
 void LogicSystem::DealChatImgMsg(std::shared_ptr<CSession> session,

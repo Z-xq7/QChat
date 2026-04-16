@@ -114,6 +114,10 @@ enum MSG_IDS {
 	ID_MARK_MSG_READ_REQ = 1092,				// 标记消息已读请求
 	ID_MARK_MSG_READ_RSP = 1093,				// 标记消息已读响应
 	ID_NOTIFY_MSG_READ = 1094,				// 通知发送方消息已读
+
+	// 历史消息加载（反向分页，用于滚动到顶部加载更早消息）
+	ID_LOAD_CHAT_HISTORY_REQ = 1095,		// 加载更早的历史消息请求
+	ID_LOAD_CHAT_HISTORY_RSP = 1096,		// 加载更早的历史消息响应
 };
 
 //��Ϣ״̬

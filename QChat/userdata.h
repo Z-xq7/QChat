@@ -319,6 +319,9 @@ public:
     // 最后消息时间
     QString GetLastMsgTime() const { return _last_msg_time; }
     void SetLastMsgTime(const QString& time) { _last_msg_time = time; }
+    // 是否还有更早的历史消息可以加载（服务端返回 load_more=true 时设为 true）
+    bool HasMoreHistory() const { return _has_more_history; }
+    void SetHasMoreHistory(bool v) { _has_more_history = v; }
 
 private:
     //如果是私聊，则为对方的id；如果是群聊，则为0
@@ -346,6 +349,8 @@ private:
     QString _notice;
     // 最后消息时间
     QString _last_msg_time;
+    // 是否还有更早的历史消息（服务端 load_more=true 时标记）
+    bool _has_more_history = false;
     //缓存消息map，抽象为基类，因为会有图片等其他类型消息
     QMap<int, std::shared_ptr<ChatDataBase>>  _msg_map;
     //缓存未回复的消息（已发送，但还未收到服务器回应的消息）

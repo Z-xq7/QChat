@@ -75,6 +75,11 @@ std::shared_ptr<PageResult> MysqlMgr::LoadChatMsg(int threadId, int lastId, int 
 	return _dao.LoadChatMsg(threadId,lastId,pageSize);
 }
 
+std::shared_ptr<PageResult> MysqlMgr::LoadChatHistory(int threadId, int cursor, int pageSize)
+{
+	return _dao.LoadChatHistory(threadId, cursor, pageSize);
+}
+
 bool MysqlMgr::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
 	return _dao.AddChatMsg(chat_datas);

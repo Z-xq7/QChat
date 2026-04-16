@@ -264,6 +264,8 @@ public:
 		std::vector<std::shared_ptr<ChatThreadInfo>>& threads, bool& loadMore, int& nextLastId);
 	bool CreatePrivateChat(int user1_id, int user2_id, int& thread_id);
 	std::shared_ptr<PageResult> LoadChatMsg(int threadId, int lastId, int pageSize);
+	// 反向分页：加载 message_id < cursor 的更早消息（ORDER BY message_id DESC）
+	std::shared_ptr<PageResult> LoadChatHistory(int threadId, int cursor, int pageSize);
 	bool AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
 	bool AddChatMsg(std::shared_ptr<ChatMessage>& chat_data);
 	std::shared_ptr<ChatMessage> GetChatMsg(int message_id);

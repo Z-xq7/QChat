@@ -64,7 +64,49 @@ void ChatView::appendChatItem(QWidget *item)
 
 void ChatView::prependChatItem(QWidget *item)
 {
+    // 头插：插入到 layout 位置 0（弹性 spacer 始终在末尾）
+    QVBoxLayout *vl = qobject_cast<QVBoxLayout *>(m_pScrollArea->widget()->layout());
+    vl->insertWidget(0, item);
+}
 
+void ChatView::beginBatchAppend()
+{
+    // 暂停 repaint，批量插入结束后再统一刷新
+    m_pScrollArea->widget()->setUpdatesEnabled(false);
+}
+
+void ChatView::endBatchAppend(bool scrollToBottom)
+{
+    m_pScrollArea->widget()->setUpdatesEnabled(true);
+    if (scrollToBottom) {
+        isAppended = true;
+        // 立即触发一次布局刷新
+        m_pScrollArea->widget()->update();
+    }
+}
+
+void ChatView::beginBatchPrepend()
+{
+    // 记录当前滚动条位置和内容高度，用于 prepend 后锁定滚动位置
+    QScrollBar *sb = m_pScrollArea->verticalScrollBar();
+    m_savedScrollValue  = sb->value();
+    m_savedContentHeight = m_pScrollArea->widget()->height();
+    m_pScrollArea->widget()->setUpdatesEnabled(false);
+}
+
+void ChatView::endBatchPrepend()
+{
+    m_pScrollArea->widget()->setUpdatesEnabled(true);
+    m_pScrollArea->widget()->update();
+
+    // 强制布局立即重新计算，以便获取准确的新内容高度
+    m_pScrollArea->widget()->layout()->activate();
+
+    // 补偿头部插入引起的高度差，保持用户当前视角不跳动
+    int newContentHeight = m_pScrollArea->widget()->height();
+    int heightDelta = newContentHeight - m_savedContentHeight;
+    QScrollBar *sb = m_pScrollArea->verticalScrollBar();
+    sb->setValue(m_savedScrollValue + heightDelta);
 }
 
 void ChatView::insertChatItem(QWidget *before, QWidget *item)

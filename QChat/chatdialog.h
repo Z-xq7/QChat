@@ -64,6 +64,9 @@ signals:
     void switch_login(); // 切换到登录界面
     // 消息已读通知，用于转发给 chatpage 更新 UI
     void sig_notify_msg_read_for_page(int thread_id, int reader_uid);
+    // 历史消息加载完成，通知 ChatPage 头部插入（thread_id, oldest_msg_id_before_load, 消息列表）
+    void sig_prepend_chat_msg(int thread_id, bool has_more,
+                              std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -154,6 +157,8 @@ public slots:
     void slot_create_private_chat(int uid, int other_id, int thread_id);
     //加载聊天页面chatpage聊天对话消息
     void slot_load_chat_msg(int thread_id, int last_msg_id, bool load_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
+    // 滚动到顶部时，加载更早的历史消息（反向分页）
+    void slot_load_chat_history(int thread_id, int first_message_id, bool has_more, std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
     //发送消息后服务器回传接收到消息的信号后的通知
     void slot_add_chat_msg(int thread_id, std::vector<std::shared_ptr<TextChatData>> chat_datas);
     //发送图片消息后服务器回传接收到图片消息的信号后的通知
@@ -172,6 +177,8 @@ public slots:
     void slot_file_transfer_failed(std::shared_ptr<MsgInfo> msg_info);
     //群聊创建成功，更新UI
     void slot_group_chat_created(int thread_id, const QString& group_name);
+    // 用户滚动到顶，请求加载更早的历史消息
+    void slot_request_load_history(int thread_id, int oldest_msg_id);
 
 };
 

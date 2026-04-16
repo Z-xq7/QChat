@@ -51,6 +51,15 @@ public:
     void FileTransferFailed(std::shared_ptr<MsgInfo> msg_info);
     // 收到消息已读通知，刷新气泡状态图标
     void slot_notify_msg_read(int thread_id, int reader_uid);
+    // 上拉加载更多历史消息（阶段三：虚拟滚动触发）
+    void slot_load_more_history();
+    // 接收服务端返回的更早历史消息并头插
+    void slot_load_more_history_rsp(int thread_id, bool has_more,
+                                    std::vector<std::shared_ptr<ChatDataBase>> chat_datas);
+
+signals:
+    // 向 ChatDialog 请求加载历史消息（thread_id, oldest_rendered_msg_id）
+    void sig_request_load_history(int thread_id, int oldest_msg_id);
 
 protected:
     //让ChatPage（继承自QWidget的自定义控件）具备样式表渲染能力。
@@ -102,6 +111,8 @@ private:
     void showGroupMemberList(int thread_id);
     // 显示群公告弹窗
     void showGroupNoticeDialog(int thread_id);
+    // 头插一条消息气泡（用于虚拟滚动加载更早历史）
+    void PrependChatMsg(std::shared_ptr<ChatDataBase> msg);
     Ui::ChatPage *ui;
     ChatSidePage* m_sidePage;
     GroupSidePage* m_groupSidePage;
@@ -128,8 +139,14 @@ private:
     // 记录自己正在编辑公告的 thread_id（编辑完成收到 RSP 后不弹窗）
     int m_selfEditingNoticeThreadId;
 
-// signals:
-//     void sig_append_send_chat_msg(std::shared_ptr<TextChatData> msg);
+public:
+    // ── 分页 / 虚拟滚动 ──────────────────────────────────────────
+    // 当前渲染的最旧一条消息 msg_id（0 表示尚未渲染任何消息）
+    // 用于判断"向上滚动时从哪条之前继续加载"
+    qint64 m_oldest_rendered_msg_id = 0;
+    // 是否正在等待服务器返回历史消息（防止重复请求）
+    bool m_loading_history = false;
+    bool m_history_loaded = false;         // 是否已加载过历史消息（用于 SetChatData 判断）
 };
 
 #endif // CHATPAGE_H

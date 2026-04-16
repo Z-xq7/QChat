@@ -18,6 +18,16 @@ public:
     void insertChatItem(QWidget *before, QWidget *item);//中间插
     void removeAllItem();                               //移除所有的聊天信息item
 
+    // 批量 append：包裹多次 appendChatItem，减少 repaint
+    void beginBatchAppend();
+    void endBatchAppend(bool scrollToBottom = true);
+
+    // 批量 prepend：包裹多次 prependChatItem，prepend 后锁定滚动位置不跳动
+    void beginBatchPrepend();
+    void endBatchPrepend();
+
+    QScrollArea* scrollArea() const { return m_pScrollArea; }
+
 protected:
     //事件过滤器，检测鼠标是否进入当前区域，以及滚动条的显示
     bool eventFilter(QObject *o, QEvent *e) override;
@@ -38,6 +48,10 @@ private:
     QScrollArea *m_pScrollArea;
     bool isAppended;
 
+    // 批量 prepend 时保存的滚动状态，用于 endBatchPrepend 后恢复视角
+    int m_savedScrollValue   = 0;
+    int m_savedContentHeight = 0;
 };
 
 #endif // CHATVIEW_H
+

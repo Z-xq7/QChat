@@ -846,22 +846,41 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 		page_res->load_more = false;
 
 		// SQL����ȡһ���������ж��Ƿ��и���
-		const std::string sql = R"(
-        SELECT message_id, thread_id, sender_id, recv_id, content,
-               created_at, updated_at, status, msg_type
-        FROM chat_message
-        WHERE thread_id = ?
-          AND message_id > ?
-        ORDER BY message_id ASC
-        LIMIT ? 
-		)";
+		std::string sql;
+		if (last_message_id == 0) {
+			sql = R"(
+				SELECT message_id, thread_id, sender_id, recv_id, content,
+				       created_at, updated_at, status, msg_type
+				FROM chat_message
+				WHERE thread_id = ?
+				  AND message_id > 0
+				ORDER BY message_id DESC
+				LIMIT ?
+			)";
+		} else {
+			sql = R"(
+				SELECT message_id, thread_id, sender_id, recv_id, content,
+				       created_at, updated_at, status, msg_type
+				FROM chat_message
+				WHERE thread_id = ?
+				  AND message_id < ?
+				ORDER BY message_id DESC
+				LIMIT ?
+			)";
+		}
 		uint32_t fetch_limit = page_size + 1;
 		auto pstmt = std::unique_ptr<sql::PreparedStatement>(
 			conn->prepareStatement(sql)
 		);
 		pstmt->setInt(1, thread_id);
-		pstmt->setInt(2, last_message_id);
-		pstmt->setInt(3, fetch_limit);
+		if (last_message_id != 0) {
+			// History load: WHERE message_id < last_message_id (DESC order)
+			pstmt->setInt(2, last_message_id);
+			pstmt->setInt(3, fetch_limit);
+		} else {
+			// Initial load: no cursor, just limit
+			pstmt->setInt(2, fetch_limit);
+		}
 		auto rs = std::unique_ptr<sql::ResultSet>(pstmt->executeQuery());
 		// ��ȡ fetch_limit ����¼
 		while (rs->next()) {
@@ -890,6 +909,70 @@ std::shared_ptr<PageResult> MysqlDao::LoadChatMsg(int thread_id, int last_messag
 	}
 	catch (sql::SQLException& e) {
 		LOG_ERROR("LoadChatMsg SQLException - error: " << e.what());
+		conn->rollback();
+		return nullptr;
+	}
+	return nullptr;
+}
+
+// 反向分页：加载 message_id < cursor 的更早消息
+std::shared_ptr<PageResult> MysqlDao::LoadChatHistory(int thread_id, int cursor, int page_size)
+{
+	auto con = pool_->getConnection();
+	if (!con) {
+		return nullptr;
+	}
+	Defer defer([this, &con]() {
+		pool_->returnConnection(std::move(con));
+		});
+	auto& conn = con->_con;
+	try {
+		auto page_res = std::make_shared<PageResult>();
+		page_res->load_more = false;
+
+		// 反向分页：WHERE message_id < cursor，ORDER BY message_id DESC
+		const std::string sql = R"(
+        SELECT message_id, thread_id, sender_id, recv_id, content,
+               created_at, updated_at, status, msg_type
+        FROM chat_message
+        WHERE thread_id = ?
+          AND message_id < ?
+        ORDER BY message_id DESC
+        LIMIT ?
+		)";
+		uint32_t fetch_limit = page_size + 1;
+		auto pstmt = std::unique_ptr<sql::PreparedStatement>(
+			conn->prepareStatement(sql)
+		);
+		pstmt->setInt(1, thread_id);
+		pstmt->setInt(2, cursor);
+		pstmt->setInt(3, fetch_limit);
+		auto rs = std::unique_ptr<sql::ResultSet>(pstmt->executeQuery());
+		while (rs->next()) {
+			ChatMessage msg;
+			msg.message_id = rs->getUInt64("message_id");
+			msg.thread_id = rs->getUInt64("thread_id");
+			msg.sender_id = rs->getUInt64("sender_id");
+			msg.recv_id = rs->getUInt64("recv_id");
+			msg.content = rs->getString("content");
+			msg.chat_time = rs->getString("created_at");
+			msg.status = rs->getInt("status");
+			msg.msg_type = rs->getInt("msg_type");
+			page_res->messages.push_back(std::move(msg));
+		}
+		if (page_res->messages.empty()) {
+			return page_res;
+		}
+		if (page_res->messages.size() > page_size) {
+			page_res->messages.pop_back();
+			page_res->load_more = true;
+		}
+		// 返回最旧消息的 ID 作为下一次分页的游标
+		page_res->next_cursor = page_res->messages.back().message_id;
+		return page_res;
+	}
+	catch (sql::SQLException& e) {
+		LOG_ERROR("LoadChatHistory SQLException - error: " << e.what());
 		conn->rollback();
 		return nullptr;
 	}
